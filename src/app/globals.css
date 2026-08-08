@@ -73,3 +73,22 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Dashboard card entrance. Scoped inside the media query so it's a no-op
+   entirely (not just "instant") when the reader prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fade-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-card-enter {
+    animation: fade-slide-up 0.4s ease-out both;
+  }
+}

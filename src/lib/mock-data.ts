@@ -23,6 +23,19 @@ export const mockLoans: Loan[] = [
   },
 ];
 
+// Month-end running balance, derived from mockTransactions (opening balance
+// K0 -> +1200 Feb -> +800 Mar -> flat Apr -> -300 May -> +1500 Jun -> +1800
+// Jul), so the trend ends exactly at mockMember.savingsBalance.
+export const mockSavingsTrend: { month: string; balance: number }[] = [
+  { month: "Feb 2026", balance: 1200 },
+  { month: "Mar 2026", balance: 2000 },
+  { month: "Apr 2026", balance: 2000 },
+  { month: "May 2026", balance: 1700 },
+  { month: "Jun 2026", balance: 3200 },
+  { month: "Jul 2026", balance: 5000 },
+  { month: "Aug 2026", balance: 5000 },
+];
+
 export const mockTransactions: Transaction[] = [
   {
     id: "txn_001",

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PiggyBank, HandCoins, User } from "lucide-react";
+import { LayoutDashboard, PiggyBank, HandCoins, User, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -12,12 +12,19 @@ const navItems = [
   { href: "/dashboard", label: "Profile", icon: User },
 ];
 
-export function BottomNav() {
+export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 z-10 border-t border-neutral-200 bg-white md:hidden">
-      <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
+    <aside className="hidden w-56 shrink-0 border-r border-neutral-200 bg-white md:flex md:flex-col">
+      <Link
+        href="/dashboard"
+        className="flex h-14 items-center gap-2 border-b border-neutral-200 px-5 font-semibold text-primary"
+      >
+        <Wallet className="h-5 w-5" aria-hidden="true" />
+        <span>Prime&apos;s Vault</span>
+      </Link>
+      <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href && label === "Home";
           return (
@@ -25,8 +32,8 @@ export function BottomNav() {
               key={label}
               href={href}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-neutral-500 hover:text-primary",
-                active && "text-primary",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
+                active && "bg-primary-light text-primary-dark hover:bg-primary-light hover:text-primary-dark",
               )}
             >
               <Icon className="h-5 w-5" aria-hidden="true" />
@@ -34,7 +41,7 @@ export function BottomNav() {
             </Link>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </aside>
   );
 }

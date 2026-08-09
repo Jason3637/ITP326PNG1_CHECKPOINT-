@@ -32,12 +32,16 @@ export function SavingsBalanceCard({ balance, trend }: SavingsBalanceCardProps) 
     datasets: [
       {
         data: trend.map((point) => point.balance),
-        borderColor: "#0f766e",
-        backgroundColor: "rgba(15, 118, 110, 0.1)",
+        // Functional "success" color (#166534, same token as approved/positive
+        // elsewhere), not the brand gradient/primary — a savings trend is a
+        // status signal, and per Phase R1 those stay on the separate
+        // functional palette regardless of brand color changes.
+        borderColor: "#166534",
+        backgroundColor: "rgba(22, 101, 52, 0.1)",
         borderWidth: 2,
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointBackgroundColor: "#0f766e",
+        pointBackgroundColor: "#166534",
         pointBorderColor: "#ffffff",
         pointBorderWidth: 2,
         tension: 0.35,
@@ -85,9 +89,15 @@ export function SavingsBalanceCard({ balance, trend }: SavingsBalanceCardProps) 
   };
 
   return (
-    <Card className="animate-card-enter">
-      <p className="text-sm font-medium text-neutral-500">Savings balance</p>
-      <p className="mt-1 text-5xl font-semibold text-neutral-900 sm:text-6xl">
+    <Card className="animate-card-enter relative overflow-hidden">
+      {/* The dashboard's one gradient accent — a thin hero strip on its most
+          prominent card, not a full-page treatment (see globals.css: a
+          full-page gradient here would fight with the dense transaction
+          list below it). */}
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 bg-brand-gradient" />
+
+      <p className="font-accent text-sm text-neutral-500">Savings balance</p>
+      <p className="mt-1 font-display text-5xl font-bold tracking-tight text-neutral-900 sm:text-6xl">
         {formatKina(balance)}
       </p>
 

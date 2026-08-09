@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { mockMember } from "@/lib/mock-data";
 
 function getInitials(name: string) {
@@ -17,9 +18,19 @@ export function Header() {
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <p className="font-semibold text-neutral-900">
-          Hello, <span className="text-primary">{firstName}</span>
-        </p>
+        <div className="flex items-center gap-2">
+          {/* Small square mark, using the full logo (its own gradient-square
+              background) until public/brand/prime-logo-mark-only.png exists —
+              that cropped, tagline/gradient-free version will look cleaner
+              at this size. <Logo variant="mark"> already falls back
+              automatically, no change needed here once it's added. */}
+          <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
+            <Logo variant="mark" fill sizes="28px" />
+          </div>
+          <p className="font-semibold text-neutral-900">
+            Hello, <span className="text-primary">{firstName}</span>
+          </p>
+        </div>
 
         <div className="flex items-center gap-3">
           <button

@@ -1,32 +1,49 @@
 import Link from "next/link";
 import { Receipt, ArrowLeftRight, HandCoins, PlusCircle, type LucideIcon } from "lucide-react";
+import { cn, focusRing } from "@/lib/utils";
 
 interface QuickAction {
   label: string;
   href: string;
   icon: LucideIcon;
+  // Primary CTA for this row — solid brand color, not the gradient (see
+  // globals.css: gradient is reserved for hero/header surfaces).
+  primary?: boolean;
 }
 
 const actions: QuickAction[] = [
   { label: "View Transactions", href: "#recent-transactions", icon: Receipt },
   { label: "Transfer Funds", href: "/dashboard/transfer", icon: ArrowLeftRight },
-  { label: "Apply for Loan", href: "/dashboard/loans/apply", icon: HandCoins },
+  { label: "Apply for Loan", href: "/dashboard/loans/apply", icon: HandCoins, primary: true },
   { label: "Add Funds", href: "/dashboard/add-funds", icon: PlusCircle },
 ];
 
 export function QuickActions() {
   return (
     <div className="animate-card-enter grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {actions.map(({ label, href, icon: Icon }) => (
+      {actions.map(({ label, href, icon: Icon, primary }) => (
         <Link
           key={label}
           href={href}
-          className="flex flex-col items-center gap-2 rounded-xl border border-neutral-200 bg-white p-4 text-center shadow-sm transition-colors hover:border-primary hover:bg-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className={cn(
+            "flex flex-col items-center gap-2 rounded-xl border p-4 text-center shadow-sm transition-colors",
+            primary
+              ? "border-transparent bg-primary hover:bg-primary-dark"
+              : "border-neutral-200 bg-white hover:border-primary hover:bg-primary-light",
+            focusRing,
+          )}
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-light text-primary-dark">
+          <span
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-full",
+              primary ? "bg-white/20 text-white" : "bg-primary-light text-primary-dark",
+            )}
+          >
             <Icon className="h-5 w-5" aria-hidden="true" />
           </span>
-          <span className="text-xs font-medium text-neutral-700">{label}</span>
+          <span className={cn("text-xs font-medium", primary ? "text-white" : "text-neutral-700")}>
+            {label}
+          </span>
         </Link>
       ))}
     </div>

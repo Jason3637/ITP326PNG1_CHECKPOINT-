@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { formatKina } from "@/lib/utils";
+import { cn, focusRing, formatKina } from "@/lib/utils";
 import type { Loan } from "@/lib/types";
 
 interface ActiveLoanCardProps {
@@ -40,7 +40,7 @@ export function ActiveLoanCard({ loan }: ActiveLoanCardProps) {
 
       <Link
         href={`/dashboard/loans/${loan.id}/schedule`}
-        className="mt-auto pt-4 text-sm font-medium text-primary hover:underline"
+        className={cn("mt-auto rounded pt-4 text-sm font-medium text-primary hover:underline", focusRing)}
       >
         View full repayment schedule
       </Link>

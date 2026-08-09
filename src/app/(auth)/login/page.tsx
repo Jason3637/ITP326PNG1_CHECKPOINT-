@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
+import { cn, focusRing } from "@/lib/utils";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -85,7 +86,10 @@ export default function LoginPage() {
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
           />
-          <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+          <Link
+            href="/forgot-password"
+            className={cn("rounded text-sm font-medium text-primary hover:underline", focusRing)}
+          >
             Forgot password?
           </Link>
         </div>
@@ -104,7 +108,7 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-neutral-500">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-medium text-primary hover:underline">
+        <Link href="/signup" className={cn("rounded font-medium text-primary hover:underline", focusRing)}>
           Sign up
         </Link>
       </p>

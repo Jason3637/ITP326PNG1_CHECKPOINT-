@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, PiggyBank, HandCoins, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, focusRing } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -26,6 +26,7 @@ export function BottomNav() {
               href={href}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-neutral-500 hover:text-primary",
+                focusRing,
                 active && "text-primary",
               )}
             >

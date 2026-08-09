@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
+import { cn, focusRing } from "@/lib/utils";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9+\-\s()]{7,}$/;
@@ -161,7 +162,7 @@ export default function SignupPage() {
 
       <p className="mt-6 text-center text-sm text-neutral-500">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className={cn("rounded font-medium text-primary hover:underline", focusRing)}>
           Log in
         </Link>
       </p>

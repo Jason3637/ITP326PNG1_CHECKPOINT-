@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { cn, focusRing } from "@/lib/utils";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,7 +57,14 @@ export default function LoginPage() {
 
   return (
     <Card className="sm:p-8">
-      <h1 className="text-xl font-semibold text-neutral-900">Log in</h1>
+      <div className="relative mx-auto h-16 w-full max-w-[220px]">
+        <Logo fill sizes="220px" priority />
+      </div>
+      <p className="font-accent mt-3 text-center text-sm text-neutral-600">
+        Member savings &amp; loans, simplified
+      </p>
+
+      <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Log in</h1>
       <p className="mt-1 text-sm text-neutral-500">Welcome back to your co-op account.</p>
 
       <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">

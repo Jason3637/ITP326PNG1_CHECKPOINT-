@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PiggyBank, HandCoins, User, Wallet } from "lucide-react";
+import { LayoutDashboard, PiggyBank, HandCoins, User } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { cn, focusRing } from "@/lib/utils";
 
 const navItems = [
@@ -20,11 +21,13 @@ export function Sidebar() {
       <Link
         href="/dashboard"
         className={cn(
-          "flex h-14 items-center gap-2 border-b border-neutral-200 px-5 font-semibold text-primary",
+          "flex h-14 items-center gap-2 border-b border-neutral-200 px-5 font-display font-bold tracking-tight text-primary",
           focusRing,
         )}
       >
-        <Wallet className="h-5 w-5" aria-hidden="true" />
+        <div className="relative h-5 w-5 shrink-0">
+          <Logo variant="mark" fill sizes="20px" />
+        </div>
         <span>Prime&apos;s Vault</span>
       </Link>
       <nav className="flex flex-1 flex-col gap-1 p-3">

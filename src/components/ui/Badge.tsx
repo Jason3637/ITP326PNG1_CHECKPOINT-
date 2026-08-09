@@ -5,6 +5,10 @@ import { cn } from "@/lib/utils";
 // --color-warning/--color-danger tokens) because the base tokens are tuned
 // to pass AA on white — on their own *-light badge backgrounds they fall
 // short (2.9:1 / 3.96:1 against a 4.5:1 requirement for this text size).
+// They're deliberately NOT derived from the brand scale at all — status
+// meaning (approved/pending/rejected) must stay legible independent of
+// brand palette changes. `primary` and `success` DO pull from the shared
+// tokens, so `primary` picks up the new brand-50/900 pairing automatically.
 const variantClasses = {
   success: "bg-success-light text-success",
   warning: "bg-warning-light text-amber-800",

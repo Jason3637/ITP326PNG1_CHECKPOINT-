@@ -2,13 +2,50 @@
 
 /*
  * Prime's Vault design tokens.
- * Primary: deep teal (trust, growth, PNG coastal identity) — kept hue-distinct
- * from the green/amber/red status colors so brand and status never collide.
+ *
+ * Brand scale (--color-brand-50..900) is sampled from the client logo's
+ * gradient: #D3AF5B, #C6924A, #B87131, #A84E1C, #972405 (light to dark),
+ * placed at 100/300/500/700/900 with the remaining steps linearly
+ * interpolated between neighbors to fill out a full 10-step scale.
+ *
+ * `primary` / `primary-dark` / `primary-light` are semantic aliases onto
+ * specific brand steps, not new colors — this is deliberate: every existing
+ * `bg-primary` / `text-primary` / `ring-primary` usage across the app
+ * repoints to the new brand color automatically, with no per-component
+ * changes required.
+ *
+ * Functional colors (success/warning/danger) are NOT derived from the brand
+ * scale — they carry status meaning (approved/pending/rejected) that must
+ * stay legible and unambiguous regardless of brand palette changes.
  */
 :root {
-  --color-primary: #0f766e;
-  --color-primary-dark: #0b544e;
-  --color-primary-light: #ccfbf1;
+  --color-brand-50: #e7d3a5;
+  --color-brand-100: #d3af5b;
+  --color-brand-200: #cda153;
+  --color-brand-300: #c6924a;
+  --color-brand-400: #bf823e;
+  --color-brand-500: #b87131;
+  --color-brand-600: #b06027;
+  --color-brand-700: #a84e1c;
+  --color-brand-800: #a03911;
+  --color-brand-900: #972405;
+
+  /* Diagonal, top-left to bottom-right, matching the logo's gradient
+     direction. For hero/header surfaces only — see globals.css comment
+     on Button/Badge below for why small UI elements use a solid stop
+     instead. */
+  --brand-gradient: linear-gradient(
+    135deg,
+    #d3af5b 0%,
+    #c6924a 25%,
+    #b87131 50%,
+    #a84e1c 75%,
+    #972405 100%
+  );
+
+  --color-primary: var(--color-brand-700);
+  --color-primary-dark: var(--color-brand-900);
+  --color-primary-light: var(--color-brand-50);
 
   --color-success: #166534;
   --color-success-light: #dcfce7;
@@ -42,6 +79,17 @@
   --color-primary-dark: var(--color-primary-dark);
   --color-primary-light: var(--color-primary-light);
 
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
+
   --color-success: var(--color-success);
   --color-success-light: var(--color-success-light);
   --color-warning: var(--color-warning);
@@ -60,7 +108,14 @@
   --color-neutral-800: var(--color-neutral-800);
   --color-neutral-900: var(--color-neutral-900);
 
+  /* Body: clean, highly legible sans (unchanged from the original scaffold —
+     it already meets the "legible on low-bandwidth mobile" bar).
+     Display: bold condensed grotesk for headings, close to the wordmark's
+     weight/tracking. Accent: small slab-serif labels only (e.g. the auth
+     tagline) — never body copy, never long-form text. */
   --font-sans: var(--font-plus-jakarta-sans);
+  --font-display: var(--font-barlow-condensed);
+  --font-accent: var(--font-bitter);
 }
 
 body {
@@ -72,6 +127,15 @@ body {
 /* Financial figures should keep digits aligned in tables and stat cards. */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Full 5-stop brand gradient for hero/header surfaces. Not a Tailwind
+   @theme color token (gradients aren't single values Tailwind can turn
+   into utility classes the way solid colors are), so it's a small
+   hand-written utility class instead. Deliberately not used on
+   buttons/badges/small UI — see the primary/primary-dark aliases above. */
+.bg-brand-gradient {
+  background-image: var(--brand-gradient);
 }
 
 /* Dashboard card entrance. Scoped inside the media query so it's a no-op

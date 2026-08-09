@@ -1,6 +1,10 @@
 import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
+// `primary`/`primary-dark` are aliases onto the brand-700/900 scale steps
+// (see globals.css) — a solid deep stop, not the full --brand-gradient.
+// Reserve the gradient for hero/header surfaces; it reads as noise at
+// button size.
 const variantClasses = {
   primary: "bg-primary text-white hover:bg-primary-dark",
   secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200",

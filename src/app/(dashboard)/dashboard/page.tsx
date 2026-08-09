@@ -25,7 +25,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="lg:order-3 lg:col-span-3">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        <h2 className="font-accent mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
           Quick actions
         </h2>
         <QuickActions />

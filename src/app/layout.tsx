@@ -25,7 +25,7 @@ const bitter = Bitter({
 
 export const metadata: Metadata = {
   title: "Prime's Vault",
-  description: "Digital cooperative savings & loan platform",
+  description: "Digital cooperative loan platform",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

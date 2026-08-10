@@ -92,7 +92,7 @@ export default function SignupPage() {
         <Logo fill sizes="220px" priority />
       </div>
       <p className="font-accent mt-3 text-center text-sm text-neutral-600">
-        Member savings &amp; loans, simplified
+        Member loans, simplified
       </p>
 
       <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Sign up</h1>

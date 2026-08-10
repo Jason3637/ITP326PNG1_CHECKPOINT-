@@ -2,9 +2,13 @@ export interface Member {
   id: string;
   name: string;
   email: string;
-  savingsBalance: number;
-  loanEligibility: number;
-  createdAt: string;
+  membershipSince: string;
+  // Self-reported/verified business income — the basis for maxLoanAmount
+  // under the income-multiplier eligibility model (Prime's Vault is
+  // lending-only; there is no savings balance to derive eligibility from).
+  monthlyIncome: number;
+  maxLoanAmount: number;
+  activeLoanId: string | null;
 }
 
 export interface Loan {
@@ -22,7 +26,7 @@ export interface Loan {
 export interface Transaction {
   id: string;
   memberId: string;
-  type: "deposit" | "withdrawal" | "loan_disbursement" | "repayment";
+  type: "loan_disbursement" | "repayment" | "fee";
   amount: number;
   date: string;
   description: string;

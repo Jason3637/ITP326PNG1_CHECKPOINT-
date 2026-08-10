@@ -4,9 +4,10 @@ export const mockMember: Member = {
   id: "mem_001",
   name: "Sarah Kaupa",
   email: "sarah.kaupa@example.com",
-  savingsBalance: 5000,
-  loanEligibility: 7500,
-  createdAt: "2024-02-14",
+  membershipSince: "2024-02-14",
+  monthlyIncome: 2500,
+  maxLoanAmount: 7500, // 3x monthlyIncome, co-op policy multiplier
+  activeLoanId: "loan_001",
 };
 
 export const mockLoans: Loan[] = [
@@ -18,63 +19,42 @@ export const mockLoans: Loan[] = [
     termMonths: 12,
     monthlyPayment: 700,
     totalRepayable: 8400,
-    status: "pending",
+    status: "active",
     frequency: "monthly",
   },
-];
-
-// Month-end running balance, derived from mockTransactions (opening balance
-// K0 -> +1200 Feb -> +800 Mar -> flat Apr -> -300 May -> +1500 Jun -> +1800
-// Jul), so the trend ends exactly at mockMember.savingsBalance.
-export const mockSavingsTrend: { month: string; balance: number }[] = [
-  { month: "Feb 2026", balance: 1200 },
-  { month: "Mar 2026", balance: 2000 },
-  { month: "Apr 2026", balance: 2000 },
-  { month: "May 2026", balance: 1700 },
-  { month: "Jun 2026", balance: 3200 },
-  { month: "Jul 2026", balance: 5000 },
-  { month: "Aug 2026", balance: 5000 },
 ];
 
 export const mockTransactions: Transaction[] = [
   {
     id: "txn_001",
     memberId: "mem_001",
-    type: "deposit",
-    amount: 1200,
-    date: "2026-02-10",
-    description: "Fortnightly savings deposit",
+    type: "repayment",
+    amount: 700,
+    date: "2026-05-05",
+    description: "Loan repayment",
   },
   {
     id: "txn_002",
     memberId: "mem_001",
-    type: "deposit",
-    amount: 800,
-    date: "2026-03-24",
-    description: "Fortnightly savings deposit",
+    type: "repayment",
+    amount: 700,
+    date: "2026-06-05",
+    description: "Loan repayment",
   },
   {
     id: "txn_003",
     memberId: "mem_001",
-    type: "withdrawal",
-    amount: 300,
-    date: "2026-05-02",
-    description: "Withdrawal for school fees",
+    type: "repayment",
+    amount: 700,
+    date: "2026-07-05",
+    description: "Loan repayment",
   },
   {
     id: "txn_004",
     memberId: "mem_001",
-    type: "deposit",
-    amount: 1500,
-    date: "2026-06-15",
-    description: "Savings top-up",
-  },
-  {
-    id: "txn_005",
-    memberId: "mem_001",
-    type: "deposit",
-    amount: 1800,
-    date: "2026-07-28",
-    description: "Fortnightly savings deposit",
+    type: "repayment",
+    amount: 700,
+    date: "2026-08-05",
+    description: "Loan repayment",
   },
 ];

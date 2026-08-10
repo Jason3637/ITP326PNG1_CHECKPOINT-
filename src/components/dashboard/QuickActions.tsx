@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Receipt, ArrowLeftRight, HandCoins, PlusCircle, type LucideIcon } from "lucide-react";
+import { Receipt, HandCoins, BadgeCheck, Calculator, type LucideIcon } from "lucide-react";
 import { cn, focusRing } from "@/lib/utils";
 
 interface QuickAction {
@@ -12,10 +12,10 @@ interface QuickAction {
 }
 
 const actions: QuickAction[] = [
-  { label: "View Transactions", href: "#recent-transactions", icon: Receipt },
-  { label: "Transfer Funds", href: "/dashboard/transfer", icon: ArrowLeftRight },
+  { label: "Repayment History", href: "#recent-transactions", icon: Receipt },
   { label: "Apply for Loan", href: "/dashboard/loans/apply", icon: HandCoins, primary: true },
-  { label: "Add Funds", href: "/dashboard/add-funds", icon: PlusCircle },
+  { label: "Check Eligibility", href: "/dashboard/loans/eligibility", icon: BadgeCheck },
+  { label: "Loan Calculator", href: "/dashboard/loans/calculator", icon: Calculator },
 ];
 
 export function QuickActions() {

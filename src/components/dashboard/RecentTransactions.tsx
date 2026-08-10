@@ -1,15 +1,14 @@
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, HandCoins, Inbox, Receipt, type LucideIcon } from "lucide-react";
+import { HandCoins, Inbox, MinusCircle, Receipt, type LucideIcon } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { mockTransactions } from "@/lib/mock-data";
 import { cn, focusRing, formatKina } from "@/lib/utils";
 import type { Transaction } from "@/lib/types";
 
 const TYPE_META: Record<Transaction["type"], { icon: LucideIcon; direction: "in" | "out" }> = {
-  deposit: { icon: ArrowDownLeft, direction: "in" },
   loan_disbursement: { icon: HandCoins, direction: "in" },
-  withdrawal: { icon: ArrowUpRight, direction: "out" },
   repayment: { icon: Receipt, direction: "out" },
+  fee: { icon: MinusCircle, direction: "out" },
 };
 
 function formatDate(dateStr: string) {
@@ -43,7 +42,7 @@ export function RecentTransactions() {
         <div className="flex flex-col items-center gap-2 py-8 text-center">
           <Inbox className="h-8 w-8 text-neutral-300" aria-hidden="true" />
           <p className="text-sm text-neutral-500">No transactions yet.</p>
-          <p className="text-xs text-neutral-400">Deposits and withdrawals will show up here.</p>
+          <p className="text-xs text-neutral-400">Loan disbursements and repayments will show up here.</p>
         </div>
       ) : (
         <ul className="flex flex-col divide-y divide-neutral-100">

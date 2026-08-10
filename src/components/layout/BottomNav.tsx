@@ -2,15 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PiggyBank, HandCoins, User } from "lucide-react";
+import { navItems, isNavItemActive } from "@/lib/nav";
 import { cn, focusRing } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/dashboard", label: "Savings", icon: PiggyBank },
-  { href: "/dashboard", label: "Loans", icon: HandCoins },
-  { href: "/dashboard", label: "Profile", icon: User },
-];
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -19,7 +12,7 @@ export function BottomNav() {
     <nav className="sticky bottom-0 z-10 border-t border-neutral-200 bg-white md:hidden">
       <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href && label === "Home";
+          const active = isNavItemActive(pathname, href);
           return (
             <Link
               key={label}

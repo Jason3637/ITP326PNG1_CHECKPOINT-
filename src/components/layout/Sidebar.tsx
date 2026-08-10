@@ -2,16 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PiggyBank, HandCoins, User } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { navItems, isNavItemActive } from "@/lib/nav";
 import { cn, focusRing } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/dashboard", label: "Savings", icon: PiggyBank },
-  { href: "/dashboard", label: "Loans", icon: HandCoins },
-  { href: "/dashboard", label: "Profile", icon: User },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -32,7 +25,7 @@ export function Sidebar() {
       </Link>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href && label === "Home";
+          const active = isNavItemActive(pathname, href);
           return (
             <Link
               key={label}

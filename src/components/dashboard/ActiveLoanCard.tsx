@@ -35,7 +35,7 @@ export function ActiveLoanCard({ loan }: ActiveLoanCardProps) {
         <Badge variant="success">Active</Badge>
       </CardHeader>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div>
           <p className="font-accent text-sm text-neutral-500">Outstanding balance</p>
           <p className="mt-1 font-display text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">

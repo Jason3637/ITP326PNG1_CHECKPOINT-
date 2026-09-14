@@ -5,6 +5,9 @@ import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { cn, formatKina } from "@/lib/utils";
 import type { LoanPaymentList, MyLoans } from "@/lib/types";
 
+// See (dashboard)/layout.tsx.
+export const dynamic = "force-dynamic";
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }

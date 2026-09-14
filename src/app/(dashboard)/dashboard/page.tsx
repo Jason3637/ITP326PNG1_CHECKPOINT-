@@ -5,6 +5,10 @@ import { BorrowingPowerCard } from "@/components/dashboard/BorrowingPowerCard";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import type { AccountSummary, Dashboard } from "@/lib/types";
 
+// See (dashboard)/layout.tsx - explicit for the same reason, applied
+// again here since this page calls serverApiFetch independently.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   let summary: AccountSummary;
   let dashboard: Dashboard;

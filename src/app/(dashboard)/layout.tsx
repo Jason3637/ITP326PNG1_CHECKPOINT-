@@ -5,7 +5,17 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { serverApiFetch, UnauthenticatedError, ApiError } from "@/lib/server-api";
 import type { MeResponse } from "@/lib/types";
 
-// Defense-in-depth alongside middleware.ts: middleware only checks that a
+// Every page under (dashboard) reads the session cookie and calls the
+// backend per-request - never statically prerenderable. Stated explicitly
+// rather than relying on Next.js's implicit "calling cookies() opts a page
+// out of static rendering" detection: that inference only kicks in once
+// the dynamic API is actually reached, so an error thrown earlier in the
+// same request (e.g. a missing env var) can still crash the build instead
+// of gracefully deferring to a runtime error - confirmed by a real Vercel
+// build failure, not a hypothetical.
+export const dynamic = "force-dynamic";
+
+// Defense-in-depth alongside src/proxy.ts: proxy only checks that a
 // session cookie exists; this is the authoritative check (also handles the
 // transparent access-token refresh) and is what actually fetches the
 // signed-in member's name for the header.

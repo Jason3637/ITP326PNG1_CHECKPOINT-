@@ -6,6 +6,9 @@ import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { formatKina } from "@/lib/utils";
 import type { MyLoans } from "@/lib/types";
 
+// See (dashboard)/layout.tsx.
+export const dynamic = "force-dynamic";
+
 function statusVariant(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "active" || status === "completed") return "success";
   if (status === "defaulted") return "danger";

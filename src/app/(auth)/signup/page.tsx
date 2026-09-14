@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { MfaSetupStep } from "@/components/auth/MfaSetupStep";
+import { BackupCodesStep } from "@/components/auth/BackupCodesStep";
+import { authApi, ApiError } from "@/lib/api-client";
 import { cn, focusRing } from "@/lib/utils";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,8 +27,15 @@ interface FormErrors {
   terms?: string;
 }
 
+type Step =
+  | { name: "form" }
+  | { name: "mfa-setup"; mfaSetupToken: string }
+  | { name: "backup-codes"; backupCodes: string[] };
+
 export default function SignupPage() {
   const router = useRouter();
+  const [step, setStep] = useState<Step>({ name: "form" });
+
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -33,6 +43,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   function validate(): FormErrors {
@@ -48,9 +59,7 @@ export default function SignupPage() {
       nextErrors.email = "Enter a valid email address.";
     }
 
-    if (!phone.trim()) {
-      nextErrors.phone = "Phone number is required.";
-    } else if (!PHONE_PATTERN.test(phone.trim())) {
+    if (phone.trim() && !PHONE_PATTERN.test(phone.trim())) {
       nextErrors.phone = "Enter a valid phone number.";
     }
 
@@ -73,7 +82,7 @@ export default function SignupPage() {
     return nextErrors;
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const nextErrors = validate();
@@ -81,9 +90,20 @@ export default function SignupPage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
-    setTimeout(() => {
-      router.push("/dashboard");
-    }, 800);
+    setSubmitError(null);
+    try {
+      const res = await authApi.register({
+        email: email.trim(),
+        password,
+        full_name: fullName.trim(),
+        phone_number: phone.trim() || undefined,
+      });
+      setStep({ name: "mfa-setup", mfaSetupToken: res.mfa_setup_token });
+    } catch (err) {
+      setSubmitError(err instanceof ApiError ? err.message : "Couldn't create your account. Try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -91,89 +111,108 @@ export default function SignupPage() {
       <div className="relative mx-auto h-16 w-full max-w-[220px]">
         <Logo fill sizes="220px" priority />
       </div>
-      <p className="font-accent mt-3 text-center text-sm text-neutral-600">
-        Member loans, simplified
-      </p>
+      <p className="font-accent mt-3 text-center text-sm text-neutral-600">Member loans, simplified</p>
 
-      <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Sign up</h1>
-      <p className="mt-1 text-sm text-neutral-500">Join Prime&apos;s Vault in a few minutes.</p>
+      {step.name === "form" && (
+        <>
+          <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Sign up</h1>
+          <p className="mt-1 text-sm text-neutral-500">Join Prime&apos;s Vault in a few minutes.</p>
 
-      <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-        <Input
-          label="Full name"
-          type="text"
-          autoComplete="name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          error={errors.fullName}
-          placeholder="Sarah Kaupa"
-        />
+          <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+            <Input
+              label="Full name"
+              type="text"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              error={errors.fullName}
+              placeholder="Sarah Kaupa"
+            />
 
-        <Input
-          label="Email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          error={errors.email}
-          placeholder="you@example.com"
-        />
+            <Input
+              label="Email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              error={errors.email}
+              placeholder="you@example.com"
+            />
 
-        <Input
-          label="Phone number"
-          type="tel"
-          autoComplete="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          error={errors.phone}
-          placeholder="+675 7123 4567"
-        />
+            <Input
+              label="Phone number (optional)"
+              type="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              error={errors.phone}
+              placeholder="+675 7123 4567"
+            />
 
-        <Input
-          label="Password"
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={errors.password}
-          placeholder="At least 8 characters"
-        />
+            <Input
+              label="Password"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={errors.password}
+              placeholder="At least 8 characters"
+            />
 
-        <Input
-          label="Confirm password"
-          type="password"
-          autoComplete="new-password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          error={errors.confirmPassword}
-          placeholder="Re-enter your password"
-        />
+            <Input
+              label="Confirm password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              error={errors.confirmPassword}
+              placeholder="Re-enter your password"
+            />
 
-        <Checkbox
-          label="I agree to the Terms of Service and Privacy Policy."
-          checked={agreedToTerms}
-          onChange={(e) => setAgreedToTerms(e.target.checked)}
-          error={errors.terms}
-        />
+            <Checkbox
+              label="I agree to the Terms of Service and Privacy Policy."
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              error={errors.terms}
+            />
 
-        <Button type="submit" size="lg" disabled={loading} className="mt-2">
-          {loading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              Creating account...
-            </>
-          ) : (
-            "Create account"
-          )}
-        </Button>
-      </form>
+            {submitError && <p className="text-sm text-danger">{submitError}</p>}
 
-      <p className="mt-6 text-center text-sm text-neutral-500">
-        Already have an account?{" "}
-        <Link href="/login" className={cn("rounded font-medium text-primary hover:underline", focusRing)}>
-          Log in
-        </Link>
-      </p>
+            <Button type="submit" size="lg" disabled={loading} className="mt-2">
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Creating account...
+                </>
+              ) : (
+                "Create account"
+              )}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-neutral-500">
+            Already have an account?{" "}
+            <Link href="/login" className={cn("rounded font-medium text-primary hover:underline", focusRing)}>
+              Log in
+            </Link>
+          </p>
+        </>
+      )}
+
+      {step.name === "mfa-setup" && (
+        <div className="mt-6">
+          <MfaSetupStep
+            mfaSetupToken={step.mfaSetupToken}
+            onVerified={(backupCodes) => setStep({ name: "backup-codes", backupCodes })}
+          />
+        </div>
+      )}
+
+      {step.name === "backup-codes" && (
+        <div className="mt-6">
+          <BackupCodesStep backupCodes={step.backupCodes} onContinue={() => router.push("/login")} />
+        </div>
+      )}
     </Card>
   );
 }

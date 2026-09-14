@@ -1,20 +1,33 @@
+import { redirect } from "next/navigation";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { ActiveLoanCard } from "@/components/dashboard/ActiveLoanCard";
 import { BorrowingPowerCard } from "@/components/dashboard/BorrowingPowerCard";
-import { mockMember, mockLoans } from "@/lib/mock-data";
+import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
+import type { AccountSummary, Dashboard } from "@/lib/types";
 
-export default function DashboardPage() {
-  const activeLoan = mockLoans.find(
-    (loan) => loan.memberId === mockMember.id && loan.status === "active",
-  );
+export default async function DashboardPage() {
+  let summary: AccountSummary;
+  let dashboard: Dashboard;
+  try {
+    [summary, dashboard] = await Promise.all([
+      serverApiFetch<AccountSummary>("/accounts/summary"),
+      serverApiFetch<Dashboard>("/reports/dashboard"),
+    ]);
+  } catch (err) {
+    if (err instanceof UnauthenticatedError) redirect("/login");
+    // Anything else (backend 500, timeout, unreachable) is caught by
+    // this route segment's error.tsx boundary, which offers a real retry.
+    throw err;
+  }
+
+  const hasActiveLoan = summary.counts.active > 0;
 
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
-      {activeLoan ? (
-        <ActiveLoanCard loan={activeLoan} />
+      {hasActiveLoan ? (
+        <ActiveLoanCard kpis={dashboard.kpis} hasOverdue={summary.has_overdue} />
       ) : (
-        <BorrowingPowerCard maxLoanAmount={mockMember.maxLoanAmount} />
+        <BorrowingPowerCard />
       )}
 
       <div>
@@ -23,8 +36,6 @@ export default function DashboardPage() {
         </h2>
         <QuickActions />
       </div>
-
-      <RecentTransactions />
     </div>
   );
 }

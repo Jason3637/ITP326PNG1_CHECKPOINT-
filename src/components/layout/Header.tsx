@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { mockMember } from "@/lib/mock-data";
+import { LogoutButton } from "@/components/layout/LogoutButton";
 
 function getInitials(name: string) {
   return name
@@ -12,8 +12,12 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export function Header() {
-  const firstName = mockMember.name.split(" ")[0];
+interface HeaderProps {
+  fullName: string;
+}
+
+export function Header({ fullName }: HeaderProps) {
+  const firstName = fullName.split(" ")[0];
 
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white">
@@ -46,8 +50,10 @@ export function Header() {
             aria-label="Profile"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-light text-sm font-semibold text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            {getInitials(mockMember.name)}
+            {getInitials(fullName)}
           </Link>
+
+          <LogoutButton />
         </div>
       </div>
     </header>

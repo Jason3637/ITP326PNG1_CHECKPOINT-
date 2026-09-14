@@ -1,17 +1,19 @@
 import Link from "next/link";
 import { HandCoins } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { cn, focusRing, formatKina } from "@/lib/utils";
+import { cn, focusRing } from "@/lib/utils";
 
-interface BorrowingPowerCardProps {
-  maxLoanAmount: number;
-}
-
-// Dashboard hero when the member has no active loan. Replaces the old
-// savings-derived "eligible based on your savings history" prompt —
-// Prime's Vault is lending-only, so eligibility now comes from
-// Member.maxLoanAmount (the income-multiplier model from Phase L1).
-export function BorrowingPowerCard({ maxLoanAmount }: BorrowingPowerCardProps) {
+// Dashboard hero when the member has no active loan.
+//
+// The mock-data era showed a specific "eligible up to $X" figure derived
+// from a fabricated maxLoanAmount field. The real backend has no
+// equivalent: GET /api/admin/parameters (where a program-wide loan cap
+// would live) is confirmed admin-only (403 for a customer token, checked
+// live), and eligibility itself - credit_evaluation_result.max_eligible_
+// amount - only gets computed as part of submitting an application, not
+// before. Rather than invent a number the backend doesn't expose, this
+// card just prompts the member to apply, honestly.
+export function BorrowingPowerCard() {
   return (
     <Card className="animate-card-enter relative overflow-hidden">
       <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 bg-brand-gradient" />
@@ -22,12 +24,12 @@ export function BorrowingPowerCard({ maxLoanAmount }: BorrowingPowerCardProps) {
             <HandCoins className="h-6 w-6" aria-hidden="true" />
           </span>
           <div>
-            <p className="font-accent text-sm text-neutral-500">Borrowing power</p>
-            <p className="font-display text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
-              Up to {formatKina(maxLoanAmount)}
+            <p className="font-accent text-sm text-neutral-500">No active loan</p>
+            <p className="font-display text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
+              Ready to apply?
             </p>
             <p className="mt-1 text-sm text-neutral-500">
-              Based on your verified monthly income, you&apos;re eligible to apply.
+              Submit an application and we&apos;ll review it against your account standing and repayment history.
             </p>
           </div>
         </div>

@@ -8,6 +8,31 @@ export const ACCESS_COOKIE = "pv_access_token";
 export const REFRESH_COOKIE = "pv_refresh_token";
 export const ROLE_COOKIE = "pv_role"; // not sensitive on its own; lets middleware branch without decoding the JWT
 
+// Pre-filling a *new* application from the customer's last one. There's
+// still no backend field for referee/disbursement method (that data lives
+// on the application row, but there's no "give me my last application's
+// referees" read - only GET /loans/applications/mine, which returns full
+// application objects; a future version could read the most recent one's
+// referees/disbursement fields directly instead of this cookie). Kept as a
+// lightweight client-only convenience for now. Never silently applied - the
+// wizard always shows it back to the customer to confirm first (see
+// LoanApplyWizard.tsx).
+export interface WizardDraft {
+  category: string;
+  otherDescription: string;
+  monthlyIncome: string;
+  employmentStatus: string;
+  existingMonthlyDebt: string;
+  disbursementMethod: string;
+  bspMobileNumber: string;
+  refereeFullName: string;
+  refereeRelationship: string;
+  refereeMobile: string;
+  refereeEmployer: string;
+}
+
+export const LAST_APPLICATION_DRAFT_COOKIE = "pv_last_application_draft";
+
 const isProd = process.env.NODE_ENV === "production";
 
 function cookieOptions(maxAgeSeconds: number) {
@@ -40,6 +65,9 @@ export async function clearSessionCookies() {
   store.delete(ACCESS_COOKIE);
   store.delete(REFRESH_COOKIE);
   store.delete(ROLE_COOKIE);
+  // Cleared at logout too - a shared device logging in as someone else
+  // should never see the previous member's draft.
+  store.delete(LAST_APPLICATION_DRAFT_COOKIE);
 }
 
 export async function getSessionCookies() {
@@ -49,4 +77,20 @@ export async function getSessionCookies() {
     refreshToken: store.get(REFRESH_COOKIE)?.value ?? null,
     role: store.get(ROLE_COOKIE)?.value ?? null,
   };
+}
+
+export async function setLastApplicationDraft(draft: WizardDraft) {
+  const store = await cookies();
+  store.set(LAST_APPLICATION_DRAFT_COOKIE, JSON.stringify(draft), cookieOptions(60 * 60 * 24 * 30));
+}
+
+export async function getLastApplicationDraft(): Promise<WizardDraft | null> {
+  const store = await cookies();
+  const raw = store.get(LAST_APPLICATION_DRAFT_COOKIE)?.value;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as WizardDraft;
+  } catch {
+    return null;
+  }
 }

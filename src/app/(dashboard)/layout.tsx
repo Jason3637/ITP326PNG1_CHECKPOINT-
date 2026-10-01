@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { serverApiFetch, UnauthenticatedError, ApiError } from "@/lib/server-api";
+import { isStaffRole, ROLE_RESYNC_PATH } from "@/lib/roles";
 import type { MeResponse } from "@/lib/types";
 
 // Every page under (dashboard) reads the session cookie and calls the
@@ -34,6 +35,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
       redirect("/login");
     }
     throw err;
+  }
+
+  // Loan officers/admins belong in the staff portal, not a member's
+  // dashboard. Goes via the role re-sync route rather than straight to
+  // /staff, in case the proxy's pv_role cookie is what sent them here.
+  // Routing only - see src/lib/roles.ts.
+  if (isStaffRole(me.role)) {
+    redirect(ROLE_RESYNC_PATH);
   }
 
   return (

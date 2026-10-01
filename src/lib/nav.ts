@@ -19,9 +19,26 @@ export const navItems: NavItem[] = [
   { href: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
-// "/dashboard" itself must match exactly (it's also a prefix of every
-// other tab's href) - the rest match exactly or on a nested sub-route.
+// Staff (loan_officer/admin) area. Only lists routes that exist - tabs are
+// added as each staff screen is built, never as placeholders that 404.
+export const staffNavItems: NavItem[] = [{ href: "/staff", label: "Overview", icon: LayoutDashboard }];
+
+// Picked by name inside the client nav components rather than passed in as
+// a prop: NavItem.icon is a component, which can't cross the server-to-
+// client boundary from a layout.
+export type NavVariant = "customer" | "staff";
+
+export const navItemsByVariant: Record<NavVariant, NavItem[]> = {
+  customer: navItems,
+  staff: staffNavItems,
+};
+
+// Each area's root ("/dashboard", "/staff") must match exactly (it's also a
+// prefix of every other tab's href in that area) - the rest match exactly
+// or on a nested sub-route.
+const AREA_ROOTS = new Set(["/dashboard", "/staff"]);
+
 export function isNavItemActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") return pathname === "/dashboard";
+  if (AREA_ROOTS.has(href)) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

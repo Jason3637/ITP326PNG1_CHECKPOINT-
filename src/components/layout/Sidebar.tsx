@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
-import { navItems, isNavItemActive } from "@/lib/nav";
+import { navItemsByVariant, isNavItemActive, type NavVariant } from "@/lib/nav";
 import { cn, focusRing } from "@/lib/utils";
 
-export function Sidebar() {
+export function Sidebar({ variant = "customer" }: { variant?: NavVariant }) {
   const pathname = usePathname();
+  const items = navItemsByVariant[variant];
 
   return (
     <aside className="hidden w-56 shrink-0 border-r border-neutral-200 bg-white md:flex md:flex-col">
       <Link
-        href="/dashboard"
+        href={items[0].href}
         className={cn(
           "flex h-14 items-center gap-2 border-b border-neutral-200 px-5 font-display font-bold tracking-tight text-primary",
           focusRing,
@@ -24,7 +25,7 @@ export function Sidebar() {
         <span>Prime&apos;s Vault</span>
       </Link>
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon }) => {
           const active = isNavItemActive(pathname, href);
           return (
             <Link

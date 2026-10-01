@@ -165,10 +165,12 @@ export type LoanApplicationStatus =
   | "officer_review"
   | "customer_action_required"
   | "recommended_for_approval"
+  | "recommended_for_rejection"
   | "admin_review"
   | "approved"
   | "rejected"
-  | "awaiting_disbursement";
+  | "awaiting_disbursement"
+  | "returned_to_officer";
 
 export type LoanStatus = "active" | "overdue" | "paid" | "closed";
 export type LoanClosureReason = "paid_in_full" | "defaulted";
@@ -368,4 +370,61 @@ export interface Document {
 export interface DocumentList {
   count: number;
   documents: Document[];
+}
+
+// ---- Staff: Loan Officer queues --------------------------------------------
+// GET /officer/queues and /officer/queues/<queue> (loan_officer or admin).
+// Queues are team-wide: every officer sees every application in a queue,
+// with is_mine / assigned_officer_* saying whose it is. Narrow with
+// ?assigned=me|unassigned rather than filtering client-side.
+
+export type OfficerQueue =
+  | "awaiting_review"
+  | "under_review"
+  | "customer_action_required"
+  | "sent_to_admin"
+  | "returned_by_admin";
+
+export type QueueAssignmentFilter = "any" | "me" | "unassigned";
+
+export interface QueueCount {
+  total: number;
+  mine: number;
+  unassigned: number;
+}
+
+export interface QueueCounts {
+  queues: Record<OfficerQueue, QueueCount>;
+  definitions: Record<OfficerQueue, LoanApplicationStatus[]>;
+}
+
+export type OfficerRecommendationType = "recommend_approval" | "recommend_rejection";
+
+export interface QueueItem {
+  id: number;
+  status: LoanApplicationStatus;
+  customer_id: number;
+  customer_name: string | null;
+  amount_requested: number;
+  prime_category: string | null;
+  total_repayable: number;
+  purpose_category: PurposeCategory | null;
+  submitted_at: string | null;
+  assigned_officer_id: number | null;
+  assigned_officer_name: string | null;
+  assigned_at: string | null;
+  is_mine: boolean;
+  open_information_requests: number;
+  latest_recommendation: OfficerRecommendationType | null;
+  returned_reason: string | null; // only set in the returned_by_admin queue
+}
+
+export interface QueuePage {
+  queue: OfficerQueue;
+  statuses: LoanApplicationStatus[];
+  page: number;
+  per_page: number;
+  total: number;
+  pages: number;
+  items: QueueItem[]; // oldest submission first
 }

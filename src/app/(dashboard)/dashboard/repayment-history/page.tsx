@@ -52,25 +52,47 @@ export default async function RepaymentHistoryPage() {
         </div>
       ) : (
         <ul className="mt-4 flex flex-col divide-y divide-neutral-100">
-          {payments.payments.map((payment) => (
-            <li key={payment.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-              <span
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-                  "bg-success-light text-success",
-                )}
-              >
-                <Receipt className="h-4 w-4" aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-neutral-900">
-                  {payment.payment_method.replace(/_/g, " ")} payment
+          {payments.payments.map((payment) => {
+            const statusStyle =
+              payment.status === "verified"
+                ? "bg-success-light text-success"
+                : payment.status === "rejected"
+                  ? "bg-danger-light text-danger"
+                  : "bg-neutral-100 text-neutral-500";
+            const statusText =
+              {
+                reported: "Reported — awaiting review",
+                verification_pending: "Under review",
+                verified: "Verified",
+                rejected: payment.rejection_reason ? `Rejected: ${payment.rejection_reason}` : "Rejected",
+              }[payment.status] ?? payment.status;
+            // Reported-but-not-yet-verified payments have no paid_at yet
+            // (it's only set once VERIFIED) - fall back to reported_at.
+            const dateToShow = payment.paid_at ?? payment.reported_at;
+
+            return (
+              <li key={payment.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", statusStyle)}>
+                  <Receipt className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-neutral-900">
+                    {payment.payment_method.replace(/_/g, " ")} payment
+                  </p>
+                  <p className="text-xs text-neutral-500">{dateToShow ? formatDate(dateToShow) : "—"}</p>
+                  <p className="text-xs text-neutral-500">{statusText}</p>
+                </div>
+                <p
+                  className={cn(
+                    "tabular-nums text-sm font-semibold",
+                    payment.status === "verified" ? "text-success" : "text-neutral-400",
+                  )}
+                >
+                  {formatKina(payment.amount)}
                 </p>
-                <p className="text-xs text-neutral-500">{formatDate(payment.paid_at)}</p>
-              </div>
-              <p className="tabular-nums text-sm font-semibold text-success">{formatKina(payment.amount)}</p>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </Card>

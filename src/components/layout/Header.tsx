@@ -31,9 +31,15 @@ export function Header({ fullName }: HeaderProps) {
           <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
             <Logo variant="mark" fill sizes="28px" />
           </div>
-          <p className="font-semibold text-neutral-900">
+          {/* The only h1 in the authenticated dashboard shell — every
+              dashboard page previously had none at all (confirmed with
+              axe-core's page-has-heading-one rule), a pre-existing gap
+              across the whole section, not just the pages changed this
+              phase. Tailwind's preflight resets default heading
+              margins/sizes, so this looks identical to the <p> it replaces. */}
+          <h1 className="font-semibold text-neutral-900">
             Hello, <span className="text-primary">{firstName}</span>
-          </p>
+          </h1>
         </div>
 
         <div className="flex items-center gap-3">

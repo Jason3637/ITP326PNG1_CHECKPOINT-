@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navItems, isNavItemActive } from "@/lib/nav";
+import { navItemsByVariant, isNavItemActive, type NavVariant } from "@/lib/nav";
 import { cn, focusRing } from "@/lib/utils";
 
-export function BottomNav() {
+export function BottomNav({ variant = "customer" }: { variant?: NavVariant }) {
   const pathname = usePathname();
+  const items = navItemsByVariant[variant];
 
   return (
     <nav className="sticky bottom-0 z-10 border-t border-neutral-200 bg-white md:hidden">
       <div className="mx-auto flex max-w-5xl items-center justify-around px-2 py-2">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon }) => {
           const active = isNavItemActive(pathname, href);
           return (
             <Link

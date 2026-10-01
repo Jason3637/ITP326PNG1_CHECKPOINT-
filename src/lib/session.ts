@@ -60,6 +60,11 @@ export async function updateAccessCookie(accessToken: string) {
   store.set(ACCESS_COOKIE, accessToken, cookieOptions(60 * 60));
 }
 
+export async function updateRoleCookie(role: string) {
+  const store = await cookies();
+  store.set(ROLE_COOKIE, role, cookieOptions(60 * 60 * 24 * 30));
+}
+
 export async function clearSessionCookies() {
   const store = await cookies();
   store.delete(ACCESS_COOKIE);

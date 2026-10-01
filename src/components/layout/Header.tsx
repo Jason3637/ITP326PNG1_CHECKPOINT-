@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Bell } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { LogoutButton } from "@/components/layout/LogoutButton";
+import { Badge } from "@/components/ui/Badge";
 
 function getInitials(name: string) {
   return name
@@ -14,9 +15,14 @@ function getInitials(name: string) {
 
 interface HeaderProps {
   fullName: string;
+  // The signed-in user's own area root - the avatar links back to it.
+  homeHref?: string;
+  // Staff shell only: makes it obvious at a glance which portal you're in,
+  // since both share the same chrome and brand tokens.
+  roleLabel?: string;
 }
 
-export function Header({ fullName }: HeaderProps) {
+export function Header({ fullName, homeHref = "/dashboard", roleLabel }: HeaderProps) {
   const firstName = fullName.split(" ")[0];
 
   return (
@@ -40,6 +46,14 @@ export function Header({ fullName }: HeaderProps) {
           <h1 className="font-semibold text-neutral-900">
             Hello, <span className="text-primary">{firstName}</span>
           </h1>
+          {/* Hidden on phones: at 375px it wrapped onto two lines and pushed
+              the greeting onto two as well (checked visually). The staff
+              nav and page content already make the portal obvious there. */}
+          {roleLabel && (
+            <Badge variant="primary" className="hidden whitespace-nowrap sm:inline-flex">
+              {roleLabel}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -52,7 +66,7 @@ export function Header({ fullName }: HeaderProps) {
           </button>
 
           <Link
-            href="/dashboard"
+            href={homeHref}
             aria-label="Profile"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-light text-sm font-semibold text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >

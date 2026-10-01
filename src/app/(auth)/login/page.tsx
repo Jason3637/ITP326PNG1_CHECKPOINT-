@@ -89,7 +89,9 @@ export default function LoginPage() {
 
   // Shared by both the normal MFA challenge and the "just finished setup"
   // path below - exchanges the backend's tokens for our httpOnly session
-  // cookie, then enters the dashboard.
+  // cookie, then enters the area for the user's role - customers to
+  // /dashboard, loan officers/admins to /staff. The route handler decides
+  // (from the backend's /auth/me), so there's one login for both portals.
   async function completeLogin(tokens: TokenResponse) {
     setFinishing(true);
     setFinishError(null);
@@ -100,11 +102,11 @@ export default function LoginPage() {
         body: JSON.stringify({
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
-          role: tokens.role,
         }),
       });
       if (!res.ok) throw new Error("session");
-      router.push("/dashboard");
+      const { redirectTo } = (await res.json()) as { redirectTo: string };
+      router.push(redirectTo);
     } catch {
       setFinishError("Signed in, but couldn't start your session. Try again.");
       setFinishing(false);

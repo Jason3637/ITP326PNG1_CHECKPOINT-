@@ -72,6 +72,11 @@ export default function LoginPage() {
         setStep({ name: "mfa-challenge", mfaChallengeToken: res.mfa_challenge_token });
       } else if (res.mfa_required === "setup" && res.mfa_setup_token) {
         setStep({ name: "mfa-setup", mfaSetupToken: res.mfa_setup_token });
+      } else if (res.message) {
+        // The backend's other 403 case (account disabled) has no
+        // mfa_required field at all - just a plain message. Surface it
+        // directly rather than a generic fallback.
+        setSubmitError(res.message);
       } else {
         setSubmitError("Unexpected response from the server. Try again.");
       }

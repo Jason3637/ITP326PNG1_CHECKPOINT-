@@ -10,9 +10,16 @@ import type { MyLoans } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 function statusVariant(status: string): "success" | "warning" | "danger" | "neutral" {
-  if (status === "active" || status === "completed") return "success";
-  if (status === "defaulted") return "danger";
+  if (status === "active" || status === "paid") return "success";
+  if (status === "overdue") return "danger";
+  // "closed" is deliberately neutral, not success - it covers both a
+  // happily-paid-off loan and a written-off/defaulted one
+  // (Loan.closure_reason, not shown here, distinguishes them).
   return "neutral";
+}
+
+function statusLabel(status: string): string {
+  return { active: "Active", overdue: "Overdue", paid: "Paid", closed: "Closed" }[status] ?? status;
 }
 
 export default async function MyLoansPage() {
@@ -40,13 +47,11 @@ export default async function MyLoansPage() {
             <li key={loan.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-neutral-900">
-                  {formatKina(loan.principal_amount)} over {loan.term_months} months
+                  {formatKina(loan.principal_amount)} over {loan.term_days} days
                 </p>
-                <p className="text-xs text-neutral-500">
-                  {formatKina(loan.installment_amount)}/installment · {formatKina(loan.total_repayable)} total
-                </p>
+                <p className="text-xs text-neutral-500">{formatKina(loan.total_repayable)} total repayable</p>
               </div>
-              <Badge variant={statusVariant(loan.status)}>{loan.status}</Badge>
+              <Badge variant={statusVariant(loan.status)}>{statusLabel(loan.status)}</Badge>
             </li>
           ))}
         </ul>

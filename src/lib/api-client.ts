@@ -33,7 +33,7 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown; token?: string } = {},
+  options: { method?: string; body?: unknown; token?: string; allowStatus?: number[] } = {},
 ): Promise<T> {
   if (!API_URL) {
     // Fails loudly in dev/build rather than silently calling a relative
@@ -60,7 +60,15 @@ async function request<T>(
 
   const data = await res.json().catch(() => ({}));
 
-  if (!res.ok) {
+  // POST /auth/login deliberately returns 403 (not 200) for "MFA setup
+  // required" / "account disabled" - a real, structured next-step response
+  // (LoginResponse.mfa_required), not a transport failure - see the
+  // backend's own @ns.response(403, "MFA setup required / account disabled").
+  // Without this allowlist, that body would be discarded and thrown as a
+  // generic ApiError, making login/page.tsx's mfa_required === "setup"
+  // branch unreachable dead code (found integrating against a fresh
+  // never-enrolled account during the Phase 10 integration pass).
+  if (!res.ok && !options.allowStatus?.includes(res.status)) {
     throw new ApiError(res.status, typeof data.message === "string" ? data.message : "Something went wrong.");
   }
 
@@ -76,7 +84,9 @@ export const authApi = {
   mfaVerifySetup: (mfaSetupToken: string, input: MfaVerifySetupInput) =>
     request<MfaVerifySetupResponse>("/auth/mfa/verify-setup", { body: input, token: mfaSetupToken }),
 
-  login: (input: LoginInput) => request<LoginResponse>("/auth/login", { body: input }),
+  // 403 is a legitimate response here (mfa_required: "setup" or account
+  // disabled), not a transport error - see request()'s comment above.
+  login: (input: LoginInput) => request<LoginResponse>("/auth/login", { body: input, allowStatus: [403] }),
 
   mfaVerifyLogin: (mfaChallengeToken: string, input: MfaVerifyLoginInput) =>
     request<TokenResponse>("/auth/mfa/verify-login", { body: input, token: mfaChallengeToken }),

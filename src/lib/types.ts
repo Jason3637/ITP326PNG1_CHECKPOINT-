@@ -1,11 +1,9 @@
-// Types mirror the live backend's OpenAPI spec (GET /api/swagger.json) and,
-// where the spec left a shape as a generic `object`, what was actually
-// observed by walking a real test account through the full flow against
-// https://itp326png1checkpointcms-production.up.railway.app. Fields marked
-// "unverified" come from the documented envelope only — no live example
-// with that field populated was ever produced (it requires a loan_officer
-// account to approve an application into an active loan, which this
-// project has no credentials for).
+// Types mirror the live PRIME-workflow backend (GET /api/swagger.json).
+// Updated to match the Phase 1-9 backend rewrite - the previous version of
+// this file was built against the pre-rewrite production deployment and
+// had drifted significantly (see the integration-pass report that replaced
+// it). Auth types are unchanged - the auth flow was never touched by that
+// rewrite.
 
 export interface ApiErrorBody {
   message: string;
@@ -82,35 +80,52 @@ export interface MeResponse {
   totp_enabled: boolean;
 }
 
+export interface Profile {
+  id: number;
+  email: string;
+  full_name: string;
+  phone_number: string | null;
+  role: Role;
+  is_active: boolean;
+  totp_enabled: boolean;
+  created_at: string;
+}
+
 // ---- Accounts / Dashboard -------------------------------------------------
 
 export interface AccountSummary {
   user_id: number;
-  counts: { active: number; completed: number; defaulted: number; total: number };
-  // Verified live: empty array with no active loan. Individual item shape
-  // was never observed populated (no loan_officer account available to
-  // approve a test application) - treated as unverified/best-effort below.
+  counts: { active: number; overdue: number; paid: number; closed: number; defaulted: number; total: number };
   active_loans: ActiveLoanSummary[];
   next_repayment_due: NextRepaymentDue | null;
   has_overdue: boolean;
 }
 
-// Unverified shape - inferred from context (loan detail fields already
-// documented elsewhere in the spec), not observed populated.
 export interface ActiveLoanSummary {
-  loan_id?: number;
-  outstanding_balance?: number;
-  total_repayable?: number;
-  amount_paid?: number;
-  status?: string;
-  [key: string]: unknown;
+  loan_id: number;
+  status: LoanStatus;
+  principal_amount: number;
+  interest_rate: number;
+  total_repayable: number;
+  installment_amount: number;
+  installments_total: number;
+  installments_paid: number;
+  installments_overdue: number;
+  amount_paid: number;
+  amount_remaining: number;
+  progress_percent: number;
+  disbursed_at: string | null;
+  next_repayment: NextRepaymentDue | null;
 }
 
-// Unverified shape.
 export interface NextRepaymentDue {
   loan_id?: number;
+  installment_number?: number;
   due_date?: string;
   amount_due?: number;
+  amount_paid?: number;
+  status?: string;
+  days_until_due?: number;
   [key: string]: unknown;
 }
 
@@ -141,10 +156,32 @@ export interface Dashboard {
 
 // ---- Loans ----------------------------------------------------------------
 
-export type LoanApplicationStatus = "under_review" | "approved" | "rejected" | string;
-export type LoanStatus = "active" | "completed" | "defaulted" | string;
-export type RepaymentFrequency = "weekly" | "biweekly" | "monthly";
+// The full two-tier officer -> admin review chain. Never render these raw
+// to a customer - use `status_label` (below), which the backend already
+// computes for exactly this purpose.
+export type LoanApplicationStatus =
+  | "draft"
+  | "submitted"
+  | "officer_review"
+  | "customer_action_required"
+  | "recommended_for_approval"
+  | "admin_review"
+  | "approved"
+  | "rejected"
+  | "awaiting_disbursement";
+
+export type LoanStatus = "active" | "overdue" | "paid" | "closed";
+export type LoanClosureReason = "paid_in_full" | "defaulted";
 export type InstallmentStatus = "upcoming" | "paid" | "overdue" | string;
+export type EmploymentStatus = "employed" | "self_employed" | "unemployed" | "retired" | "student";
+export type DisbursementMethod = "bsp_mobile_banking" | "cash_on_hand";
+export type PurposeCategory =
+  | "business"
+  | "school_fees"
+  | "medical"
+  | "home_improvement"
+  | "debt_consolidation"
+  | "other";
 
 export interface CreditEvaluationResult {
   score: number;
@@ -156,36 +193,97 @@ export interface CreditEvaluationResult {
   recommendation: string;
   requested_amount: number;
   max_eligible_amount: number;
+  insufficient_data: boolean;
+  criteria_checked: string[];
 }
 
+export interface RefereeInput {
+  full_name: string;
+  relationship: string;
+  mobile_number: string;
+  employer_name?: string;
+}
+
+export interface Referee extends RefereeInput {
+  id: number;
+}
+
+// POST /api/loans/apply - the full PRIME application payload. term_months /
+// repayment_frequency do NOT exist here - PRIME fixes the term at 14 days.
 export interface LoanApplyInput {
   amount_requested: number;
-  purpose?: string;
-  term_months: number;
-  repayment_frequency: RepaymentFrequency;
+  purpose_category: PurposeCategory;
+  purpose?: string; // required by the backend when purpose_category is "other"
+  confirmed_full_name: string;
+  confirmed_email: string;
+  confirmed_phone_number?: string;
+  monthly_income?: number;
+  employment_status?: EmploymentStatus;
+  existing_monthly_debt?: number;
+  referees: RefereeInput[]; // at least one required
+  disbursement_method_requested: DisbursementMethod;
+  disbursement_account_reference?: string; // required when method is bsp_mobile_banking
+  accept_terms: boolean;
+  policy_version: string;
+  document_ids?: number[]; // must include a current proof_of_income doc when amount >= K1,000
+}
+
+export interface PrimePricing {
+  category: string; // "PRIME 1" | "PRIME 2" | "PRIME 3"
+  amount: number;
+  interest_amount: number;
+  total_repayable: number;
+  term_days: number;
 }
 
 export interface LoanApplication {
   id: number;
   user_id: number;
   amount_requested: number;
+  purpose_category: PurposeCategory | null;
   purpose: string | null;
-  term_months: number;
-  repayment_frequency: RepaymentFrequency;
+  confirmed_full_name: string | null;
+  confirmed_email: string | null;
+  confirmed_phone_number: string | null;
+  prime_category: string | null;
+  pricing: PrimePricing | null;
+  monthly_income: number | null;
+  employment_status: EmploymentStatus | null;
+  existing_monthly_debt: number | null;
+  disbursement_method_requested: DisbursementMethod | null;
+  disbursement_account_reference: string | null;
+  referees: Referee[];
+  policy_version_accepted: string | null;
   status: LoanApplicationStatus;
-  credit_evaluation_result: CreditEvaluationResult;
+  status_label: string; // customer-facing label - always use this, never `status`, in UI copy
+  action_required_note: string | null; // set while status is customer_action_required
+  credit_evaluation_result: CreditEvaluationResult | null;
   submitted_at: string;
   decided_at: string | null;
   decided_by: number | null;
   loan_id: number | null;
 }
 
+export interface LoanApplicationList {
+  count: number;
+  applications: LoanApplication[];
+}
+
 export interface RepaymentScheduleItem {
+  id: number; // the row id - this is what repayment_schedule_id means to POST /payments/repay
   installment_number: number;
   due_date: string;
   amount_due: number;
   amount_paid: number;
   status: InstallmentStatus;
+}
+
+export interface Disbursement {
+  method: DisbursementMethod;
+  method_reference: string | null;
+  amount: number;
+  disbursed_at: string;
+  recorded_by: number | null;
 }
 
 export interface Loan {
@@ -194,11 +292,13 @@ export interface Loan {
   user_id: number;
   principal_amount: number;
   interest_rate: number;
-  term_months: number;
+  term_days: number; // NOT term_months - PRIME's fixed 14-day term
   installment_amount: number;
   total_repayable: number;
   status: LoanStatus;
+  closure_reason: LoanClosureReason | null;
   disbursed_at: string | null;
+  disbursement: Disbursement | null;
   repayment_schedule: RepaymentScheduleItem[];
 }
 
@@ -209,18 +309,63 @@ export interface MyLoans {
 
 // ---- Payments ---------------------------------------------------------------
 
+export type PaymentStatus = "reported" | "verification_pending" | "verified" | "rejected";
+
+export interface PaymentReceipt {
+  id: number;
+  document_type: string;
+  storage_path: string;
+  uploaded_at: string;
+  is_current: boolean;
+}
+
 export interface PaymentTransaction {
   id: number;
   loan_id: number;
   repayment_schedule_id: number;
   amount: number;
   payment_method: string;
-  status: string;
-  paid_at: string;
+  payment_date: string | null; // date the customer says they paid
+  reference_number: string | null;
+  status: PaymentStatus;
+  rejection_reason: string | null; // set only when status is rejected
+  reported_at: string | null; // when it was reported
+  paid_at: string | null; // set ONLY once VERIFIED - null until then
+  receipts?: PaymentReceipt[];
+}
+
+export interface ReportPaymentInput {
+  repayment_schedule_id: number;
+  amount: number;
+  payment_method: string;
+  payment_date?: string; // ISO date; defaults to today if omitted
+  reference_number?: string;
+  document_ids?: number[]; // receipt/screenshot uploads
 }
 
 export interface LoanPaymentList {
   loan_id: number;
   count: number;
   payments: PaymentTransaction[];
+}
+
+// ---- Documents --------------------------------------------------------------
+
+export type DocumentType = "id_verification" | "receipt" | "loan_file" | "proof_of_income";
+
+export interface Document {
+  id: number;
+  user_id: number;
+  loan_application_id: number | null;
+  payment_transaction_id: number | null;
+  document_type: DocumentType;
+  storage_path: string;
+  uploaded_at: string;
+  is_current: boolean;
+  superseded_by_id: number | null;
+}
+
+export interface DocumentList {
+  count: number;
+  documents: Document[];
 }

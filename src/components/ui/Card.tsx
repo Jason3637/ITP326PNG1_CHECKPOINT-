@@ -18,8 +18,13 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  // h2, not h3 - the dashboard shell's Header renders the only h1 ("Hello,
+  // {name}"), and every CardTitle is the top-level heading of its own page
+  // content beneath that, not nested under some other h2 that doesn't
+  // exist. h3 skipped a level (confirmed with axe-core's heading-order
+  // rule) on every page that uses this shared component.
   return (
-    <h3
+    <h2
       className={cn("font-display text-lg font-bold tracking-tight text-neutral-900", className)}
       {...props}
     />

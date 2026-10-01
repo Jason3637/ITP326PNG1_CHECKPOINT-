@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { authApi, ApiError } from "@/lib/api-client";
@@ -23,10 +23,26 @@ export function MfaSetupStep({ mfaSetupToken, onVerified }: MfaSetupStepProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // /mfa/setup mints and persists a brand-new TOTP secret on every call, so
+  // it must fire at most once per token - a second call (e.g. React Strict
+  // Mode's dev-only double-invoke of effects) would overwrite the secret
+  // the user is shown with one they never saw, making every code they enter
+  // fail verification. requestedTokenRef/setupPromiseRef make the network
+  // call idempotent per token, while every effect run (including a Strict
+  // Mode remount) still attaches its own cancelled-guarded handler to that
+  // shared promise so the state update always happens exactly once.
+  const requestedTokenRef = useRef<string | null>(null);
+  const setupPromiseRef = useRef<ReturnType<typeof authApi.mfaSetup> | null>(null);
+
   useEffect(() => {
     let cancelled = false;
-    authApi
-      .mfaSetup(mfaSetupToken)
+
+    if (requestedTokenRef.current !== mfaSetupToken) {
+      requestedTokenRef.current = mfaSetupToken;
+      setupPromiseRef.current = authApi.mfaSetup(mfaSetupToken);
+    }
+
+    setupPromiseRef.current!
       .then((res) => {
         if (!cancelled) setSetup(res);
       })

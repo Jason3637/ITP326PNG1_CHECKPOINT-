@@ -516,14 +516,45 @@ export interface ReviewChecklistItem {
   label: string;
   required: boolean;
   status: ChecklistItemStatus;
+  note: string | null;
+  checked_by_name: string | null;
   checked_at: string | null;
+}
+
+export interface ReviewChecklistSummary {
+  required: number;
+  required_complete: number;
+  failed: number;
+  blocking_items: string[];
+  ready_for_approval_recommendation: boolean;
+}
+
+export interface ReviewChecklist {
+  started: boolean;
+  items: ReviewChecklistItem[];
+  summary: ReviewChecklistSummary;
+}
+
+// Only what links documents to request rounds. The staff serialization also
+// carries internal_note, requester ids and field_changes - not used here.
+export interface ReviewInformationRequest {
+  id: number;
+  reason: string;
+  required_document_type: DocumentType | null;
+  status: "open" | "responded" | "cancelled";
+  requested_at: string | null;
+  response: { responded_at: string | null; provided_document_ids: number[] | null } | null;
 }
 
 export interface ApplicationReview {
   application: ReviewApplication;
   customer: ReviewCustomer;
   documents: ReviewDocument[];
-  checklist: { started: boolean; items: ReviewChecklistItem[] };
+  checklist: ReviewChecklist;
+  information_requests: ReviewInformationRequest[];
+  // Used to decide what the screen offers (e.g. "update_checklist") - the
+  // backend's own rules for this viewer, never re-derived here. Not shown.
+  allowed_actions: string[];
   assignment: { officer_id: number | null; officer_name: string | null; assigned_at: string | null; is_mine: boolean };
   credit_assessment: ReviewCreditAssessment;
 }

@@ -116,16 +116,10 @@ describe("DocumentsPanel", () => {
   };
   const items = (overrides: Partial<Record<string, Partial<ReviewChecklistItem>>> = {}): ReviewChecklistItem[] =>
     [
-      { item_type: "valid_id", label: "Valid ID checked", required: true, status: "verified" as const, checked_at: null },
-      { item_type: "referee", label: "Referee checked", required: true, status: "pending" as const, checked_at: null },
-      {
-        item_type: "proof_of_income",
-        label: "Proof of income checked",
-        required: false,
-        status: "pending" as const,
-        checked_at: null,
-      },
-    ].map((i) => ({ ...i, ...overrides[i.item_type] }));
+      { item_type: "valid_id", label: "Valid ID checked", required: true, status: "verified" as const },
+      { item_type: "referee", label: "Referee checked", required: true, status: "pending" as const },
+      { item_type: "proof_of_income", label: "Proof of income checked", required: false, status: "pending" as const },
+    ].map((i) => ({ note: null, checked_by_name: null, checked_at: null, ...i, ...overrides[i.item_type] }));
 
   it("shows each document's check status and marks the ID used for verification", () => {
     render(
@@ -134,6 +128,7 @@ describe("DocumentsPanel", () => {
         earlierVersions={[]}
         referees={application.referees}
         checklist={{ started: true, items: items() }}
+        informationRequests={[]}
         verifiedIdDocumentId={31}
       />,
     );
@@ -151,6 +146,7 @@ describe("DocumentsPanel", () => {
         earlierVersions={[]}
         referees={[]}
         checklist={{ started: true, items: items({ proof_of_income: { required: true } }) }}
+        informationRequests={[]}
         verifiedIdDocumentId={null}
       />,
     );
@@ -165,10 +161,56 @@ describe("DocumentsPanel", () => {
         earlierVersions={null}
         referees={[]}
         checklist={{ started: false, items: [] }}
+        informationRequests={[]}
         verifiedIdDocumentId={null}
       />,
     );
     expect(screen.getAllByText("Checks start when claimed").length).toBeGreaterThan(0);
     expect(screen.getByText(/Couldn't load earlier versions/)).toBeInTheDocument();
+  });
+
+  it("ties replaced documents to the information request that asked for them", () => {
+    const oldPayslip: ReviewDocument = {
+      ...idDoc,
+      id: 40,
+      loan_application_id: 12,
+      document_type: "proof_of_income",
+      is_current: false,
+      superseded_by_id: 41,
+    };
+    const newPayslip: ReviewDocument = { ...oldPayslip, id: 41, is_current: true, superseded_by_id: null };
+    render(
+      <DocumentsPanel
+        documents={[newPayslip]}
+        earlierVersions={[oldPayslip]}
+        referees={[]}
+        checklist={{ started: true, items: items({ proof_of_income: { required: true } }) }}
+        informationRequests={[
+          {
+            id: 5,
+            reason: "Your payslip is from 2024 - please upload a current one.",
+            required_document_type: "proof_of_income",
+            status: "responded",
+            requested_at: "2026-09-20T00:00:00Z",
+            response: { responded_at: "2026-09-21T00:00:00Z", provided_document_ids: [41] },
+          },
+          {
+            id: 6,
+            reason: "Please upload a clearer ID.",
+            required_document_type: "id_verification",
+            status: "open",
+            requested_at: "2026-09-22T00:00:00Z",
+            response: null,
+          },
+        ]}
+        verifiedIdDocumentId={null}
+      />,
+    );
+    expect(
+      screen.getByText(/Provided in response to an information request.*Your payslip is from 2024/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Replaced by #41 .* - in response to an information request/)).toBeInTheDocument();
+    // Only the ID section is still waiting - the payslip request was answered.
+    expect(screen.getAllByText(/waiting on their upload/)).toHaveLength(1);
   });
 });

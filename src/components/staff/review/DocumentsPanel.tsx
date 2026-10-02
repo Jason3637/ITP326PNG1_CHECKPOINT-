@@ -3,23 +3,56 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge, type BadgeProps } from "@/components/ui/Badge";
 import { DocumentViewButton } from "./DocumentViewButton";
 import { documentTypeLabel, formatReviewDateTime } from "@/lib/application-review";
-import type { ChecklistItemStatus, Referee, ReviewChecklistItem, ReviewDocument } from "@/lib/types";
+import {
+  CHECKLIST_STATUS_LABELS,
+  awaitedDocumentTypes,
+  documentProvenance,
+  replacementOf,
+  type DocumentProvenance,
+} from "@/lib/checklist";
+import type {
+  ChecklistItemStatus,
+  DocumentType,
+  Referee,
+  ReviewChecklistItem,
+  ReviewDocument,
+  ReviewInformationRequest,
+} from "@/lib/types";
 
-const CHECK_STATUS: Record<ChecklistItemStatus, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
-  pending: { label: "Not checked yet", variant: "neutral" },
-  verified: { label: "Verified", variant: "success" },
-  failed: { label: "Problem found", variant: "danger" },
-  not_applicable: { label: "Not applicable", variant: "neutral" },
+const CHECK_VARIANT: Record<ChecklistItemStatus, NonNullable<BadgeProps["variant"]>> = {
+  pending: "neutral",
+  verified: "success",
+  failed: "danger",
+  not_applicable: "neutral",
 };
 
 function CheckStatus({ item, started }: { item: ReviewChecklistItem | undefined; started: boolean }) {
   // The checklist only exists once an officer claims the application.
   if (!started || !item) return <Badge variant="neutral">Checks start when claimed</Badge>;
-  const s = CHECK_STATUS[item.status] ?? CHECK_STATUS.pending;
-  return <Badge variant={s.variant}>{`${item.label}: ${s.label}`}</Badge>;
+  return (
+    <Badge variant={CHECK_VARIANT[item.status] ?? "neutral"}>
+      {`${item.label}: ${CHECKLIST_STATUS_LABELS[item.status] ?? "Not checked yet"}`}
+    </Badge>
+  );
 }
 
-function DocumentRow({ doc, badge }: { doc: ReviewDocument; badge?: string }) {
+function ProvenanceLine({ p }: { p: DocumentProvenance }) {
+  return (
+    <p className="mt-0.5 text-xs text-primary-dark">
+      Provided in response to an information request{p.respondedAt ? ` (${formatReviewDateTime(p.respondedAt)})` : ""}
+      : &ldquo;{p.reason}&rdquo;
+    </p>
+  );
+}
+
+interface DocumentRowProps {
+  doc: ReviewDocument;
+  verifiedNote?: boolean;
+  provenance?: DocumentProvenance;
+  replacedBy?: { doc: ReviewDocument | null; viaRequest: boolean } | null;
+}
+
+function DocumentRow({ doc, verifiedNote, provenance, replacedBy }: DocumentRowProps) {
   return (
     <li className="flex items-start justify-between gap-3 py-2.5">
       <div className="flex min-w-0 items-start gap-2">
@@ -29,7 +62,17 @@ function DocumentRow({ doc, badge }: { doc: ReviewDocument; badge?: string }) {
             {documentTypeLabel(doc.document_type)} <span className="font-normal text-neutral-500">#{doc.id}</span>
           </p>
           <p className="text-xs text-neutral-600">Uploaded {formatReviewDateTime(doc.uploaded_at) ?? "—"}</p>
-          {badge && <p className="mt-0.5 text-xs font-medium text-success">{badge}</p>}
+          {verifiedNote && (
+            <p className="mt-0.5 text-xs font-medium text-success">Used for the customer&apos;s current verification</p>
+          )}
+          {provenance && <ProvenanceLine p={provenance} />}
+          {replacedBy && (
+            <p className="mt-0.5 text-xs text-neutral-600">
+              Replaced by {replacedBy.doc ? `#${replacedBy.doc.id}` : "a newer upload"}
+              {replacedBy.doc?.uploaded_at ? ` on ${formatReviewDateTime(replacedBy.doc.uploaded_at)}` : ""}
+              {replacedBy.viaRequest ? " - in response to an information request" : ""}
+            </p>
+          )}
         </div>
       </div>
       <DocumentViewButton documentId={doc.id} />
@@ -42,17 +85,28 @@ interface DocumentsPanelProps {
   earlierVersions: ReviewDocument[] | null; // null = history couldn't be loaded
   referees: Referee[];
   checklist: { started: boolean; items: ReviewChecklistItem[] };
+  informationRequests: ReviewInformationRequest[];
   verifiedIdDocumentId: number | null;
 }
 
+// Document status = the checklist result for the check that covers it,
+// plus where each file came from: the original application, or a
+// request-more-information round (the backend's own
+// InformationResponse.provided_document_ids link). Replaced files stay
+// listed under Document history with what replaced them.
 export function DocumentsPanel({
   documents,
   earlierVersions,
   referees,
   checklist,
+  informationRequests,
   verifiedIdDocumentId,
 }: DocumentsPanelProps) {
   const check = (key: string) => checklist.items.find((i) => i.item_type === key);
+  const provenance = documentProvenance(informationRequests);
+  const awaited = awaitedDocumentTypes(informationRequests);
+  const allKnown = [...documents, ...(earlierVersions ?? [])];
+
   const idDocs = documents.filter((d) => d.document_type === "id_verification");
   const incomeDocs = documents.filter((d) => d.document_type === "proof_of_income");
   const otherDocs = documents.filter((d) => d.document_type !== "id_verification" && d.document_type !== "proof_of_income");
@@ -60,6 +114,22 @@ export function DocumentsPanel({
   // Whether proof of income is required comes from the backend's own
   // checklist rule (amount threshold), never re-derived here.
   const incomeRequired = incomeCheck?.required ?? null;
+
+  const row = (d: ReviewDocument) => (
+    <DocumentRow
+      key={d.id}
+      doc={d}
+      verifiedNote={d.id === verifiedIdDocumentId}
+      provenance={provenance.get(d.id)}
+    />
+  );
+
+  const awaitedNote = (type: DocumentType) =>
+    awaited.has(type) && (
+      <p className="mt-2 text-xs font-medium text-amber-800">
+        Requested from the customer in an open information request - waiting on their upload.
+      </p>
+    );
 
   return (
     <Card>
@@ -70,18 +140,11 @@ export function DocumentsPanel({
           <h3 className="text-sm font-semibold text-neutral-900">ID document</h3>
           <CheckStatus item={check("valid_id")} started={checklist.started} />
         </div>
+        {awaitedNote("id_verification")}
         {idDocs.length === 0 ? (
           <p className="mt-2 text-sm italic text-neutral-500">No ID document on file.</p>
         ) : (
-          <ul className="mt-1 divide-y divide-neutral-100">
-            {idDocs.map((d) => (
-              <DocumentRow
-                key={d.id}
-                doc={d}
-                badge={d.id === verifiedIdDocumentId ? "Used for the customer's current verification" : undefined}
-              />
-            ))}
-          </ul>
+          <ul className="mt-1 divide-y divide-neutral-100">{idDocs.map(row)}</ul>
         )}
       </section>
 
@@ -94,27 +157,20 @@ export function DocumentsPanel({
             <CheckStatus item={incomeCheck} started={checklist.started} />
           )}
         </div>
+        {awaitedNote("proof_of_income")}
         {incomeDocs.length === 0 ? (
           <p className="mt-2 text-sm italic text-neutral-500">
             {incomeRequired ? "Required, but none uploaded." : "None uploaded."}
           </p>
         ) : (
-          <ul className="mt-1 divide-y divide-neutral-100">
-            {incomeDocs.map((d) => (
-              <DocumentRow key={d.id} doc={d} />
-            ))}
-          </ul>
+          <ul className="mt-1 divide-y divide-neutral-100">{incomeDocs.map(row)}</ul>
         )}
       </section>
 
       {otherDocs.length > 0 && (
         <section className="mt-5">
           <h3 className="text-sm font-semibold text-neutral-900">Other documents</h3>
-          <ul className="mt-1 divide-y divide-neutral-100">
-            {otherDocs.map((d) => (
-              <DocumentRow key={d.id} doc={d} />
-            ))}
-          </ul>
+          <ul className="mt-1 divide-y divide-neutral-100">{otherDocs.map(row)}</ul>
         </section>
       )}
 
@@ -151,9 +207,20 @@ export function DocumentsPanel({
           <>
             <p className="mt-1 text-xs text-neutral-600">Replaced by a newer upload, kept for the record.</p>
             <ul className="mt-1 divide-y divide-neutral-100">
-              {earlierVersions.map((d) => (
-                <DocumentRow key={d.id} doc={d} />
-              ))}
+              {earlierVersions.map((d) => {
+                const replacement = replacementOf(d, allKnown);
+                return (
+                  <DocumentRow
+                    key={d.id}
+                    doc={d}
+                    provenance={provenance.get(d.id)}
+                    replacedBy={{
+                      doc: replacement,
+                      viaRequest: d.superseded_by_id !== null && provenance.has(d.superseded_by_id),
+                    }}
+                  />
+                );
+              })}
             </ul>
           </>
         )}

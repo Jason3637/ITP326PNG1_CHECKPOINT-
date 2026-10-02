@@ -25,6 +25,7 @@ function application(overrides: Partial<LoanApplication> = {}): LoanApplication 
     status: "officer_review",
     status_label: "Under Review",
     action_required_note: null,
+    information_requests: [],
     credit_evaluation_result: null,
     submitted_at: "2026-01-01T00:00:00.000Z",
     decided_at: null,

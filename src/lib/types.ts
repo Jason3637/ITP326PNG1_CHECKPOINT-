@@ -159,6 +159,32 @@ export interface Dashboard {
 // The full two-tier officer -> admin review chain. Never render these raw
 // to a customer - use `status_label` (below), which the backend already
 // computes for exactly this purpose.
+export type InformationRequestType =
+  | "missing_document"
+  | "document_unclear"
+  | "document_expired"
+  | "information_mismatch"
+  | "referee_unreachable"
+  | "employment_confirmation"
+  | "other";
+
+export type InformationRequestStatus = "open" | "responded" | "cancelled";
+
+// Customer view of a request (app/services/loan_processing.py
+// serialize_information_request(staff=False)) - no internal note, no staff
+// identities.
+export interface CustomerInformationRequest {
+  id: number;
+  request_type: InformationRequestType;
+  reason: string;
+  required_document_type: DocumentType | null;
+  required_information: string | null;
+  status: InformationRequestStatus;
+  requested_at: string | null;
+  cancelled_at: string | null;
+  response: { response_note: string; responded_at: string | null; provided_document_ids: number[] | null } | null;
+}
+
 export type LoanApplicationStatus =
   | "draft"
   | "submitted"
@@ -259,6 +285,7 @@ export interface LoanApplication {
   status: LoanApplicationStatus;
   status_label: string; // customer-facing label - always use this, never `status`, in UI copy
   action_required_note: string | null; // set while status is customer_action_required
+  information_requests: CustomerInformationRequest[]; // every round, oldest first
   credit_evaluation_result: CreditEvaluationResult | null;
   submitted_at: string;
   decided_at: string | null;
@@ -427,4 +454,173 @@ export interface QueuePage {
   total: number;
   pages: number;
   items: QueueItem[]; // oldest submission first
+}
+
+// ---- Staff: Application Review --------------------------------------------
+// GET /officer/applications/<id>. The backend returns a raw dict (its
+// Swagger model is documentation, not a filter), and that dict carries more
+// than this screen should show - storage_path, internal user ids
+// (user_id, decided_by, verified_by), the credit model's score/eligible/
+// recommendation, recommendation snapshots. These types are DELIBERATELY
+// partial: they declare only what the review screen renders, so a field
+// can't be displayed by accident without someone adding it here first.
+// The page also never hands this object to a client component whole - see
+// staff/applications/[applicationId]/page.tsx.
+
+export interface ReviewCustomerVerification {
+  verified_at: string | null;
+  valid_until: string;
+  date_of_birth: string;
+  id_document_id: number | null;
+}
+
+export interface ReviewCustomer {
+  id: number;
+  full_name: string;
+  email: string;
+  phone_number: string | null;
+  member_since: string | null;
+  is_active: boolean;
+  verification: ReviewCustomerVerification | null;
+}
+
+export interface ReviewDocument {
+  id: number;
+  loan_application_id: number | null;
+  document_type: DocumentType;
+  uploaded_at: string | null;
+  is_current: boolean;
+  superseded_by_id: number | null;
+  linked_to_this_application: boolean;
+}
+
+export interface ReviewApplication {
+  id: number;
+  amount_requested: number;
+  purpose_category: PurposeCategory | null;
+  purpose: string | null;
+  confirmed_full_name: string | null;
+  confirmed_email: string | null;
+  confirmed_phone_number: string | null;
+  prime_category: string | null;
+  pricing: PrimePricing | null;
+  monthly_income: number | null;
+  employment_status: EmploymentStatus | null;
+  existing_monthly_debt: number | null;
+  disbursement_method_requested: DisbursementMethod | null;
+  disbursement_account_reference: string | null;
+  referees: Referee[];
+  status: LoanApplicationStatus;
+  submitted_at: string | null;
+}
+
+// Only the explanatory parts of credit_evaluation_result. score, eligible,
+// recommendation ("review"/"decline") and max_eligible_amount are left out
+// on purpose: on a review screen they read as an instruction, and the
+// backend itself says this model is advisory, never a decision input.
+export interface CreditAdvisory {
+  algorithm: string;
+  disclaimer: string;
+  evaluated_at: string;
+  insufficient_data: boolean;
+  reasons: string[];
+  criteria_checked: string[];
+}
+
+export interface ReviewCreditAssessment {
+  label: string;
+  advisory: boolean;
+  affects_status: boolean;
+  result: CreditAdvisory | null;
+}
+
+export type ChecklistItemStatus = "pending" | "verified" | "failed" | "not_applicable";
+
+// Read-only here (status per check, shown beside the documents it
+// concerns); editing the checklist is a separate screen.
+export interface ReviewChecklistItem {
+  item_type: string;
+  label: string;
+  required: boolean;
+  status: ChecklistItemStatus;
+  note: string | null;
+  checked_by_name: string | null;
+  checked_at: string | null;
+}
+
+export interface ReviewChecklistSummary {
+  required: number;
+  required_complete: number;
+  failed: number;
+  blocking_items: string[];
+  ready_for_approval_recommendation: boolean;
+}
+
+export interface ReviewChecklist {
+  started: boolean;
+  items: ReviewChecklistItem[];
+  summary: ReviewChecklistSummary;
+}
+
+export interface ReviewInformationResponse {
+  response_note: string;
+  responded_at: string | null;
+  // {field: {old, new}} for every application field the customer changed
+  // in this response - the evidence of what the application said before.
+  field_changes: Record<string, { old: unknown; new: unknown }> | null;
+  provided_document_ids: number[] | null;
+}
+
+// Staff view of one Request More Information item. internal_note is
+// staff-only (the customer serialization omits it); requester/canceller
+// user ids are left out - only names are shown.
+export interface ReviewInformationRequest {
+  id: number;
+  request_type: InformationRequestType;
+  reason: string;
+  required_document_type: DocumentType | null;
+  required_information: string | null;
+  internal_note: string | null;
+  status: InformationRequestStatus;
+  requested_at: string | null;
+  requested_by_name: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  response: ReviewInformationResponse | null;
+}
+
+// An officer's recommendation as recorded (immutable on the backend), with
+// the checklist exactly as it stood when it was made. The backend also
+// freezes the credit result into credit_evaluation_snapshot - deliberately
+// not declared here, so it can't be rendered (it carries the score).
+export interface ReviewRecommendation {
+  id: number;
+  officer_name: string | null;
+  recommendation: OfficerRecommendationType;
+  comments: string;
+  checklist_snapshot: { item_type: string; label: string; required: boolean; status: ChecklistItemStatus; note: string | null }[] | null;
+  created_at: string | null;
+}
+
+export interface ReviewAdminReturn {
+  id: number;
+  recommendation_id: number | null;
+  returned_by_name: string | null;
+  reason: string;
+  created_at: string | null;
+}
+
+export interface ApplicationReview {
+  application: ReviewApplication;
+  customer: ReviewCustomer;
+  documents: ReviewDocument[];
+  checklist: ReviewChecklist;
+  information_requests: ReviewInformationRequest[];
+  recommendations: ReviewRecommendation[];
+  admin_returns: ReviewAdminReturn[];
+  // Used to decide what the screen offers (e.g. "update_checklist") - the
+  // backend's own rules for this viewer, never re-derived here. Not shown.
+  allowed_actions: string[];
+  assignment: { officer_id: number | null; officer_name: string | null; assigned_at: string | null; is_mine: boolean };
+  credit_assessment: ReviewCreditAssessment;
 }

@@ -624,3 +624,67 @@ export interface ApplicationReview {
   assignment: { officer_id: number | null; officer_name: string | null; assigned_at: string | null; is_mine: boolean };
   credit_assessment: ReviewCreditAssessment;
 }
+
+// ---- Staff: Customer History -----------------------------------------------
+// GET /officer/applications/<id>/customer-history. Reached only through an
+// application - there is no customer-id lookup anywhere in the API. Loan
+// officers get 403 once the application is decided; admins always can.
+// Every figure is computed by the backend.
+
+export interface CustomerHistorySummary {
+  previous_applications: number;
+  previous_applications_rejected: number;
+  loans_total: number;
+  loans_active: number;
+  loans_overdue: number;
+  loans_completed: number;
+  loans_defaulted: number;
+  total_borrowed: number;
+  total_repayable: number;
+  total_repaid: number;
+  current_exposure: number;
+}
+
+export interface CustomerRepaymentRecord {
+  installments_paid_on_time: number;
+  installments_paid_late: number;
+  installments_currently_overdue: number;
+  installments_ever_overdue: number;
+  payments_verified: number;
+  payments_rejected: number;
+  payments_awaiting_verification: number;
+}
+
+export interface CustomerHistoryApplication {
+  id: number;
+  submitted_at: string | null;
+  amount_requested: number;
+  prime_category: string | null;
+  status: LoanApplicationStatus;
+  decided_at: string | null;
+  loan_id: number | null;
+}
+
+export interface CustomerHistoryLoan {
+  id: number;
+  application_id: number | null;
+  principal_amount: number;
+  total_repayable: number;
+  amount_paid: number;
+  outstanding: number;
+  status: string; // active | overdue | paid | closed
+  closure_reason: string | null; // paid_in_full | defaulted
+  disbursed_at: string | null;
+  due_date: string | null;
+  installments: { total: number; paid_on_time: number; paid_late: number; overdue: number };
+}
+
+export interface CustomerHistory {
+  application_id: number;
+  customer: { id: number; full_name: string; member_since: string | null };
+  summary: CustomerHistorySummary;
+  repayment_record: CustomerRepaymentRecord;
+  penalties: { applicable: boolean; note: string | null };
+  previous_applications: CustomerHistoryApplication[];
+  loans: CustomerHistoryLoan[];
+}

@@ -74,6 +74,11 @@ describe("staffStatusLabel", () => {
     expect(staffStatusLabel("admin_review")).toBe("With administrator");
   });
 
+  it("labels decided states rather than calling them in progress", () => {
+    expect(staffStatusLabel("rejected")).toBe("Rejected");
+    expect(staffStatusLabel("awaiting_disbursement")).toBe("Approved, awaiting disbursement");
+  });
+
   it("never shows a raw status value", () => {
     expect(staffStatusLabel("something_new")).toBe("In progress");
   });

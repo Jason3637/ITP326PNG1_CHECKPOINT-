@@ -104,6 +104,15 @@ describe("ApplicationPanel", () => {
   });
 });
 
+const requestBase = {
+  request_type: "document_expired" as const,
+  required_information: null,
+  internal_note: null,
+  requested_by_name: "Olive Officer",
+  cancelled_at: null,
+  cancel_reason: null,
+};
+
 describe("DocumentsPanel", () => {
   const idDoc: ReviewDocument = {
     id: 31,
@@ -187,15 +196,23 @@ describe("DocumentsPanel", () => {
         checklist={{ started: true, items: items({ proof_of_income: { required: true } }) }}
         informationRequests={[
           {
+            ...requestBase,
             id: 5,
             reason: "Your payslip is from 2024 - please upload a current one.",
             required_document_type: "proof_of_income",
             status: "responded",
             requested_at: "2026-09-20T00:00:00Z",
-            response: { responded_at: "2026-09-21T00:00:00Z", provided_document_ids: [41] },
+            response: {
+              response_note: "Uploaded.",
+              responded_at: "2026-09-21T00:00:00Z",
+              field_changes: null,
+              provided_document_ids: [41],
+            },
           },
           {
+            ...requestBase,
             id: 6,
+            request_type: "document_unclear",
             reason: "Please upload a clearer ID.",
             required_document_type: "id_verification",
             status: "open",

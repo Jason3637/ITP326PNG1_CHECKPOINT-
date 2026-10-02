@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ChevronRight, History } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, History } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CustomerPanel } from "@/components/staff/review/CustomerPanel";
@@ -8,6 +8,8 @@ import { ApplicationPanel } from "@/components/staff/review/ApplicationPanel";
 import { DocumentsPanel } from "@/components/staff/review/DocumentsPanel";
 import { CreditAdvisoryPanel } from "@/components/staff/review/CreditAdvisoryPanel";
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
+import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
+import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
 import { checklistLockedReason, pickChecklist } from "@/lib/checklist";
@@ -20,12 +22,14 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ applicationId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
 
 // The Application Review screen. The verification checklist is editable
-// here (each item saves on its own); review decisions are a later phase.
+// here (each item saves on its own), and the officer can send a Request
+// More Information round; recommendations are a later phase.
 //
 // Data: GET /officer/applications/<id>, the backend's one-call review
 // payload. Note it isn't a pure read: for an application already with an
@@ -34,19 +38,24 @@ const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primar
 // exactly this screen.
 //
 // What reaches the browser: everything here is a Server Component except
-// DocumentViewButton (receives only a document id) and
-// VerificationChecklist (receives pickChecklist()'s field-picked copy).
+// DocumentViewButton (receives only a document id), VerificationChecklist
+// (receives pickChecklist()'s field-picked copy) and RequestInformationForm
+// (receives only the application id).
 // Panels render named fields only - nothing spreads or dumps the raw
 // response - and the response types (ApplicationReview etc.) declare only
 // rendered fields.
 // Fields the backend sends that are deliberately never shown: document
 // storage_path, internal user ids (user_id, decided_by, verified_by), the
 // credit model's score/eligible/recommendation/max amount, recommendation
-// snapshots and information-request internals (internal_note, requester
-// ids, field_changes). allowed_actions is read to decide what's editable,
-// never displayed.
-export default async function ApplicationReviewPage({ params }: PageProps) {
+// snapshots and requester/canceller user ids. Request internal notes and
+// field changes ARE shown, in the request history - that's staff evidence
+// the officer is entitled to. allowed_actions is read to decide what's
+// offered, never displayed.
+export default async function ApplicationReviewPage({ params, searchParams }: PageProps) {
   const { applicationId } = await params;
+  // Set by RequestInformationForm after a successful send.
+  const requestedRaw = (await searchParams).requested;
+  const justRequested = typeof requestedRaw === "string" && /^\d+$/.test(requestedRaw) ? Number(requestedRaw) : null;
   if (!/^\d+$/.test(applicationId)) notFound();
 
   let review: ApplicationReview;
@@ -62,6 +71,7 @@ export default async function ApplicationReviewPage({ params }: PageProps) {
   // The backend's rule for this viewer (assigned officer or admin, in an
   // editable status) - not re-derived here.
   const canEditChecklist = review.allowed_actions.includes("update_checklist");
+  const canRequestInformation = review.allowed_actions.includes("request_information");
 
   // Earlier (superseded) versions: the review payload only carries current
   // documents. Failure here shouldn't take down the whole screen.
@@ -101,6 +111,21 @@ export default async function ApplicationReviewPage({ params }: PageProps) {
         </Badge>
       </div>
 
+      {justRequested !== null && application.status === "customer_action_required" && (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+          <div className="text-sm">
+            <p className="font-medium text-neutral-900">
+              {justRequested === 1 ? "Request sent to the customer." : `${justRequested} requests sent to the customer.`}
+            </p>
+            <p className="mt-0.5 text-neutral-700">
+              Application #{application.id} is now waiting on the customer. It comes back to you under review once they
+              respond.
+            </p>
+          </div>
+        </div>
+      )}
+
       <VerificationChecklist
         applicationId={application.id}
         initial={pickChecklist(checklist)}
@@ -112,6 +137,9 @@ export default async function ApplicationReviewPage({ params }: PageProps) {
           officerName: assignment.officer_name,
         })}
       />
+
+      {canRequestInformation && <RequestInformationForm applicationId={application.id} />}
+      <RequestHistoryPanel requests={review.information_requests} />
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">

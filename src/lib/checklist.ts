@@ -79,14 +79,25 @@ export interface DocumentProvenance {
 
 // Which request-more-information round each document was provided in,
 // from the backend's own link (InformationResponse.provided_document_ids).
-export function documentProvenance(requests: ReviewInformationRequest[]): Map<number, DocumentProvenance> {
-  const map = new Map<number, DocumentProvenance>();
+// The backend records a submission's document ids on EVERY request it
+// answers, so one upload is cited by all requests in that round. The
+// request credited is the one that asked for that document type; failing
+// that, the first in the round.
+export function documentProvenance(
+  requests: ReviewInformationRequest[],
+  documentTypeById: Map<number, string> = new Map(),
+): Map<number, DocumentProvenance> {
+  const citing = new Map<number, ReviewInformationRequest[]>();
   for (const r of requests) {
     for (const id of r.response?.provided_document_ids ?? []) {
-      // First (earliest) round that provided it wins - a document id is
-      // only uploaded once, so a repeat would be the same upload re-cited.
-      if (!map.has(id)) map.set(id, { requestId: r.id, reason: r.reason, respondedAt: r.response?.responded_at ?? null });
+      citing.set(id, [...(citing.get(id) ?? []), r]);
     }
+  }
+  const map = new Map<number, DocumentProvenance>();
+  for (const [id, rs] of citing) {
+    const type = documentTypeById.get(id);
+    const r = rs.find((x) => type && x.required_document_type === type) ?? rs[0];
+    map.set(id, { requestId: r.id, reason: r.reason, respondedAt: r.response?.responded_at ?? null });
   }
   return map;
 }

@@ -41,13 +41,25 @@ describe("checklistLockedReason", () => {
   });
 });
 
+const response = (r: { responded_at: string | null; provided_document_ids: number[] | null }) => ({
+  response_note: "Done.",
+  field_changes: null,
+  ...r,
+});
+
 const request = (overrides: Partial<ReviewInformationRequest>): ReviewInformationRequest => ({
   id: 1,
+  request_type: "document_expired",
   reason: "Upload a current payslip.",
   required_document_type: "proof_of_income",
+  required_information: null,
+  internal_note: null,
   status: "responded",
   requested_at: "2026-09-20T00:00:00Z",
-  response: { responded_at: "2026-09-21T00:00:00Z", provided_document_ids: [41] },
+  requested_by_name: "Olive Officer",
+  cancelled_at: null,
+  cancel_reason: null,
+  response: response({ responded_at: "2026-09-21T00:00:00Z", provided_document_ids: [41] }),
   ...overrides,
 });
 
@@ -55,7 +67,7 @@ describe("documentProvenance", () => {
   it("maps each provided document to the request round it answered", () => {
     const map = documentProvenance([
       request({}),
-      request({ id: 2, reason: "Clearer ID please.", response: { responded_at: null, provided_document_ids: [50, 51] } }),
+      request({ id: 2, reason: "Clearer ID please.", response: response({ responded_at: null, provided_document_ids: [50, 51] }) }),
       request({ id: 3, status: "open", response: null }),
     ]);
     expect(map.get(41)).toEqual({ requestId: 1, reason: "Upload a current payslip.", respondedAt: "2026-09-21T00:00:00Z" });
@@ -63,8 +75,17 @@ describe("documentProvenance", () => {
     expect(map.has(99)).toBe(false);
   });
 
+  it("credits the request that asked for that document type, not just the first in the round", () => {
+    const round = [
+      request({ id: 4, request_type: "referee_unreachable", required_document_type: null, reason: "Referee?" }),
+      request({ id: 5, reason: "Payslip please." }),
+    ].map((r) => ({ ...r, response: response({ responded_at: null, provided_document_ids: [41] }) }));
+    expect(documentProvenance(round, new Map([[41, "proof_of_income"]])).get(41)?.requestId).toBe(5);
+    expect(documentProvenance(round).get(41)?.requestId).toBe(4);
+  });
+
   it("tolerates a response with no provided documents", () => {
-    expect(documentProvenance([request({ response: { responded_at: null, provided_document_ids: null } })]).size).toBe(0);
+    expect(documentProvenance([request({ response: response({ responded_at: null, provided_document_ids: null }) })]).size).toBe(0);
   });
 });
 

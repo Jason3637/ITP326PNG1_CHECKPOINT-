@@ -103,9 +103,9 @@ export function DocumentsPanel({
   verifiedIdDocumentId,
 }: DocumentsPanelProps) {
   const check = (key: string) => checklist.items.find((i) => i.item_type === key);
-  const provenance = documentProvenance(informationRequests);
-  const awaited = awaitedDocumentTypes(informationRequests);
   const allKnown = [...documents, ...(earlierVersions ?? [])];
+  const provenance = documentProvenance(informationRequests, new Map(allKnown.map((d) => [d.id, d.document_type])));
+  const awaited = awaitedDocumentTypes(informationRequests);
 
   const idDocs = documents.filter((d) => d.document_type === "id_verification");
   const incomeDocs = documents.filter((d) => d.document_type === "proof_of_income");

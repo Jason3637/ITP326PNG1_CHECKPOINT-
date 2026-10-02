@@ -159,6 +159,32 @@ export interface Dashboard {
 // The full two-tier officer -> admin review chain. Never render these raw
 // to a customer - use `status_label` (below), which the backend already
 // computes for exactly this purpose.
+export type InformationRequestType =
+  | "missing_document"
+  | "document_unclear"
+  | "document_expired"
+  | "information_mismatch"
+  | "referee_unreachable"
+  | "employment_confirmation"
+  | "other";
+
+export type InformationRequestStatus = "open" | "responded" | "cancelled";
+
+// Customer view of a request (app/services/loan_processing.py
+// serialize_information_request(staff=False)) - no internal note, no staff
+// identities.
+export interface CustomerInformationRequest {
+  id: number;
+  request_type: InformationRequestType;
+  reason: string;
+  required_document_type: DocumentType | null;
+  required_information: string | null;
+  status: InformationRequestStatus;
+  requested_at: string | null;
+  cancelled_at: string | null;
+  response: { response_note: string; responded_at: string | null; provided_document_ids: number[] | null } | null;
+}
+
 export type LoanApplicationStatus =
   | "draft"
   | "submitted"
@@ -259,6 +285,7 @@ export interface LoanApplication {
   status: LoanApplicationStatus;
   status_label: string; // customer-facing label - always use this, never `status`, in UI copy
   action_required_note: string | null; // set while status is customer_action_required
+  information_requests: CustomerInformationRequest[]; // every round, oldest first
   credit_evaluation_result: CreditEvaluationResult | null;
   submitted_at: string;
   decided_at: string | null;
@@ -535,15 +562,31 @@ export interface ReviewChecklist {
   summary: ReviewChecklistSummary;
 }
 
-// Only what links documents to request rounds. The staff serialization also
-// carries internal_note, requester ids and field_changes - not used here.
+export interface ReviewInformationResponse {
+  response_note: string;
+  responded_at: string | null;
+  // {field: {old, new}} for every application field the customer changed
+  // in this response - the evidence of what the application said before.
+  field_changes: Record<string, { old: unknown; new: unknown }> | null;
+  provided_document_ids: number[] | null;
+}
+
+// Staff view of one Request More Information item. internal_note is
+// staff-only (the customer serialization omits it); requester/canceller
+// user ids are left out - only names are shown.
 export interface ReviewInformationRequest {
   id: number;
+  request_type: InformationRequestType;
   reason: string;
   required_document_type: DocumentType | null;
-  status: "open" | "responded" | "cancelled";
+  required_information: string | null;
+  internal_note: string | null;
+  status: InformationRequestStatus;
   requested_at: string | null;
-  response: { responded_at: string | null; provided_document_ids: number[] | null } | null;
+  requested_by_name: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  response: ReviewInformationResponse | null;
 }
 
 export interface ApplicationReview {

@@ -589,12 +589,35 @@ export interface ReviewInformationRequest {
   response: ReviewInformationResponse | null;
 }
 
+// An officer's recommendation as recorded (immutable on the backend), with
+// the checklist exactly as it stood when it was made. The backend also
+// freezes the credit result into credit_evaluation_snapshot - deliberately
+// not declared here, so it can't be rendered (it carries the score).
+export interface ReviewRecommendation {
+  id: number;
+  officer_name: string | null;
+  recommendation: OfficerRecommendationType;
+  comments: string;
+  checklist_snapshot: { item_type: string; label: string; required: boolean; status: ChecklistItemStatus; note: string | null }[] | null;
+  created_at: string | null;
+}
+
+export interface ReviewAdminReturn {
+  id: number;
+  recommendation_id: number | null;
+  returned_by_name: string | null;
+  reason: string;
+  created_at: string | null;
+}
+
 export interface ApplicationReview {
   application: ReviewApplication;
   customer: ReviewCustomer;
   documents: ReviewDocument[];
   checklist: ReviewChecklist;
   information_requests: ReviewInformationRequest[];
+  recommendations: ReviewRecommendation[];
+  admin_returns: ReviewAdminReturn[];
   // Used to decide what the screen offers (e.g. "update_checklist") - the
   // backend's own rules for this viewer, never re-derived here. Not shown.
   allowed_actions: string[];

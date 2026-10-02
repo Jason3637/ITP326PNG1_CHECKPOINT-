@@ -10,10 +10,13 @@ import { CreditAdvisoryPanel } from "@/components/staff/review/CreditAdvisoryPan
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
 import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
 import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
+import { RecommendationForm } from "@/components/staff/review/RecommendationForm";
+import { RecommendationHistoryPanel } from "@/components/staff/review/RecommendationHistoryPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
 import { checklistLockedReason, pickChecklist } from "@/lib/checklist";
 import { assignmentLabel, staffStatusLabel } from "@/lib/officer-queues";
+import { RECOMMENDATION_COPY, isRecommendationType } from "@/lib/recommendations";
 import { cn, focusRing } from "@/lib/utils";
 import type { ApplicationReview, ReviewDocument } from "@/lib/types";
 
@@ -28,8 +31,11 @@ interface PageProps {
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
 
 // The Application Review screen. The verification checklist is editable
-// here (each item saves on its own), and the officer can send a Request
-// More Information round; recommendations are a later phase.
+// here (each item saves on its own); the officer can send a Request More
+// Information round, or recommend approval/rejection to the administrator.
+// A recommendation never decides the application, creates a loan or moves
+// money - the backend does none of that at this step, and the copy here
+// never implies it (see RECOMMENDATION_COPY).
 //
 // Data: GET /officer/applications/<id>, the backend's one-call review
 // payload. Note it isn't a pure read: for an application already with an
@@ -39,15 +45,16 @@ const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primar
 //
 // What reaches the browser: everything here is a Server Component except
 // DocumentViewButton (receives only a document id), VerificationChecklist
-// (receives pickChecklist()'s field-picked copy) and RequestInformationForm
-// (receives only the application id).
+// (receives pickChecklist()'s field-picked copy), RequestInformationForm
+// (only the application id) and RecommendationForm (id plus a checklist
+// summary of counts and labels).
 // Panels render named fields only - nothing spreads or dumps the raw
 // response - and the response types (ApplicationReview etc.) declare only
 // rendered fields.
 // Fields the backend sends that are deliberately never shown: document
 // storage_path, internal user ids (user_id, decided_by, verified_by), the
 // credit model's score/eligible/recommendation/max amount, recommendation
-// snapshots and requester/canceller user ids. Request internal notes and
+// snapshots' frozen credit result and requester/canceller user ids. Request internal notes and
 // field changes ARE shown, in the request history - that's staff evidence
 // the officer is entitled to. allowed_actions is read to decide what's
 // offered, never displayed.
@@ -56,6 +63,9 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   // Set by RequestInformationForm after a successful send.
   const requestedRaw = (await searchParams).requested;
   const justRequested = typeof requestedRaw === "string" && /^\d+$/.test(requestedRaw) ? Number(requestedRaw) : null;
+  // Set by RecommendationForm after a successful send.
+  const recommendedRaw = (await searchParams).recommended;
+  const justRecommended = isRecommendationType(recommendedRaw) ? recommendedRaw : null;
   if (!/^\d+$/.test(applicationId)) notFound();
 
   let review: ApplicationReview;
@@ -72,6 +82,9 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   // editable status) - not re-derived here.
   const canEditChecklist = review.allowed_actions.includes("update_checklist");
   const canRequestInformation = review.allowed_actions.includes("request_information");
+  const canRecommendApproval = review.allowed_actions.includes("recommend_approval");
+  const canRecommendRejection = review.allowed_actions.includes("recommend_rejection");
+  const checklistLabel = (key: string) => checklist.items.find((i) => i.item_type === key)?.label ?? key;
 
   // Earlier (superseded) versions: the review payload only carries current
   // documents. Failure here shouldn't take down the whole screen.
@@ -126,6 +139,20 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
         </div>
       )}
 
+      {justRecommended &&
+        ["recommended_for_approval", "recommended_for_rejection", "admin_review"].includes(application.status) && (
+          <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+            <div className="text-sm">
+              <p className="font-medium text-neutral-900">{RECOMMENDATION_COPY.sentTitle(justRecommended)}</p>
+              <p className="mt-0.5 text-neutral-700">{RECOMMENDATION_COPY.sentBody(application.id)}</p>
+              <Link href="/staff" className={cn("mt-1 inline-block", linkClass)}>
+                Back to your queues
+              </Link>
+            </div>
+          </div>
+        )}
+
       <VerificationChecklist
         applicationId={application.id}
         initial={pickChecklist(checklist)}
@@ -139,6 +166,24 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
       />
 
       {canRequestInformation && <RequestInformationForm applicationId={application.id} />}
+      {(canRecommendApproval || canRecommendRejection) && (
+        <RecommendationForm
+          applicationId={application.id}
+          canRecommendApproval={canRecommendApproval}
+          canRecommendRejection={canRecommendRejection}
+          checklist={{
+            started: checklist.started,
+            required: checklist.summary.required,
+            requiredComplete: checklist.summary.required_complete,
+            outstanding: checklist.summary.blocking_items
+              .filter((k) => checklist.items.find((i) => i.item_type === k)?.status !== "failed")
+              .map(checklistLabel),
+            failed: checklist.items.filter((i) => i.status === "failed").map((i) => i.label),
+            ready: checklist.summary.ready_for_approval_recommendation,
+          }}
+        />
+      )}
+      <RecommendationHistoryPanel recommendations={review.recommendations} adminReturns={review.admin_returns} />
       <RequestHistoryPanel requests={review.information_requests} />
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">

@@ -428,3 +428,102 @@ export interface QueuePage {
   pages: number;
   items: QueueItem[]; // oldest submission first
 }
+
+// ---- Staff: Application Review --------------------------------------------
+// GET /officer/applications/<id>. The backend returns a raw dict (its
+// Swagger model is documentation, not a filter), and that dict carries more
+// than this screen should show - storage_path, internal user ids
+// (user_id, decided_by, verified_by), the credit model's score/eligible/
+// recommendation, recommendation snapshots. These types are DELIBERATELY
+// partial: they declare only what the review screen renders, so a field
+// can't be displayed by accident without someone adding it here first.
+// The page also never hands this object to a client component whole - see
+// staff/applications/[applicationId]/page.tsx.
+
+export interface ReviewCustomerVerification {
+  verified_at: string | null;
+  valid_until: string;
+  date_of_birth: string;
+  id_document_id: number | null;
+}
+
+export interface ReviewCustomer {
+  id: number;
+  full_name: string;
+  email: string;
+  phone_number: string | null;
+  member_since: string | null;
+  is_active: boolean;
+  verification: ReviewCustomerVerification | null;
+}
+
+export interface ReviewDocument {
+  id: number;
+  loan_application_id: number | null;
+  document_type: DocumentType;
+  uploaded_at: string | null;
+  is_current: boolean;
+  superseded_by_id: number | null;
+  linked_to_this_application: boolean;
+}
+
+export interface ReviewApplication {
+  id: number;
+  amount_requested: number;
+  purpose_category: PurposeCategory | null;
+  purpose: string | null;
+  confirmed_full_name: string | null;
+  confirmed_email: string | null;
+  confirmed_phone_number: string | null;
+  prime_category: string | null;
+  pricing: PrimePricing | null;
+  monthly_income: number | null;
+  employment_status: EmploymentStatus | null;
+  existing_monthly_debt: number | null;
+  disbursement_method_requested: DisbursementMethod | null;
+  disbursement_account_reference: string | null;
+  referees: Referee[];
+  status: LoanApplicationStatus;
+  submitted_at: string | null;
+}
+
+// Only the explanatory parts of credit_evaluation_result. score, eligible,
+// recommendation ("review"/"decline") and max_eligible_amount are left out
+// on purpose: on a review screen they read as an instruction, and the
+// backend itself says this model is advisory, never a decision input.
+export interface CreditAdvisory {
+  algorithm: string;
+  disclaimer: string;
+  evaluated_at: string;
+  insufficient_data: boolean;
+  reasons: string[];
+  criteria_checked: string[];
+}
+
+export interface ReviewCreditAssessment {
+  label: string;
+  advisory: boolean;
+  affects_status: boolean;
+  result: CreditAdvisory | null;
+}
+
+export type ChecklistItemStatus = "pending" | "verified" | "failed" | "not_applicable";
+
+// Read-only here (status per check, shown beside the documents it
+// concerns); editing the checklist is a separate screen.
+export interface ReviewChecklistItem {
+  item_type: string;
+  label: string;
+  required: boolean;
+  status: ChecklistItemStatus;
+  checked_at: string | null;
+}
+
+export interface ApplicationReview {
+  application: ReviewApplication;
+  customer: ReviewCustomer;
+  documents: ReviewDocument[];
+  checklist: { started: boolean; items: ReviewChecklistItem[] };
+  assignment: { officer_id: number | null; officer_name: string | null; assigned_at: string | null; is_mine: boolean };
+  credit_assessment: ReviewCreditAssessment;
+}

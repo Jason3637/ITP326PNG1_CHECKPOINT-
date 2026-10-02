@@ -208,6 +208,55 @@ describe("Application Review workspace", () => {
   });
 });
 
+describe("claim / resume on the review workspace", () => {
+  beforeEach(() => {
+    serverApiFetch.mockReset();
+  });
+
+  it("offers Claim on a new application and keeps the checklist locked until then", async () => {
+    const review = rawReview({ status: "submitted", allowed_actions: ["claim"], is_mine: false });
+    review.checklist = { ...review.checklist, started: false, items: [] };
+    review.assignment = { ...review.assignment, officer_id: null as never, officer_name: null as never };
+    mockBackend(review);
+    await renderPage();
+    expect(screen.getByRole("button", { name: "Claim and start review" })).toBeInTheDocument();
+    expect(screen.getByText("Checks start once an officer claims this application.")).toBeInTheDocument();
+    expect(screen.queryAllByRole("radiogroup")).toHaveLength(0);
+  });
+
+  it("offers Resume (with a reason) while waiting on the customer", async () => {
+    mockBackend(rawReview({ status: "customer_action_required", allowed_actions: ["update_checklist", "resume_review"] }));
+    await renderPage();
+    expect(screen.getByRole("heading", { name: "Resume the review" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Reason")).toBeInTheDocument();
+  });
+
+  it("shows the newly opened checklist right after a claim, without a reload (regression)", async () => {
+    // Before the claim: no checklist yet.
+    const before = rawReview({ status: "submitted", allowed_actions: ["claim"], is_mine: false });
+    before.checklist = { ...before.checklist, started: false, items: [] };
+    mockBackend(before);
+    const view = await renderPage();
+    expect(screen.queryAllByRole("radiogroup")).toHaveLength(0);
+
+    // router.refresh() after the claim re-renders the same page in place with
+    // new server data - VerificationChecklist must not keep its old, empty state.
+    mockBackend(rawReview());
+    view.rerender(
+      await ApplicationReviewPage({ params: Promise.resolve({ applicationId: "8" }), searchParams: Promise.resolve({}) }),
+    );
+    expect(screen.getAllByRole("radiogroup", { name: / status$/ })).toHaveLength(2); // the 2 checklist items
+    expect(screen.queryByRole("button", { name: "Claim and start review" })).not.toBeInTheDocument();
+  });
+
+  it("shows neither once the officer is reviewing", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    expect(screen.queryByRole("button", { name: "Claim and start review" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Resume the review" })).not.toBeInTheDocument();
+  });
+});
+
 describe("Customer History page scoping", () => {
   beforeEach(() => {
     serverApiFetch.mockReset();

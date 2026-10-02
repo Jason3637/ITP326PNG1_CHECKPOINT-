@@ -12,6 +12,7 @@ import { RequestInformationForm } from "@/components/staff/review/RequestInforma
 import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
 import { RecommendationForm } from "@/components/staff/review/RecommendationForm";
 import { RecommendationHistoryPanel } from "@/components/staff/review/RecommendationHistoryPanel";
+import { ReviewWorkflowPanel } from "@/components/staff/review/ReviewWorkflowPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
 import { checklistLockedReason, pickChecklist } from "@/lib/checklist";
@@ -30,7 +31,9 @@ interface PageProps {
 
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
 
-// The Application Review screen. The verification checklist is editable
+// The Application Review screen. A new application is claimed here (and a
+// returned or waiting one resumed) via ReviewWorkflowPanel; after that the
+// verification checklist is editable
 // here (each item saves on its own); the officer can send a Request More
 // Information round, or recommend approval/rejection to the administrator.
 // A recommendation never decides the application, creates a loan or moves
@@ -84,6 +87,8 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   const canRequestInformation = review.allowed_actions.includes("request_information");
   const canRecommendApproval = review.allowed_actions.includes("recommend_approval");
   const canRecommendRejection = review.allowed_actions.includes("recommend_rejection");
+  const canClaim = review.allowed_actions.includes("claim");
+  const canResume = review.allowed_actions.includes("resume_review");
   const checklistLabel = (key: string) => checklist.items.find((i) => i.item_type === key)?.label ?? key;
 
   // Earlier (superseded) versions: the review payload only carries current
@@ -153,7 +158,19 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           </div>
         )}
 
+      <ReviewWorkflowPanel
+        applicationId={application.id}
+        canClaim={canClaim}
+        canResume={canResume}
+        status={application.status}
+      />
+
       <VerificationChecklist
+        // VerificationChecklist seeds its state from `initial` once. Remount
+        // it when the application changes stage (claim, resume, customer
+        // response) so a router.refresh() shows the newly opened checklist
+        // instead of the empty one from before the claim.
+        key={`${application.status}:${checklist.started}`}
         applicationId={application.id}
         initial={pickChecklist(checklist)}
         editable={canEditChecklist}

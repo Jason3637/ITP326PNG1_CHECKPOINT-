@@ -10,6 +10,7 @@ vi.mock("@/lib/server-api", async (importOriginal) => {
 import { requestMoreInformation } from "./information-requests";
 import { submitRecommendation } from "./recommendations";
 import { updateChecklistItem } from "./checklist";
+import { claimApplication, resumeReview } from "./review-workflow";
 import { respondToActionRequired } from "@/app/(dashboard)/dashboard/applications/[applicationId]/respond/actions";
 import { ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { EMPTY_REQUEST_DRAFT } from "@/lib/information-requests";
@@ -150,6 +151,54 @@ describe("updateChecklistItem (officer)", () => {
   it("rejects a malformed item key or a problem without a note before calling the backend", async () => {
     expect(await updateChecklistItem(8, "../admin", "verified", "")).toMatchObject({ ok: false });
     expect(await updateChecklistItem(8, "valid_id", "failed", "")).toMatchObject({ ok: false });
+    expect(serverApiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("claimApplication (officer)", () => {
+  it("claims through the backend's officer-review endpoint", async () => {
+    serverApiFetch.mockResolvedValue({});
+    expect(await claimApplication(1)).toEqual({ ok: true });
+    expect(serverApiFetch).toHaveBeenCalledWith("/loans/applications/1/officer-review", { method: "POST" });
+  });
+
+  it("explains an already-claimed application", async () => {
+    rejectWith(new ApiError(409, "Application #1 is officer_review, expected submitted."));
+    const result = await claimApplication(1);
+    expect(result).toMatchObject({ ok: false, error: /already claimed/ });
+    expect(JSON.stringify(result)).not.toContain("officer_review");
+  });
+
+  it("rejects a bad id before calling the backend", async () => {
+    expect(await claimApplication(0)).toMatchObject({ ok: false });
+    expect(serverApiFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("resumeReview (officer)", () => {
+  it("sends the trimmed reason, or none at all", async () => {
+    serverApiFetch.mockResolvedValue({});
+    await resumeReview(9, "  Confirmed by phone. ");
+    expect(serverApiFetch).toHaveBeenLastCalledWith("/loans/applications/9/resume-review", {
+      method: "POST",
+      body: { reason: "Confirmed by phone." },
+    });
+    await resumeReview(15, "");
+    expect(serverApiFetch).toHaveBeenLastCalledWith("/loans/applications/15/resume-review", {
+      method: "POST",
+      body: { reason: undefined },
+    });
+  });
+
+  it("maps the backend's refusals", async () => {
+    rejectWith(new ApiError(400, "reason is required - resuming cancels the customer's open requests."));
+    expect(await resumeReview(9, "")).toMatchObject({ ok: false, error: /Give a reason/ });
+    rejectWith(new ApiError(403, "Assigned to another officer"));
+    expect(await resumeReview(9, "x")).toMatchObject({ ok: false, error: /assigned officer/ });
+  });
+
+  it("enforces the backend's 1000-character limit before calling it", async () => {
+    expect(await resumeReview(9, "x".repeat(1001))).toMatchObject({ ok: false, error: /1000/ });
     expect(serverApiFetch).not.toHaveBeenCalled();
   });
 });

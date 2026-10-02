@@ -90,6 +90,12 @@ const STAFF_STATUS_LABELS: Record<string, string> = {
   recommended_for_rejection: "Recommended: reject",
   admin_review: "With administrator",
   returned_to_officer: "Returned",
+  // Decided/closed states - reached on the review screen for a decided
+  // application and in Customer History's previous applications.
+  draft: "Draft",
+  approved: "Approved",
+  awaiting_disbursement: "Approved, awaiting disbursement",
+  rejected: "Rejected",
 };
 
 export function staffStatusLabel(status: string): string {

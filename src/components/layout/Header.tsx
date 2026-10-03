@@ -30,10 +30,10 @@ export function Header({ fullName, homeHref = "/dashboard", roleLabel }: HeaderP
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
           {/* Small square mark, using the full logo (its own gradient-square
-              background) until public/brand/prime-logo-mark-only.png exists —
-              that cropped, tagline/gradient-free version will look cleaner
-              at this size. <Logo variant="mark"> already falls back
-              automatically, no change needed here once it's added. */}
+              background) until a cropped, gradient-free mark is supplied -
+              it will look cleaner at this size. To switch over, add the file
+              to public/brand/ and set MARK_LOGO_SRC in ui/Logo.tsx; nothing
+              here needs to change. */}
           <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
             <Logo variant="mark" fill sizes="28px" />
           </div>

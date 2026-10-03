@@ -86,6 +86,7 @@ describe("ReportRepaymentForm", () => {
         loan_application_id: null,
         payment_transaction_id: null,
         document_type: "receipt",
+        id_document_type: null,
         storage_path: "x",
         uploaded_at: "2026-01-01",
         is_current: true,

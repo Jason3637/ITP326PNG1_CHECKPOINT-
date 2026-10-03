@@ -79,6 +79,7 @@ describe("relevantEarlierVersions", () => {
     id: 1,
     loan_application_id: 12,
     document_type: "proof_of_income",
+    id_document_type: null,
     uploaded_at: "2026-09-01T00:00:00Z",
     is_current: false,
     superseded_by_id: 2,

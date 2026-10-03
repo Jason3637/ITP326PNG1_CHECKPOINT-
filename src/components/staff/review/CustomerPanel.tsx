@@ -4,14 +4,19 @@ import { DetailList, DetailRow } from "./DetailList";
 import { ageFromDob, formatDob, formatReviewDate } from "@/lib/application-review";
 import type { ReviewCustomer } from "@/lib/types";
 
-// The backend has no field for a customer's residence or employer - not
-// on the user, the verification record, or the application (which only
-// has employment *status*; employer names exist only on referees). Shown
-// as explicitly "not collected" rather than left out, so the gap is
-// visible to the officer instead of looking like an empty record.
-const NOT_COLLECTED = "Not collected by the system";
+// Residence and employer are given by the customer on each application
+// (application.residential_address / employer_name). Applications made
+// before the apply form asked for them have neither - shown as such, so it
+// doesn't look like an empty record (the officer can request them).
+const NOT_ON_APPLICATION = "Not provided on this application";
 
-export function CustomerPanel({ customer }: { customer: ReviewCustomer }) {
+export interface ApplicantDetails {
+  residentialAddress: string | null;
+  employerName: string | null;
+  employmentStatus: string | null;
+}
+
+export function CustomerPanel({ customer, applicant }: { customer: ReviewCustomer; applicant: ApplicantDetails }) {
   const v = customer.verification;
   const age = ageFromDob(v?.date_of_birth ?? null);
 
@@ -32,8 +37,16 @@ export function CustomerPanel({ customer }: { customer: ReviewCustomer }) {
         />
         <DetailRow label="Mobile" value={customer.phone_number} />
         <DetailRow label="Email" value={customer.email} />
-        <DetailRow label="Residence" value={null} fallback={NOT_COLLECTED} />
-        <DetailRow label="Employer" value={null} fallback={NOT_COLLECTED} />
+        <DetailRow label="Residence" value={applicant.residentialAddress} fallback={NOT_ON_APPLICATION} />
+        <DetailRow
+          label={applicant.employmentStatus === "self_employed" ? "Business" : "Employer"}
+          value={applicant.employerName}
+          fallback={
+            applicant.employmentStatus && !["employed", "self_employed"].includes(applicant.employmentStatus)
+              ? `None (${applicant.employmentStatus.replace("_", " ")})`
+              : NOT_ON_APPLICATION
+          }
+        />
         <DetailRow label="Member since" value={formatReviewDate(customer.member_since)} />
         <DetailRow
           label="Account"

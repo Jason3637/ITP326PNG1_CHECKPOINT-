@@ -205,7 +205,14 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
-          <CustomerPanel customer={customer} />
+          <CustomerPanel
+            customer={customer}
+            applicant={{
+              residentialAddress: application.residential_address,
+              employerName: application.employer_name,
+              employmentStatus: application.employment_status,
+            }}
+          />
           <DocumentsPanel
             documents={documents}
             earlierVersions={earlierVersions}

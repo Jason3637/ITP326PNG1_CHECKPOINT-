@@ -106,6 +106,7 @@ describe("replacementOf", () => {
     id,
     loan_application_id: 12,
     document_type: "proof_of_income",
+    id_document_type: null,
     uploaded_at: null,
     is_current: superseded_by_id === null,
     superseded_by_id,

@@ -103,3 +103,15 @@ export function isActionRequired(status: string): boolean {
 export function isOpenApplication(status: string): boolean {
   return !["approved", "rejected", "awaiting_disbursement"].includes(status);
 }
+
+// Mirrors the backend rule (loan_processing._HAS_EMPLOYER): an employer -
+// or, for the self-employed, a business name - is required only for these.
+export const EMPLOYER_REQUIRED_STATUSES = ["employed", "self_employed"] as const;
+
+export function employerRequired(status: string | null | undefined): boolean {
+  return (EMPLOYER_REQUIRED_STATUSES as readonly string[]).includes(status ?? "");
+}
+
+// Backend limits for the applicant details on POST /loans/apply.
+export const RESIDENTIAL_ADDRESS_MAX_LENGTH = 500;
+export const EMPLOYER_NAME_MAX_LENGTH = 255;

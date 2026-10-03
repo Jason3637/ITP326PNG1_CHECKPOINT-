@@ -2,7 +2,12 @@
 
 import { serverApiFetch, ApiError, UnauthenticatedError, customerSafeMessage } from "@/lib/server-api";
 import { setLastApplicationDraft } from "@/lib/session";
-import { TERMS_VERSION } from "@/lib/loan-wizard";
+import {
+  EMPLOYER_NAME_MAX_LENGTH,
+  RESIDENTIAL_ADDRESS_MAX_LENGTH,
+  TERMS_VERSION,
+  employerRequired,
+} from "@/lib/loan-wizard";
 import type {
   DisbursementMethod,
   EmploymentStatus,
@@ -19,6 +24,8 @@ export interface WizardApplyInput {
   monthlyIncome: number;
   employmentStatus: EmploymentStatus;
   existingMonthlyDebt: number;
+  residentialAddress: string;
+  employerName: string; // "" when not employed / self-employed
   category: PurposeCategory;
   otherDescription: string;
   disbursementMethod: DisbursementMethod;
@@ -44,6 +51,18 @@ function validate(input: WizardApplyInput): string | null {
   }
   if (input.category === "other" && !input.otherDescription.trim()) {
     return "Describe the loan purpose.";
+  }
+  if (!input.residentialAddress.trim()) {
+    return "Enter your residential address.";
+  }
+  if (input.residentialAddress.trim().length > RESIDENTIAL_ADDRESS_MAX_LENGTH) {
+    return `Keep your address under ${RESIDENTIAL_ADDRESS_MAX_LENGTH} characters.`;
+  }
+  if (employerRequired(input.employmentStatus) && !input.employerName.trim()) {
+    return input.employmentStatus === "self_employed" ? "Enter your business name." : "Enter your employer's name.";
+  }
+  if (input.employerName.trim().length > EMPLOYER_NAME_MAX_LENGTH) {
+    return `Keep the employer name under ${EMPLOYER_NAME_MAX_LENGTH} characters.`;
   }
   if (!input.referee.full_name.trim() || !input.referee.relationship.trim() || !input.referee.mobile_number.trim()) {
     return "Referee full name, relationship, and mobile number are required.";
@@ -76,6 +95,8 @@ export async function applyForLoan(input: WizardApplyInput): Promise<ApplyResult
     monthly_income: input.monthlyIncome,
     employment_status: input.employmentStatus,
     existing_monthly_debt: input.existingMonthlyDebt,
+    residential_address: input.residentialAddress.trim(),
+    employer_name: employerRequired(input.employmentStatus) ? input.employerName.trim() : undefined,
     referees: [input.referee],
     disbursement_method_requested: input.disbursementMethod,
     disbursement_account_reference:
@@ -101,6 +122,8 @@ export async function applyForLoan(input: WizardApplyInput): Promise<ApplyResult
       monthlyIncome: String(input.monthlyIncome),
       employmentStatus: input.employmentStatus,
       existingMonthlyDebt: String(input.existingMonthlyDebt),
+      residentialAddress: input.residentialAddress.trim(),
+      employerName: input.employerName.trim(),
       disbursementMethod: input.disbursementMethod,
       bspMobileNumber: input.bspMobileNumber,
       refereeFullName: input.referee.full_name,

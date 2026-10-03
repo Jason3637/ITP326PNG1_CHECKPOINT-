@@ -42,7 +42,7 @@ describe("BasicDetailsStep — live PRIME preview", () => {
   it("calls GET /loans/prime-preview (debounced) and shows the real category/interest/total for a valid amount", async () => {
     mockedPreview.mockResolvedValue({
       ok: true,
-      pricing: { category: "PRIME 2", amount: 500, interest_amount: 200, total_repayable: 700, term_days: 14 },
+      pricing: { category: "PRIME 2", amount: 500, interest_amount: 200, interest_rate: 0.4, total_repayable: 700, term_days: 14 },
     });
     renderStep("500");
 

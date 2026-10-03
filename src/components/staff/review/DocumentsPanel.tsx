@@ -3,6 +3,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge, type BadgeProps } from "@/components/ui/Badge";
 import { DocumentViewButton } from "./DocumentViewButton";
 import { documentTypeLabel, formatReviewDateTime } from "@/lib/application-review";
+import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
 import {
   CHECKLIST_STATUS_LABELS,
   awaitedDocumentTypes,
@@ -52,6 +53,11 @@ interface DocumentRowProps {
   replacedBy?: { doc: ReviewDocument | null; viaRequest: boolean } | null;
 }
 
+function idTypeLabel(type: string | null): string {
+  if (!type) return "ID type not recorded";
+  return ID_DOCUMENT_TYPES.find((t) => t.value === type)?.label ?? type;
+}
+
 function DocumentRow({ doc, verifiedNote, provenance, replacedBy }: DocumentRowProps) {
   return (
     <li className="flex items-start justify-between gap-3 py-2.5">
@@ -59,7 +65,11 @@ function DocumentRow({ doc, verifiedNote, provenance, replacedBy }: DocumentRowP
         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-neutral-400" aria-hidden="true" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-neutral-900">
-            {documentTypeLabel(doc.document_type)} <span className="font-normal text-neutral-500">#{doc.id}</span>
+            {documentTypeLabel(doc.document_type)}
+            {doc.document_type === "id_verification" && (
+              <span className="font-normal text-neutral-700"> · {idTypeLabel(doc.id_document_type)}</span>
+            )}{" "}
+            <span className="font-normal text-neutral-500">#{doc.id}</span>
           </p>
           <p className="text-xs text-neutral-600">Uploaded {formatReviewDateTime(doc.uploaded_at) ?? "—"}</p>
           {verifiedNote && (

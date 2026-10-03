@@ -23,6 +23,8 @@ export interface WizardDraft {
   monthlyIncome: string;
   employmentStatus: string;
   existingMonthlyDebt: string;
+  residentialAddress?: string; // optional: drafts saved before these existed lack them
+  employerName?: string;
   disbursementMethod: string;
   bspMobileNumber: string;
   refereeFullName: string;

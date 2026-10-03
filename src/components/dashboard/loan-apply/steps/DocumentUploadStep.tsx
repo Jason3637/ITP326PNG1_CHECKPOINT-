@@ -158,11 +158,11 @@ export function DocumentUploadStep({
         onChange("idDocumentId", existingIdDocument?.id ?? null);
       } else if (!idUploaded && data.idFile) {
         const idForm = new FormData();
-        // The backend's document_type enum has no ID sub-type — prefixing
-        // the filename is the only way "which kind of ID" survives into
-        // storage_path for a reviewer to see.
+        // id_document_type is the real field. The "<type>-" filename prefix
+        // is kept so a backend that predates the field still records it.
         idForm.set("file", new File([data.idFile], `${data.idType}-${data.idFile.name}`, { type: data.idFile.type }));
         idForm.set("document_type", "id_verification");
+        idForm.set("id_document_type", data.idType);
         const idResult = await uploadLoanDocument(idForm);
         if (!idResult.ok) {
           setUploadError(`ID document: ${idResult.error}`);

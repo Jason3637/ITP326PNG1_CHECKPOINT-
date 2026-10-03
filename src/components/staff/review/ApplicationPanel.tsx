@@ -5,16 +5,20 @@ import { purposeLabel } from "@/lib/officer-queues";
 import { formatKina } from "@/lib/utils";
 import type { ReviewApplication, ReviewCustomer } from "@/lib/types";
 
+// 0.4 -> "40%", 0.35 -> "35%" (fractions from the backend, no rounding drift).
+function formatRate(rate: number): string {
+  return `${Math.round(rate * 10000) / 100}%`;
+}
+
 function differs(a: string | null, b: string | null) {
   return !!a && !!b && a.trim().toLowerCase() !== b.trim().toLowerCase();
 }
 
 // Every money figure here is exactly what the backend returned in
-// `pricing` - nothing is recalculated in the browser. The backend's
-// pricing block has no interest *rate* field (prime_pricing computes one,
-// but the API serializer drops it), so only the interest amount is shown;
-// deriving a rate from amount/interest here would be exactly the client-
-// side recalculation this screen must not do.
+// `pricing` - nothing is recalculated in the browser. The interest rate is
+// the backend's own tier rate (pricing.interest_rate), never derived from
+// amount/interest here. It's a flat rate for the whole term, not annual -
+// the label says so.
 export function ApplicationPanel({
   application: a,
   customer,
@@ -55,6 +59,10 @@ export function ApplicationPanel({
       <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-neutral-500">Pricing (from the system)</h3>
       {pricing ? (
         <DetailList className="mt-1">
+          <DetailRow
+            label="Interest rate"
+            value={`${formatRate(pricing.interest_rate)} flat for the ${pricing.term_days}-day term`}
+          />
           <DetailRow label="Interest" value={formatKina(pricing.interest_amount)} />
           <DetailRow label="Total repayment" value={formatKina(pricing.total_repayable)} />
           <DetailRow label="Term" value={`${pricing.term_days} days`} />

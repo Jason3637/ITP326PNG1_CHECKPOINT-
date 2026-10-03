@@ -9,8 +9,7 @@ import {
   DISBURSEMENT_METHODS,
   EMPLOYMENT_STATUSES,
   PRIME_TERM_DAYS,
-  PURPOSE_CATEGORIES,
-} from "@/lib/loan-wizard";
+  PURPOSE_CATEGORIES, EMPLOYER_NAME_MAX_LENGTH, RESIDENTIAL_ADDRESS_MAX_LENGTH, employerRequired } from "@/lib/loan-wizard";
 import type { WizardData } from "../LoanApplyWizard";
 
 const selectClass = cn(
@@ -30,6 +29,8 @@ interface FormErrors {
   otherDescription?: string;
   monthlyIncome?: string;
   employmentStatus?: string;
+  residentialAddress?: string;
+  employerName?: string;
   existingMonthlyDebt?: string;
   disbursementMethod?: string;
   bspMobileNumber?: string;
@@ -52,6 +53,17 @@ export function LoanDetailsStep({ data, onChange, onBack, onNext }: LoanDetailsS
     }
 
     if (!data.employmentStatus) next.employmentStatus = "Select your employment status.";
+
+    if (!data.residentialAddress.trim()) next.residentialAddress = "Enter where you live.";
+    else if (data.residentialAddress.trim().length > RESIDENTIAL_ADDRESS_MAX_LENGTH) {
+      next.residentialAddress = `Keep your address under ${RESIDENTIAL_ADDRESS_MAX_LENGTH} characters.`;
+    }
+    if (employerRequired(data.employmentStatus) && !data.employerName.trim()) {
+      next.employerName =
+        data.employmentStatus === "self_employed" ? "Enter your business name." : "Enter your employer's name.";
+    } else if (data.employerName.trim().length > EMPLOYER_NAME_MAX_LENGTH) {
+      next.employerName = `Keep this under ${EMPLOYER_NAME_MAX_LENGTH} characters.`;
+    }
 
     if (data.existingMonthlyDebt.trim()) {
       const debtNum = Number(data.existingMonthlyDebt);
@@ -150,6 +162,26 @@ export function LoanDetailsStep({ data, onChange, onBack, onNext }: LoanDetailsS
           {errors.employmentStatus && <p className="text-sm text-danger">{errors.employmentStatus}</p>}
         </div>
       </div>
+
+      {employerRequired(data.employmentStatus) && (
+        <Input
+          label={data.employmentStatus === "self_employed" ? "Business name" : "Employer"}
+          value={data.employerName}
+          maxLength={EMPLOYER_NAME_MAX_LENGTH}
+          onChange={(e) => onChange("employerName", e.target.value)}
+          error={errors.employerName}
+          placeholder={data.employmentStatus === "self_employed" ? "e.g. Kaupa Market Stall" : "e.g. Bank South Pacific"}
+        />
+      )}
+
+      <Input
+        label="Residential address"
+        value={data.residentialAddress}
+        maxLength={RESIDENTIAL_ADDRESS_MAX_LENGTH}
+        onChange={(e) => onChange("residentialAddress", e.target.value)}
+        error={errors.residentialAddress}
+        placeholder="e.g. Section 12, Lot 4, Gerehu Stage 2, Port Moresby, NCD"
+      />
 
       <Input
         label="Existing monthly debt (PGK, optional)"

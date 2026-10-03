@@ -1,3 +1,5 @@
+import type { IdDocumentType } from "./loan-wizard";
+
 // Types mirror the live PRIME-workflow backend (GET /api/swagger.json).
 // Updated to match the Phase 1-9 backend rewrite - the previous version of
 // this file was built against the pre-rewrite production deployment and
@@ -248,6 +250,8 @@ export interface LoanApplyInput {
   monthly_income?: number;
   employment_status?: EmploymentStatus;
   existing_monthly_debt?: number;
+  residential_address: string; // required
+  employer_name?: string; // required when employment_status is employed or self_employed
   referees: RefereeInput[]; // at least one required
   disbursement_method_requested: DisbursementMethod;
   disbursement_account_reference?: string; // required when method is bsp_mobile_banking
@@ -260,6 +264,9 @@ export interface PrimePricing {
   category: string; // "PRIME 1" | "PRIME 2" | "PRIME 3"
   amount: number;
   interest_amount: number;
+  // The tier's flat rate for the whole term (0.40 = 40% over term_days), not
+  // an annual rate. From the backend's prime_pricing - never derived here.
+  interest_rate: number;
   total_repayable: number;
   term_days: number;
 }
@@ -278,6 +285,8 @@ export interface LoanApplication {
   monthly_income: number | null;
   employment_status: EmploymentStatus | null;
   existing_monthly_debt: number | null;
+  residential_address: string | null; // null only on applications made before it was collected
+  employer_name: string | null; // null when not employed / self-employed, or on older applications
   disbursement_method_requested: DisbursementMethod | null;
   disbursement_account_reference: string | null;
   referees: Referee[];
@@ -388,6 +397,7 @@ export interface Document {
   loan_application_id: number | null;
   payment_transaction_id: number | null;
   document_type: DocumentType;
+  id_document_type: IdDocumentType | null; // id_verification documents only
   storage_path: string;
   uploaded_at: string;
   is_current: boolean;
@@ -488,6 +498,7 @@ export interface ReviewDocument {
   id: number;
   loan_application_id: number | null;
   document_type: DocumentType;
+  id_document_type: IdDocumentType | null; // id_verification documents only
   uploaded_at: string | null;
   is_current: boolean;
   superseded_by_id: number | null;
@@ -507,6 +518,8 @@ export interface ReviewApplication {
   monthly_income: number | null;
   employment_status: EmploymentStatus | null;
   existing_monthly_debt: number | null;
+  residential_address: string | null;
+  employer_name: string | null;
   disbursement_method_requested: DisbursementMethod | null;
   disbursement_account_reference: string | null;
   referees: Referee[];

@@ -18,6 +18,8 @@ function application(overrides: Partial<LoanApplication> = {}): LoanApplication 
     monthly_income: null,
     employment_status: null,
     existing_monthly_debt: null,
+    residential_address: null,
+    employer_name: null,
     disbursement_method_requested: "cash_on_hand",
     disbursement_account_reference: null,
     referees: [],

@@ -2,6 +2,7 @@
 
 import { serverApiFetch, ApiError, UnauthenticatedError, customerSafeMessage } from "@/lib/server-api";
 import type { Document, DocumentType } from "@/lib/types";
+import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
 
 export type UploadResult = { ok: true; document: Document } | { ok: false; error: string };
 
@@ -25,10 +26,13 @@ const DOCUMENT_TYPE_VALUES = new Set<DocumentType>([
 // Mirrors the existing Supabase-backed upload the backend already exposes
 // (POST /api/users/documents uploads to Supabase Storage server-side) — the
 // frontend never talks to Supabase directly.
+const ID_DOCUMENT_TYPE_VALUES = new Set<string>(ID_DOCUMENT_TYPES.map((t) => t.value));
+
 export async function uploadLoanDocument(formData: FormData): Promise<UploadResult> {
   const file = formData.get("file");
   const documentType = formData.get("document_type");
   const loanApplicationId = formData.get("loan_application_id");
+  const idDocumentType = formData.get("id_document_type");
 
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: "Select a file to upload." };
@@ -48,6 +52,13 @@ export async function uploadLoanDocument(formData: FormData): Promise<UploadResu
   upload.set("document_type", documentType);
   if (typeof loanApplicationId === "string" && loanApplicationId.trim()) {
     upload.set("loan_application_id", loanApplicationId);
+  }
+  // Which kind of ID (national ID, passport, ...) - ID documents only.
+  if (typeof idDocumentType === "string" && idDocumentType) {
+    if (documentType !== "id_verification" || !ID_DOCUMENT_TYPE_VALUES.has(idDocumentType)) {
+      return { ok: false, error: "Select a valid ID type." };
+    }
+    upload.set("id_document_type", idDocumentType);
   }
 
   try {

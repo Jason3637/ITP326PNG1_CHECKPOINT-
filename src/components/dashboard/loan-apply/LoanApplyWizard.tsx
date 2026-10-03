@@ -21,6 +21,8 @@ import type {
   PurposeCategory,
 } from "@/lib/types";
 
+import { employerRequired } from "@/lib/loan-wizard";
+
 export interface WizardData {
   amount: string;
   category: PurposeCategory | "";
@@ -28,6 +30,8 @@ export interface WizardData {
   monthlyIncome: string;
   employmentStatus: EmploymentStatus | "";
   existingMonthlyDebt: string;
+  residentialAddress: string;
+  employerName: string;
   disbursementMethod: DisbursementMethod | "";
   bspMobileNumber: string;
   idType: IdDocumentType | "";
@@ -51,6 +55,8 @@ const initialData: WizardData = {
   monthlyIncome: "",
   employmentStatus: "",
   existingMonthlyDebt: "",
+  residentialAddress: "",
+  employerName: "",
   disbursementMethod: "",
   bspMobileNumber: "",
   idType: "",
@@ -75,6 +81,8 @@ function dataFromDraft(draft: WizardDraft): WizardData {
     monthlyIncome: draft.monthlyIncome,
     employmentStatus: draft.employmentStatus as WizardData["employmentStatus"],
     existingMonthlyDebt: draft.existingMonthlyDebt,
+    residentialAddress: draft.residentialAddress ?? "",
+    employerName: draft.employerName ?? "",
     disbursementMethod: draft.disbursementMethod as WizardData["disbursementMethod"],
     bspMobileNumber: draft.bspMobileNumber,
     refereeFullName: draft.refereeFullName,
@@ -120,6 +128,8 @@ export function LoanApplyWizard({ profile, draft, existingIdDocument, existingIn
     if (
       !data.category ||
       !data.employmentStatus ||
+      !data.residentialAddress.trim() ||
+      (employerRequired(data.employmentStatus) && !data.employerName.trim()) ||
       !data.disbursementMethod ||
       !data.termsAccepted
     ) {
@@ -143,6 +153,8 @@ export function LoanApplyWizard({ profile, draft, existingIdDocument, existingIn
       monthlyIncome: Number(data.monthlyIncome),
       employmentStatus: data.employmentStatus,
       existingMonthlyDebt: data.existingMonthlyDebt.trim() ? Number(data.existingMonthlyDebt) : 0,
+      residentialAddress: data.residentialAddress,
+      employerName: employerRequired(data.employmentStatus) ? data.employerName : "",
       category: data.category,
       otherDescription: data.otherDescription,
       disbursementMethod: data.disbursementMethod,

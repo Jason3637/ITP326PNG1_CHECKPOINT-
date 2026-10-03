@@ -33,10 +33,12 @@ export const navItemsByVariant: Record<NavVariant, NavItem[]> = {
   staff: staffNavItems,
 };
 
-// Each area's root ("/dashboard", "/staff") must match exactly (it's also a
-// prefix of every other tab's href in that area) - the rest match exactly
-// or on a nested sub-route.
-const AREA_ROOTS = new Set(["/dashboard", "/staff"]);
+// "/dashboard" must match exactly - it's also a prefix of every other
+// member tab's href. The rest match exactly or on a nested sub-route, which
+// includes "/staff": the staff area has a single tab, so it stays highlighted
+// on every staff screen (queues, review, customer history). Add "/staff"
+// here once the staff nav gets a second tab.
+const AREA_ROOTS = new Set(["/dashboard"]);
 
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (AREA_ROOTS.has(href)) return pathname === href;

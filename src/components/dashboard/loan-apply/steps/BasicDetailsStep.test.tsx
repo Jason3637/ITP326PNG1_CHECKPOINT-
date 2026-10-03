@@ -30,7 +30,9 @@ function renderStep(amount = "") {
   return { ...utils, onAmountChange, onNext };
 }
 
-beforeEach(() => mockedPreview.mockReset());
+beforeEach(() => {
+  mockedPreview.mockReset();
+});
 
 describe("BasicDetailsStep — live PRIME preview", () => {
   it("shows an informational prompt before any amount is entered, and never calls the preview", () => {

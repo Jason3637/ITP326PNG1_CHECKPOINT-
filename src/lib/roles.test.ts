@@ -35,10 +35,16 @@ describe("roleLabel", () => {
 });
 
 describe("isNavItemActive", () => {
-  it("matches each area root exactly, not as a prefix", () => {
-    expect(isNavItemActive("/staff", "/staff")).toBe(true);
-    expect(isNavItemActive("/staff/applications", "/staff")).toBe(false);
+  it("matches the member dashboard root exactly, not as a prefix", () => {
+    expect(isNavItemActive("/dashboard", "/dashboard")).toBe(true);
     expect(isNavItemActive("/dashboard/loans", "/dashboard")).toBe(false);
+  });
+
+  it("keeps the single staff tab highlighted on every staff screen", () => {
+    expect(isNavItemActive("/staff", "/staff")).toBe(true);
+    expect(isNavItemActive("/staff/queues/under_review", "/staff")).toBe(true);
+    expect(isNavItemActive("/staff/applications/8/customer-history", "/staff")).toBe(true);
+    expect(isNavItemActive("/staffing", "/staff")).toBe(false);
   });
 
   it("matches other tabs on nested sub-routes", () => {

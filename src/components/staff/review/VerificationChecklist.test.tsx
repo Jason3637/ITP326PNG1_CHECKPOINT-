@@ -112,6 +112,28 @@ describe("VerificationChecklist", () => {
     expect(within(row("Valid ID checked")).queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("shows a saved note as text, with the box only after Edit note", async () => {
+    const user = userEvent.setup();
+    updateChecklistItem.mockResolvedValue({
+      ok: true,
+      checklist: checklist([item("age_18_plus", "Age 18+ verified", { status: "verified", note: "NID checked, re-confirmed." })]),
+    });
+    const saved = checklist([item("age_18_plus", "Age 18+ verified", { status: "verified", note: "NID checked." })]);
+    render(<VerificationChecklist applicationId={8} initial={saved} editable lockedReason="" />);
+    const age = row("Age 18+ verified");
+    expect(within(age).getByText("“NID checked.”")).toBeInTheDocument();
+    expect(within(age).queryByRole("textbox")).not.toBeInTheDocument();
+
+    await user.click(within(age).getByRole("button", { name: "Edit note" }));
+    const box = within(age).getByRole("textbox");
+    expect(box).toHaveValue("NID checked.");
+    await user.clear(box);
+    await user.type(box, "NID checked, re-confirmed.");
+    await user.click(within(age).getByRole("button", { name: "Save" }));
+    expect(updateChecklistItem).toHaveBeenCalledWith(8, "age_18_plus", "verified", "NID checked, re-confirmed.");
+    expect(within(row("Age 18+ verified")).queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
   it("is read-only with the reason when the viewer can't edit", () => {
     const done = checklist([
       item("age_18_plus", "Age 18+ verified", { status: "failed", note: "Under 18 per NID." }),

@@ -8,10 +8,13 @@ const FULL_LOGO_SRC = "/brand/prime-logo.jpg";
 
 // Cropped, transparent-background version of just the headdress mark (no
 // gradient background square) — for compact contexts like a small header
-// icon. Not created yet. Once it's added at this path, <Logo variant="mark">
-// will pick it up automatically; until then (or if it 404s) it falls back
-// to the full logo below.
-const MARK_LOGO_SRC = "/brand/prime-logo-mark-only.png";
+// icon. Not supplied yet, so this is null and <Logo variant="mark"> uses the
+// full logo. It used to point at the not-yet-existing file and rely on the
+// onError fallback, but that made /_next/image return 400 on every page
+// (confirmed in the staging walkthrough). Once the asset is added to
+// public/brand/, set this to "/brand/prime-logo-mark-only.png"; the onError
+// fallback below still covers a bad or missing file after that.
+const MARK_LOGO_SRC: string | null = null;
 
 export interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
   variant?: "full" | "mark";
@@ -20,11 +23,12 @@ export interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
 
 export function Logo({ variant = "full", alt = "Prime's Vault", className, ...props }: LogoProps) {
   const [markMissing, setMarkMissing] = useState(false);
-  const useMark = variant === "mark" && !markMissing;
+  const markSrc = variant === "mark" && !markMissing ? MARK_LOGO_SRC : null;
+  const useMark = markSrc !== null;
 
   return (
     <Image
-      src={useMark ? MARK_LOGO_SRC : FULL_LOGO_SRC}
+      src={markSrc ?? FULL_LOGO_SRC}
       alt={alt}
       className={cn("object-contain", className)}
       onError={useMark ? () => setMarkMissing(true) : undefined}

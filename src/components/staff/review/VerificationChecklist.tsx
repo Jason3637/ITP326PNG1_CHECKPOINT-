@@ -46,11 +46,14 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  // A saved note reads as plain text; the box only appears while the status
+  // is being changed, or after "Add note" / "Edit note".
+  const [editingNote, setEditingNote] = useState(false);
 
   const dirty = draftStatus !== item.status || draftNote.trim() !== (item.note ?? "");
   const style = STATUS_STYLE[item.status] ?? STATUS_STYLE.pending;
   const Icon = style.icon;
-  const showNote = editable && (dirty || noteRequired(draftStatus) || draftNote !== "");
+  const showNote = editable && (editingNote || draftStatus !== item.status);
 
   function choose(status: ChecklistItemStatus) {
     setDraftStatus(status);
@@ -59,6 +62,7 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
   }
 
   function cancel() {
+    setEditingNote(false);
     setDraftStatus(item.status);
     setDraftNote(item.note ?? "");
     setError(null);
@@ -79,6 +83,7 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
       setDraftStatus(saved?.status ?? draftStatus);
       setDraftNote(saved?.note ?? "");
       setJustSaved(true);
+      setEditingNote(false);
       onSaved(result.checklist);
     } else {
       setError(result.error);
@@ -114,6 +119,18 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
           )}
           {item.note && !showNote && (
             <p className="mt-1 whitespace-pre-line text-sm text-neutral-700">&ldquo;{item.note}&rdquo;</p>
+          )}
+          {editable && !showNote && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingNote(true);
+                setJustSaved(false);
+              }}
+              className="mt-1 rounded text-xs font-medium text-primary hover:text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {item.note ? "Edit note" : "Add note"}
+            </button>
           )}
 
           {editable && (

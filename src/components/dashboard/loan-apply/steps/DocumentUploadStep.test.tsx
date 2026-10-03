@@ -75,7 +75,9 @@ function renderStep(props: Partial<ComponentProps<typeof DocumentUploadStep>> = 
 }
 
 describe("DocumentUploadStep — proof of income threshold (item 4)", () => {
-  beforeEach(() => mockedUpload.mockReset());
+  beforeEach(() => {
+    mockedUpload.mockReset();
+  });
 
   it("does not require proof of income below the K1,000 threshold", async () => {
     const user = userEvent.setup();
@@ -148,7 +150,9 @@ describe("DocumentUploadStep — proof of income threshold (item 4)", () => {
 });
 
 describe("DocumentUploadStep — existing document reuse (item 3)", () => {
-  beforeEach(() => mockedUpload.mockReset());
+  beforeEach(() => {
+    mockedUpload.mockReset();
+  });
 
   it("offers reuse for an existing ID document instead of forcing a fresh upload, and only on explicit confirmation", async () => {
     const user = userEvent.setup();

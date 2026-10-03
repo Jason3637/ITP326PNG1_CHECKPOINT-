@@ -16,6 +16,7 @@ import { ReviewWorkflowPanel } from "@/components/staff/review/ReviewWorkflowPan
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
 import { checklistLockedReason, pickChecklist } from "@/lib/checklist";
+import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
 import { assignmentLabel, staffStatusLabel } from "@/lib/officer-queues";
 import { RECOMMENDATION_COPY, isRecommendationType } from "@/lib/recommendations";
 import { cn, focusRing } from "@/lib/utils";
@@ -172,6 +173,12 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
         // instead of the empty one from before the claim.
         key={`${application.status}:${checklist.started}`}
         applicationId={application.id}
+        idDocuments={documents
+          .filter((d) => d.document_type === "id_verification" && d.is_current)
+          .map((d) => ({
+            id: d.id,
+            label: `${ID_DOCUMENT_TYPES.find((t) => t.value === d.id_document_type)?.label ?? "ID document"} #${d.id}`,
+          }))}
         initial={pickChecklist(checklist)}
         editable={canEditChecklist}
         lockedReason={checklistLockedReason({
@@ -207,6 +214,8 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
         <div className="flex flex-col gap-4">
           <CustomerPanel
             customer={customer}
+            applicationId={application.id}
+            canRequestReverification={canEditChecklist}
             applicant={{
               residentialAddress: application.residential_address,
               employerName: application.employer_name,

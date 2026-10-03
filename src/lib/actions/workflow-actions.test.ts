@@ -145,7 +145,22 @@ describe("updateChecklistItem (officer)", () => {
       body: { status: "verified", note: undefined },
     });
     expect(result.ok && result.checklist.items[0]).not.toHaveProperty("checked_by");
-    expect(result.ok && result.checklist.items[0]).not.toHaveProperty("customer_verification_id");
+    // Whether a customer verification backs the check IS shown now.
+    expect(result.ok && result.checklist.items[0].customer_verification_id).toBe(3);
+  });
+
+  it("sends only well-formed identity-check evidence", async () => {
+    serverApiFetch.mockResolvedValue({ application_id: 8, started: true, items: [], summary: { required: 0, required_complete: 0, failed: 0, blocking_items: [], ready_for_approval_recommendation: true } });
+    await updateChecklistItem(8, "valid_id", "verified", "", { id_document_id: 41, id_expiry_date: "2030-01-31" });
+    expect(serverApiFetch).toHaveBeenLastCalledWith("/officer/applications/8/checklist/valid_id", {
+      method: "PATCH",
+      body: { status: "verified", note: undefined, id_document_id: 41, id_expiry_date: "2030-01-31" },
+    });
+    await updateChecklistItem(8, "age_18_plus", "verified", "", { date_of_birth: "01/05/1990", id_document_id: -1 });
+    expect(serverApiFetch).toHaveBeenLastCalledWith("/officer/applications/8/checklist/age_18_plus", {
+      method: "PATCH",
+      body: { status: "verified", note: undefined },
+    });
   });
 
   it("rejects a malformed item key or a problem without a note before calling the backend", async () => {

@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 import { VerificationChecklist } from "./VerificationChecklist";
 
 function item(item_type: string, label: string, overrides: Partial<ReviewChecklistItem> = {}): ReviewChecklistItem {
-  return { item_type, label, required: true, status: "pending", note: null, checked_by_name: null, checked_at: null, ...overrides };
+  return { item_type, label, required: true, status: "pending", note: null, checked_by_name: null, checked_at: null, customer_verification_id: null, evidence: null, ...overrides };
 }
 
 function checklist(items: ReviewChecklistItem[]): ReviewChecklist {
@@ -75,11 +75,15 @@ describe("VerificationChecklist", () => {
     await user.click(within(row("Valid ID checked")).getByRole("radio", { name: "Problem" }));
     const age = row("Age 18+ verified");
     await user.click(within(age).getByRole("radio", { name: "Verified" }));
+    // Verifying age needs the DOB read off the ID.
+    await user.type(within(age).getByLabelText(/Date of birth on the ID/), "1990-05-01");
     await user.type(within(age).getByRole("textbox"), "DOB on NID card.");
     await user.click(within(age).getByRole("button", { name: "Save" }));
 
     expect(updateChecklistItem).toHaveBeenCalledTimes(1);
-    expect(updateChecklistItem).toHaveBeenCalledWith(8, "age_18_plus", "verified", "DOB on NID card.");
+    expect(updateChecklistItem).toHaveBeenCalledWith(8, "age_18_plus", "verified", "DOB on NID card.", {
+      date_of_birth: "1990-05-01",
+    });
     expect(within(row("Age 18+ verified")).getByText("Saved")).toBeInTheDocument();
     expect(screen.getByText(/Verified by Olive Officer/)).toBeInTheDocument();
     expect(screen.getByText("1 of 2 required checks done. Each check saves on its own.")).toBeInTheDocument();
@@ -106,6 +110,7 @@ describe("VerificationChecklist", () => {
     render(<VerificationChecklist applicationId={8} initial={initial} editable lockedReason="" />);
     const age = row("Age 18+ verified");
     await user.click(within(age).getByRole("radio", { name: "Verified" }));
+    await user.type(within(age).getByLabelText(/Date of birth on the ID/), "1990-05-01");
     await user.click(within(age).getByRole("button", { name: "Save" }));
     expect(within(age).getByRole("alert")).toHaveTextContent(/assigned officer/);
     expect(within(age).getByRole("radio", { name: "Verified" })).toHaveAttribute("aria-checked", "true");
@@ -118,7 +123,13 @@ describe("VerificationChecklist", () => {
       ok: true,
       checklist: checklist([item("age_18_plus", "Age 18+ verified", { status: "verified", note: "NID checked, re-confirmed." })]),
     });
-    const saved = checklist([item("age_18_plus", "Age 18+ verified", { status: "verified", note: "NID checked." })]);
+    const saved = checklist([
+      item("age_18_plus", "Age 18+ verified", {
+        status: "verified",
+        note: "NID checked.",
+        evidence: { date_of_birth: "1990-05-01" },
+      }),
+    ]);
     render(<VerificationChecklist applicationId={8} initial={saved} editable lockedReason="" />);
     const age = row("Age 18+ verified");
     expect(within(age).getByText("“NID checked.”")).toBeInTheDocument();
@@ -130,7 +141,9 @@ describe("VerificationChecklist", () => {
     await user.clear(box);
     await user.type(box, "NID checked, re-confirmed.");
     await user.click(within(age).getByRole("button", { name: "Save" }));
-    expect(updateChecklistItem).toHaveBeenCalledWith(8, "age_18_plus", "verified", "NID checked, re-confirmed.");
+    expect(updateChecklistItem).toHaveBeenCalledWith(8, "age_18_plus", "verified", "NID checked, re-confirmed.", {
+      date_of_birth: "1990-05-01",
+    });
     expect(within(row("Age 18+ verified")).queryByRole("textbox")).not.toBeInTheDocument();
   });
 

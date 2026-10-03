@@ -478,6 +478,8 @@ export interface QueuePage {
 // staff/applications/[applicationId]/page.tsx.
 
 export interface ReviewCustomerVerification {
+  verified_by_name?: string | null;
+  id_expiry_date?: string | null;
   verified_at: string | null;
   valid_until: string;
   date_of_birth: string;
@@ -491,6 +493,10 @@ export interface ReviewCustomer {
   phone_number: string | null;
   member_since: string | null;
   is_active: boolean;
+  // Read off the ID by an officer at the Age 18+ check; shown whether or not
+  // a verification is current.
+  date_of_birth: string | null;
+  // The customer's current verification - the only source of "Verified customer".
   verification: ReviewCustomerVerification | null;
 }
 
@@ -551,6 +557,15 @@ export type ChecklistItemStatus = "pending" | "verified" | "failed" | "not_appli
 
 // Read-only here (status per check, shown beside the documents it
 // concerns); editing the checklist is a separate screen.
+// What a VERIFIED identity check recorded (backend VerificationItem.evidence):
+// age_18_plus -> date_of_birth; valid_id -> which ID document + its expiry.
+export interface ChecklistEvidence {
+  date_of_birth?: string;
+  id_document_id?: number;
+  id_document_type?: string | null;
+  id_expiry_date?: string | null;
+}
+
 export interface ReviewChecklistItem {
   item_type: string;
   label: string;
@@ -559,6 +574,10 @@ export interface ReviewChecklistItem {
   note: string | null;
   checked_by_name: string | null;
   checked_at: string | null;
+  // Set when a customer verification backs this check (made from it, or
+  // carried over from an earlier application).
+  customer_verification_id: number | null;
+  evidence: ChecklistEvidence | null;
 }
 
 export interface ReviewChecklistSummary {

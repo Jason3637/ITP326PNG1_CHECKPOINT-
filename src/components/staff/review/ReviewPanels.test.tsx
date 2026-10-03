@@ -39,6 +39,7 @@ const customer: ReviewCustomer = {
   phone_number: "+675 7999 9999",
   member_since: "2026-01-01T00:00:00Z",
   is_active: true,
+  date_of_birth: null,
   verification: null,
 };
 
@@ -131,7 +132,7 @@ describe("DocumentsPanel", () => {
       { item_type: "valid_id", label: "Valid ID checked", required: true, status: "verified" as const },
       { item_type: "referee", label: "Referee checked", required: true, status: "pending" as const },
       { item_type: "proof_of_income", label: "Proof of income checked", required: false, status: "pending" as const },
-    ].map((i) => ({ note: null, checked_by_name: null, checked_at: null, ...i, ...overrides[i.item_type] }));
+    ].map((i) => ({ note: null, checked_by_name: null, checked_at: null, customer_verification_id: null, evidence: null, ...i, ...overrides[i.item_type] }));
 
   it("shows each document's check status and marks the ID used for verification", () => {
     render(

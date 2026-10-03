@@ -1,6 +1,7 @@
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DetailList, DetailRow } from "./DetailList";
+import { RequestReverification } from "./RequestReverification";
 import { ageFromDob, formatDob, formatReviewDate } from "@/lib/application-review";
 import type { ReviewCustomer } from "@/lib/types";
 
@@ -16,9 +17,23 @@ export interface ApplicantDetails {
   employmentStatus: string | null;
 }
 
-export function CustomerPanel({ customer, applicant }: { customer: ReviewCustomer; applicant: ApplicantDetails }) {
+export function CustomerPanel({
+  customer,
+  applicant,
+  applicationId,
+  canRequestReverification = false,
+}: {
+  customer: ReviewCustomer;
+  applicant: ApplicantDetails;
+  applicationId?: number;
+  canRequestReverification?: boolean;
+}) {
+  // "Verified customer" comes only from the current verification record.
   const v = customer.verification;
-  const age = ageFromDob(v?.date_of_birth ?? null);
+  // Date of birth is on the customer record (recorded from the ID at the
+  // Age 18+ check), so it shows whether or not a verification is current.
+  const dob = customer.date_of_birth ?? v?.date_of_birth ?? null;
+  const age = ageFromDob(dob);
 
   return (
     <Card>
@@ -32,8 +47,8 @@ export function CustomerPanel({ customer, applicant }: { customer: ReviewCustome
         <DetailRow label="Name" value={customer.full_name} />
         <DetailRow
           label="Date of birth"
-          value={v ? `${formatDob(v.date_of_birth)}${age !== null ? ` (age ${age})` : ""}` : null}
-          fallback="Recorded when the customer is verified"
+          value={dob ? `${formatDob(dob)}${age !== null ? ` (age ${age})` : ""}` : null}
+          fallback="Recorded at the Age 18+ check"
         />
         <DetailRow label="Mobile" value={customer.phone_number} />
         <DetailRow label="Email" value={customer.email} />
@@ -54,11 +69,23 @@ export function CustomerPanel({ customer, applicant }: { customer: ReviewCustome
         />
         <DetailRow
           label="Verification"
-          value={v ? `Verified ${formatReviewDate(v.verified_at) ?? ""}`.trim() : null}
+          value={
+            v
+              ? [
+                  `Verified ${formatReviewDate(v.verified_at) ?? ""}`.trim(),
+                  v.verified_by_name ? `by ${v.verified_by_name}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              : null
+          }
           fallback="No current verification"
           hint={v ? `Valid until ${formatDob(v.valid_until)}` : undefined}
         />
       </DetailList>
+      {v && canRequestReverification && applicationId !== undefined && (
+        <RequestReverification applicationId={applicationId} />
+      )}
     </Card>
   );
 }

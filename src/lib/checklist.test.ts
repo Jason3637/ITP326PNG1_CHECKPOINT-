@@ -137,6 +137,7 @@ describe("pickChecklist", () => {
           checked_by_name: "Olive Officer",
           checked_at: "2026-09-28T00:00:00Z",
           customer_verification_id: 9,
+          evidence: { id_document_id: 41, id_document_type: "passport", id_expiry_date: null, extra: "dropped" },
         },
       ],
       summary: {
@@ -151,8 +152,26 @@ describe("pickChecklist", () => {
     } as unknown as ReviewChecklist;
     const picked = pickChecklist(raw);
     expect(Object.keys(picked.items[0]).sort()).toEqual(
-      ["checked_at", "checked_by_name", "item_type", "label", "note", "required", "status"].sort(),
+      [
+        "checked_at",
+        "checked_by_name",
+        "customer_verification_id",
+        "evidence",
+        "item_type",
+        "label",
+        "note",
+        "required",
+        "status",
+      ].sort(),
     );
+    // Evidence is whitelisted too - only the fields the checklist shows.
+    expect(picked.items[0].evidence).toEqual({
+      date_of_birth: undefined,
+      id_document_id: 41,
+      id_document_type: "passport",
+      id_expiry_date: null,
+    });
+    expect(picked.items[0]).not.toHaveProperty("checked_by");
     expect(picked).not.toHaveProperty("application_id");
     expect(picked.summary).not.toHaveProperty("pending");
   });

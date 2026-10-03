@@ -57,6 +57,7 @@ function rawReview(overrides: { status?: string; allowed_actions?: string[]; is_
       phone_number: null,
       member_since: "2026-01-01T00:00:00+00:00",
       is_active: true,
+      date_of_birth: "1988-03-14",
       verification: null,
     },
     documents: [
@@ -76,8 +77,8 @@ function rawReview(overrides: { status?: string; allowed_actions?: string[]; is_
       application_id: 8,
       started: true,
       items: [
-        { item_type: "valid_id", label: "Valid ID checked", required: true, status: "pending", note: null, checked_by: 1, checked_by_name: null, checked_at: null, customer_verification_id: null },
-        { item_type: "referee", label: "Referee checked", required: true, status: "verified", note: "Called her.", checked_by: 1, checked_by_name: "Olive Officer", checked_at: "2026-09-26T00:00:00+00:00", customer_verification_id: null },
+        { item_type: "valid_id", label: "Valid ID checked", required: true, status: "pending", note: null, checked_by: 1, checked_by_name: null, checked_at: null, customer_verification_id: null, evidence: null },
+        { item_type: "referee", label: "Referee checked", required: true, status: "verified", note: "Called her.", checked_by: 1, checked_by_name: "Olive Officer", checked_at: "2026-09-26T00:00:00+00:00", customer_verification_id: null, evidence: null },
       ],
       summary: { total: 2, required: 2, required_complete: 1, pending: 1, failed: 0, blocking_items: ["valid_id"], ready_for_approval_recommendation: false },
     },
@@ -162,6 +163,13 @@ describe("Application Review workspace", () => {
     expect(screen.queryByText(/K450/)).not.toBeInTheDocument(); // max eligible amount
     // The staff-only internal note IS shown to staff, labelled as such.
     expect(screen.getByText("Staff-only: HR confirmed old payslip.")).toBeInTheDocument();
+  });
+
+  it("shows the customer's date of birth even before they are verified", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    expect(screen.getByText(/Mar 14, 1988/)).toBeInTheDocument();
+    expect(screen.getByText("Not yet verified")).toBeInTheDocument();
   });
 
   it("offers checklist editing, information requests and recommendations only when the backend allows them", async () => {

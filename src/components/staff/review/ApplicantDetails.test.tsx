@@ -3,6 +3,9 @@ import { render, screen } from "@testing-library/react";
 
 // The view button's server action imports server-only code.
 vi.mock("@/lib/actions/staff-documents", () => ({ getStaffDocumentUrl: vi.fn() }));
+// CustomerPanel renders the (client) re-verification control, whose server action imports server-only code.
+vi.mock("@/lib/actions/customer-verification", () => ({ requestReverification: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 import { CustomerPanel } from "./CustomerPanel";
 import { ApplicationPanel } from "./ApplicationPanel";
@@ -19,6 +22,7 @@ const customer: ReviewCustomer = {
   phone_number: "+675 7000 0003",
   member_since: "2026-01-01T00:00:00Z",
   is_active: true,
+  date_of_birth: null,
   verification: null,
 };
 

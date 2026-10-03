@@ -132,6 +132,15 @@ export function pickChecklist(raw: ReviewChecklist): ReviewChecklist {
         note: i.note,
         checked_by_name: i.checked_by_name,
         checked_at: i.checked_at,
+        customer_verification_id: i.customer_verification_id ?? null,
+        evidence: i.evidence
+          ? {
+              date_of_birth: i.evidence.date_of_birth,
+              id_document_id: i.evidence.id_document_id,
+              id_document_type: i.evidence.id_document_type ?? null,
+              id_expiry_date: i.evidence.id_expiry_date ?? null,
+            }
+          : null,
       }),
     ),
     summary: {
@@ -141,5 +150,71 @@ export function pickChecklist(raw: ReviewChecklist): ReviewChecklist {
       blocking_items: raw.summary.blocking_items,
       ready_for_approval_recommendation: raw.summary.ready_for_approval_recommendation,
     },
+  };
+}
+
+// ---- Identity checks: what verifying them must record ---------------------
+// Mirrors the backend (verification._parse_evidence): verifying "Age 18+"
+// needs the date of birth read off the ID; verifying "Valid ID" needs which
+// ID document was checked, plus its expiry date if it has one. Both
+// verified together create the customer-level verification.
+export const EVIDENCE_ITEMS = ["age_18_plus", "valid_id"] as const;
+export const MIN_AGE = 18;
+
+export function needsEvidence(itemType: string, status: string): boolean {
+  return status === "verified" && (EVIDENCE_ITEMS as readonly string[]).includes(itemType);
+}
+
+export interface EvidenceDraft {
+  dateOfBirth: string; // YYYY-MM-DD from <input type="date">
+  idDocumentId: string; // select value
+  idExpiryDate: string; // YYYY-MM-DD or ""
+}
+
+function isoDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function ageOn(dob: Date, today: Date = new Date()): number {
+  let age = today.getFullYear() - dob.getFullYear();
+  const beforeBirthday =
+    today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate());
+  if (beforeBirthday) age -= 1;
+  return age;
+}
+
+export function validateEvidence(
+  itemType: string,
+  status: string,
+  draft: EvidenceDraft,
+  today: Date = new Date(),
+): string | null {
+  if (!needsEvidence(itemType, status)) return null;
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (itemType === "age_18_plus") {
+    const dob = isoDate(draft.dateOfBirth);
+    if (!dob) return "Enter the date of birth shown on the ID.";
+    if (dob > startOfToday) return "The date of birth can't be in the future.";
+    const age = ageOn(dob, today);
+    if (age < MIN_AGE) return `The applicant is ${age} - under ${MIN_AGE}. Mark this check as a problem instead.`;
+    return null;
+  }
+  if (!draft.idDocumentId) return "Choose which ID document you checked.";
+  if (draft.idExpiryDate) {
+    const expiry = isoDate(draft.idExpiryDate);
+    if (!expiry) return "Enter a valid expiry date, or leave it blank.";
+    if (expiry < startOfToday) return "This ID has expired. Mark the check as a problem instead.";
+  }
+  return null;
+}
+
+export function evidencePayload(itemType: string, status: string, draft: EvidenceDraft) {
+  if (!needsEvidence(itemType, status)) return undefined;
+  if (itemType === "age_18_plus") return { date_of_birth: draft.dateOfBirth };
+  return {
+    id_document_id: Number(draft.idDocumentId),
+    id_expiry_date: draft.idExpiryDate || undefined,
   };
 }

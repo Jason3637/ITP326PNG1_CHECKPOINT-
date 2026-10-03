@@ -12,10 +12,14 @@ import {
   CHECKLIST_STATUS_ACTIONS,
   CHECKLIST_STATUS_LABELS,
   NOTE_MAX_LENGTH,
+  evidencePayload,
+  needsEvidence,
   noteRequired,
   validateChecklistDraft,
+  validateEvidence,
+  type EvidenceDraft,
 } from "@/lib/checklist";
-import { formatReviewDateTime } from "@/lib/application-review";
+import { ageFromDob, formatDob, formatReviewDate, formatReviewDateTime } from "@/lib/application-review";
 import { cn } from "@/lib/utils";
 import type { ChecklistItemStatus, ReviewChecklist, ReviewChecklistItem } from "@/lib/types";
 
@@ -29,18 +33,49 @@ const STATUS_STYLE: Record<
   pending: { variant: "neutral", icon: Circle, iconClass: "text-neutral-300" },
 };
 
+export interface IdDocumentOption {
+  id: number;
+  label: string; // e.g. "Passport #41"
+}
+
 interface ChecklistItemRowProps {
   applicationId: number;
   item: ReviewChecklistItem;
   editable: boolean;
+  idDocuments: IdDocumentOption[];
   onSaved: (checklist: ReviewChecklist) => void;
+}
+
+function evidenceDraftFrom(item: ReviewChecklistItem): EvidenceDraft {
+  return {
+    dateOfBirth: item.evidence?.date_of_birth ?? "",
+    idDocumentId: item.evidence?.id_document_id ? String(item.evidence.id_document_id) : "",
+    idExpiryDate: item.evidence?.id_expiry_date ?? "",
+  };
+}
+
+// The saved evidence of a verified identity check, as one line.
+function evidenceSummary(item: ReviewChecklistItem, idDocuments: IdDocumentOption[]): string | null {
+  const e = item.evidence;
+  if (item.status !== "verified" || !e) return null;
+  if (e.date_of_birth) {
+    const age = ageFromDob(e.date_of_birth);
+    return `Date of birth ${formatDob(e.date_of_birth)}${age !== null ? ` (age ${age})` : ""}`;
+  }
+  if (e.id_document_id) {
+    const label = idDocuments.find((d) => d.id === e.id_document_id)?.label ?? `ID document #${e.id_document_id}`;
+    return e.id_expiry_date ? `${label} · expires ${formatReviewDate(e.id_expiry_date)}` : `${label} · no expiry date`;
+  }
+  return null;
 }
 
 // One checklist item with its own draft, its own Save and its own error -
 // saving (or failing to save) one item never touches another's unsaved
 // draft.
-function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistItemRowProps) {
+function ChecklistItemRow({ applicationId, item, editable, idDocuments, onSaved }: ChecklistItemRowProps) {
   const noteId = useId();
+  const evidenceId = useId();
+  const [evidence, setEvidence] = useState<EvidenceDraft>(() => evidenceDraftFrom(item));
   const [draftStatus, setDraftStatus] = useState<ChecklistItemStatus>(item.status);
   const [draftNote, setDraftNote] = useState(item.note ?? "");
   const [saving, setSaving] = useState(false);
@@ -50,7 +85,13 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
   // is being changed, or after "Add note" / "Edit note".
   const [editingNote, setEditingNote] = useState(false);
 
-  const dirty = draftStatus !== item.status || draftNote.trim() !== (item.note ?? "");
+  const savedEvidence = evidenceDraftFrom(item);
+  const evidenceDirty =
+    needsEvidence(item.item_type, draftStatus) &&
+    (evidence.dateOfBirth !== savedEvidence.dateOfBirth ||
+      evidence.idDocumentId !== savedEvidence.idDocumentId ||
+      evidence.idExpiryDate !== savedEvidence.idExpiryDate);
+  const dirty = draftStatus !== item.status || draftNote.trim() !== (item.note ?? "") || evidenceDirty;
   const style = STATUS_STYLE[item.status] ?? STATUS_STYLE.pending;
   const Icon = style.icon;
   const showNote = editable && (editingNote || draftStatus !== item.status);
@@ -65,23 +106,38 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
     setEditingNote(false);
     setDraftStatus(item.status);
     setDraftNote(item.note ?? "");
+    setEvidence(evidenceDraftFrom(item));
     setError(null);
   }
 
+  function setEvidenceField(field: keyof EvidenceDraft, value: string) {
+    setEvidence((prev) => ({ ...prev, [field]: value }));
+    setError(null);
+    setJustSaved(false);
+  }
+
   async function save() {
-    const invalid = validateChecklistDraft(draftStatus, draftNote);
+    const invalid =
+      validateChecklistDraft(draftStatus, draftNote) ?? validateEvidence(item.item_type, draftStatus, evidence);
     if (invalid) {
       setError(invalid);
       return;
     }
     setSaving(true);
     setError(null);
-    const result = await updateChecklistItem(applicationId, item.item_type, draftStatus, draftNote);
+    const result = await updateChecklistItem(
+      applicationId,
+      item.item_type,
+      draftStatus,
+      draftNote,
+      evidencePayload(item.item_type, draftStatus, evidence),
+    );
     setSaving(false);
     if (result.ok) {
       const saved = result.checklist.items.find((i) => i.item_type === item.item_type);
       setDraftStatus(saved?.status ?? draftStatus);
       setDraftNote(saved?.note ?? "");
+      if (saved) setEvidence(evidenceDraftFrom(saved));
       setJustSaved(true);
       setEditingNote(false);
       onSaved(result.checklist);
@@ -116,6 +172,9 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
               {item.checked_by_name ? ` by ${item.checked_by_name}` : ""}
               {item.checked_at ? `, ${formatReviewDateTime(item.checked_at)}` : ""}
             </p>
+          )}
+          {evidenceSummary(item, idDocuments) && (
+            <p className="mt-0.5 text-xs text-neutral-700">{evidenceSummary(item, idDocuments)}</p>
           )}
           {item.note && !showNote && (
             <p className="mt-1 whitespace-pre-line text-sm text-neutral-700">&ldquo;{item.note}&rdquo;</p>
@@ -158,6 +217,60 @@ function ChecklistItemRow({ applicationId, item, editable, onSaved }: ChecklistI
                   );
                 })}
               </div>
+
+              {showNote && needsEvidence(item.item_type, draftStatus) && item.item_type === "age_18_plus" && (
+                <div className="mt-3 flex flex-col gap-1">
+                  <label htmlFor={evidenceId} className="text-xs font-medium text-neutral-700">
+                    Date of birth on the ID (required)
+                  </label>
+                  <input
+                    id={evidenceId}
+                    type="date"
+                    value={evidence.dateOfBirth}
+                    disabled={saving}
+                    onChange={(e) => setEvidenceField("dateOfBirth", e.target.value)}
+                    className="w-fit rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  />
+                </div>
+              )}
+              {showNote && needsEvidence(item.item_type, draftStatus) && item.item_type === "valid_id" && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor={evidenceId} className="text-xs font-medium text-neutral-700">
+                      ID document checked (required)
+                    </label>
+                    <select
+                      id={evidenceId}
+                      value={evidence.idDocumentId}
+                      disabled={saving}
+                      onChange={(e) => setEvidenceField("idDocumentId", e.target.value)}
+                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <option value="">
+                        {idDocuments.length ? "Choose the ID document" : "No ID document uploaded"}
+                      </option>
+                      {idDocuments.map((d) => (
+                        <option key={d.id} value={String(d.id)}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor={`${evidenceId}-expiry`} className="text-xs font-medium text-neutral-700">
+                      ID expiry date (if it has one)
+                    </label>
+                    <input
+                      id={`${evidenceId}-expiry`}
+                      type="date"
+                      value={evidence.idExpiryDate}
+                      disabled={saving}
+                      onChange={(e) => setEvidenceField("idExpiryDate", e.target.value)}
+                      className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    />
+                  </div>
+                </div>
+              )}
 
               {showNote && (
                 <div className="mt-3 flex flex-col gap-1">
@@ -218,9 +331,17 @@ interface VerificationChecklistProps {
   initial: ReviewChecklist;
   editable: boolean;
   lockedReason: string;
+  // The customer's current ID documents, for the Valid ID check.
+  idDocuments?: IdDocumentOption[];
 }
 
-export function VerificationChecklist({ applicationId, initial, editable, lockedReason }: VerificationChecklistProps) {
+export function VerificationChecklist({
+  applicationId,
+  initial,
+  editable,
+  lockedReason,
+  idDocuments = [],
+}: VerificationChecklistProps) {
   const router = useRouter();
   const [checklist, setChecklist] = useState(initial);
   const { summary } = checklist;
@@ -275,6 +396,7 @@ export function VerificationChecklist({ applicationId, initial, editable, locked
                 applicationId={applicationId}
                 item={item}
                 editable={editable}
+                idDocuments={idDocuments}
                 onSaved={handleSaved}
               />
             ))}

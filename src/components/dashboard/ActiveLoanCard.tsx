@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { cn, focusRing, formatKina } from "@/lib/utils";
 import type { DashboardKpis, Loan } from "@/lib/types";
+import { formatPlainDate, loanOutstanding, loanPenalties } from "@/lib/penalties";
 
 interface ActiveLoanCardProps {
   kpis: DashboardKpis;
@@ -58,7 +59,12 @@ export function ActiveLoanCard({ kpis, hasOverdue, loan, daysRemaining = null }:
   // customer's own self-reported figure. See Report Repayment below: it
   // uploads a receipt for a loan officer to verify, and never writes to
   // amount_paid directly, so this sum stays accurate by construction.
-  const verifiedAmountPaid = loan?.repayment_schedule.reduce((sum, item) => sum + item.amount_paid, 0) ?? 0;
+  // Newer backends give a ledger balance (verified repayments, penalties,
+  // what's still owed); older ones don't, so fall back to the schedule.
+  const verifiedAmountPaid =
+    loan?.balance?.verified_repayments ?? loan?.repayment_schedule.reduce((sum, item) => sum + item.amount_paid, 0) ?? 0;
+  const outstanding = (loan && loanOutstanding(loan)) ?? kpis.outstanding_balance;
+  const penalties = loan ? loanPenalties(loan) : { total: 0, items: [] };
   const interestAmount = loan ? loan.total_repayable - loan.principal_amount : 0;
   const nextInstallment = loan?.repayment_schedule.find((item) => item.status !== "paid");
 
@@ -129,15 +135,34 @@ export function ActiveLoanCard({ kpis, hasOverdue, loan, daysRemaining = null }:
             <DetailRow label="Amount borrowed" value={formatKina(loan.principal_amount)} />
             <DetailRow label="Interest amount" value={formatKina(interestAmount)} />
             <DetailRow label="Total repayment" value={formatKina(loan.total_repayable)} />
+            {penalties.total > 0 && <DetailRow label="Late penalties" value={formatKina(penalties.total)} />}
             <DetailRow label="Verified amount paid" value={formatKina(verifiedAmountPaid)} />
-            <DetailRow label="Outstanding balance" value={formatKina(kpis.outstanding_balance)} />
+            <DetailRow label="Outstanding balance" value={formatKina(outstanding)} />
             <DetailRow label="Disbursement date" value={formatDate(loan.disbursed_at)} />
-            <DetailRow label="Next due date" value={nextInstallment ? formatDate(nextInstallment.due_date) : "—"} />
+            <DetailRow
+              label="Next due date"
+              value={nextInstallment ? formatDate(nextInstallment.due_date) : (formatPlainDate(loan.balance?.due_date) ?? "—")}
+            />
             <DetailRow
               label="Days remaining"
               value={daysRemaining === null ? "—" : daysRemaining < 0 ? `${Math.abs(daysRemaining)} days overdue` : `${daysRemaining} days`}
             />
           </div>
+
+          {penalties.items.length > 0 && (
+            <div role="note" className="mt-4 rounded-lg border border-warning-light bg-warning-light/40 p-3">
+              <p className="text-sm font-medium text-neutral-900">Late penalties added: {formatKina(penalties.total)}</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm text-neutral-700">
+                {penalties.items.map((item) => (
+                  <li key={`${item.tier}-${item.applied_on}`}>
+                    {item.reason}
+                    {formatPlainDate(item.applied_on) ? ` (added ${formatPlainDate(item.applied_on)})` : ""}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-xs text-neutral-600">They&apos;re included in your outstanding balance.</p>
+            </div>
+          )}
 
           <p className="mt-3 text-xs text-neutral-500">
             Make repayments via BSP Mobile Banking or in person, using your Loan ID (#{loan.id}) as the reference.

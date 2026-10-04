@@ -35,5 +35,15 @@ export default async function ReportRepaymentPage({ params }: PageProps) {
     loan.repayment_schedule.find((item) => item.status !== "paid") ?? loan.repayment_schedule[0];
   if (!installment) notFound();
 
-  return <ReportRepaymentForm loanId={loan.id} repaymentScheduleId={installment.id} />;
+  // The installment row only ever holds the original amount, so once that
+  // is paid a remaining late penalty is reported against the same row
+  // (the backend allows it). Show the full amount owed when we have it.
+  return (
+    <ReportRepaymentForm
+      loanId={loan.id}
+      repaymentScheduleId={installment.id}
+      outstanding={loan.balance?.outstanding ?? null}
+      penalties={loan.balance?.penalties ?? 0}
+    />
+  );
 }

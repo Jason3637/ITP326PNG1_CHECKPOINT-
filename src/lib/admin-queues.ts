@@ -85,7 +85,19 @@ export function adminQueueDefinition(key: AdminQueue): AdminQueueDefinition {
 }
 
 export function adminQueueHref(queue: AdminQueue, page = 1): string {
+  // Repayments have their own queue screen (with status filters).
+  if (queue === "repayments_awaiting_verification") return adminRepaymentsHref("awaiting", page);
   return `/admin/queues/${queue}${page > 1 ? `?page=${page}` : ""}`;
+}
+
+export type RepaymentFilter = "awaiting" | "verified" | "rejected" | "all";
+
+export function adminRepaymentsHref(status: RepaymentFilter = "awaiting", page = 1): string {
+  const params = new URLSearchParams();
+  if (status !== "awaiting") params.set("status", status);
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return `/admin/repayments${qs ? `?${qs}` : ""}`;
 }
 
 // Where each kind of queue item opens. One place, so the detail
@@ -99,8 +111,10 @@ export function adminLoanHref(loanId: number): string {
   return `/admin/loans/${loanId}`;
 }
 
-export function adminRepaymentHref(paymentId: number): string {
-  return `/admin/repayments/${paymentId}`;
+// Under its loan: the backend has no single-payment endpoint, so the
+// workspace reads the payment from GET /admin/loans/<loanId>.
+export function adminRepaymentHref(paymentId: number, loanId: number): string {
+  return `/admin/loans/${loanId}/repayments/${paymentId}`;
 }
 
 export function recommendationLabel(rec: AdminApplicationItem["recommendation"]): string | null {

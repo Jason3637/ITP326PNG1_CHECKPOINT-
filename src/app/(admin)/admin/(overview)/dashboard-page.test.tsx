@@ -148,7 +148,7 @@ describe("Administrator dashboard", () => {
     expect(loan).toHaveTextContent("Due Oct 9, 2026");
 
     const repayment = within(section("Repayments Awaiting Verification")).getByRole("link", { name: /K200 · Loan #30/ });
-    expect(repayment).toHaveAttribute("href", "/admin/repayments/12");
+    expect(repayment).toHaveAttribute("href", "/admin/loans/30/repayments/12");
     expect(repayment).toHaveTextContent("BSP Mobile Banking · Ref BSP-123");
     expect(repayment).toHaveTextContent("1 receipt");
     expect(repayment).toHaveTextContent("Paid Oct 3, 2026");

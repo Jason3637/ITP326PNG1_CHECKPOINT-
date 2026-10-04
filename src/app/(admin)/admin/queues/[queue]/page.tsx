@@ -27,6 +27,8 @@ const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primar
 export default async function AdminQueuePageView({ params, searchParams }: PageProps) {
   const { queue } = await params;
   if (!isAdminQueue(queue)) notFound();
+  // Repayments have their own verification queue screen.
+  if (queue === "repayments_awaiting_verification") redirect(adminQueueHref(queue));
 
   const requestedPage = parsePage((await searchParams).page);
   const definition = adminQueueDefinition(queue);

@@ -35,6 +35,11 @@ describe("Admin queue page", () => {
     expect(serverApiFetch).not.toHaveBeenCalled();
   });
 
+  it("sends the repayments queue to its own verification screen", async () => {
+    await expect(AdminQueuePageView(props("repayments_awaiting_verification"))).rejects.toThrow("REDIRECT:/admin/repayments");
+    expect(serverApiFetch).not.toHaveBeenCalled();
+  });
+
   it("asks for the requested page, 25 per page, and pages through the backend total", async () => {
     serverApiFetch.mockResolvedValue({
       ...queuePage("active_loans", [loanItem(26), loanItem(27)], 52),

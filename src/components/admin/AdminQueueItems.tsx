@@ -119,7 +119,7 @@ function RepaymentRow({ item }: { item: AdminRepaymentItem }) {
   const receipts = item.receipts.length;
   return (
     <Row
-      href={adminRepaymentHref(item.payment_id)}
+      href={adminRepaymentHref(item.payment_id, item.loan_id)}
       main={
         <>
           <p className={titleClass}>

@@ -50,7 +50,9 @@ describe("hrefs", () => {
     expect(adminQueueHref("overdue", 3)).toBe("/admin/queues/overdue?page=3");
     expect(adminApplicationHref(8)).toBe("/admin/applications/8");
     expect(adminLoanHref(4)).toBe("/admin/loans/4");
-    expect(adminRepaymentHref(12)).toBe("/admin/repayments/12");
+    expect(adminRepaymentHref(12, 5)).toBe("/admin/loans/5/repayments/12");
+    expect(adminQueueHref("repayments_awaiting_verification")).toBe("/admin/repayments");
+    expect(adminQueueHref("repayments_awaiting_verification", 2)).toBe("/admin/repayments?page=2");
   });
 
   it("lists every queue in the sidebar, highlighted instead of Overview on its page", () => {

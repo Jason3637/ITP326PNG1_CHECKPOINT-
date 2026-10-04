@@ -332,7 +332,7 @@ export interface PenaltyItem {
   tier: number;
   amount: number;
   applied_on: string; // YYYY-MM-DD
-  days_late: number;
+  days_late: number | null; // null only if a policy tier row is missing
   reason: string;
 }
 

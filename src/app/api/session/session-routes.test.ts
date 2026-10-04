@@ -93,7 +93,9 @@ describe("GET /api/session/role - re-syncs a stale or edited role cookie", () =>
     serverApiFetch.mockReset();
     updateRoleCookie.mockReset();
   });
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   const req = () => new NextRequest("http://localhost:3000/api/session/role");
 

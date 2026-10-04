@@ -1,4 +1,5 @@
 import { LayoutDashboard, HandCoins, ClipboardList, User, type LucideIcon } from "lucide-react";
+import { OFFICER_QUEUES } from "./officer-queues";
 
 export interface NavItem {
   href: string;
@@ -33,11 +34,39 @@ export const navItemsByVariant: Record<NavVariant, NavItem[]> = {
   staff: staffNavItems,
 };
 
+export interface SubNavItem {
+  href: string;
+  label: string;
+}
+
+// The five work queues, listed under Overview in the desktop sidebar so the
+// current queue is highlighted. Built from OFFICER_QUEUES, so the labels and
+// URLs can't drift from the dashboard's. Not in the phone bottom bar: six
+// tabs don't fit there, and the dashboard links every queue anyway.
+export const staffQueueNavItems: SubNavItem[] = OFFICER_QUEUES.map((q) => ({
+  href: `/staff/queues/${q.key}`,
+  label: q.summaryLabel,
+}));
+
+export const subNavItemsByVariant: Record<NavVariant, Record<string, SubNavItem[]>> = {
+  customer: {},
+  staff: { "/staff": staffQueueNavItems },
+};
+
+// A top-level item is highlighted by the same rule as everywhere else
+// (isNavItemActive) unless one of its own sub-items is the current page -
+// then that sub-item is highlighted instead, so exactly one entry is active.
+// So on a queue page the queue lights up; on the staff dashboard, review and
+// customer-history pages, Overview does.
+export function isTopNavItemActive(pathname: string, href: string, variant: NavVariant): boolean {
+  if (!isNavItemActive(pathname, href)) return false;
+  return !(subNavItemsByVariant[variant][href] ?? []).some((sub) => isNavItemActive(pathname, sub.href));
+}
+
 // "/dashboard" must match exactly - it's also a prefix of every other
 // member tab's href. The rest match exactly or on a nested sub-route, which
-// includes "/staff": the staff area has a single tab, so it stays highlighted
-// on every staff screen (queues, review, customer history). Add "/staff"
-// here once the staff nav gets a second tab.
+// includes "/staff": Overview covers every staff screen that isn't a queue
+// page (see isTopNavItemActive for how queue sub-items take over).
 const AREA_ROOTS = new Set(["/dashboard"]);
 
 export function isNavItemActive(pathname: string, href: string): boolean {

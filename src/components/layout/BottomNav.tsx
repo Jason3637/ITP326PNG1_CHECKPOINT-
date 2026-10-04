@@ -18,6 +18,7 @@ export function BottomNav({ variant = "customer" }: { variant?: NavVariant }) {
             <Link
               key={label}
               href={href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-neutral-500 hover:text-primary",
                 focusRing,

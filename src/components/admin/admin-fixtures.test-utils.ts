@@ -105,18 +105,40 @@ export function queueCounts(counts: Partial<Record<AdminQueue, number>> = {}): A
   return { as_of: "2026-10-05", queues };
 }
 
-const m = (value: number, definition: string) => ({ value, definition });
+const m = <T,>(value: T, definition: string) => ({ value, definition });
 
 export function analytics(overrides: Partial<Record<string, number>> = {}): AdminAnalytics {
+  const t = (median: number | null, count: number) => ({ count, average_hours: median, median_hours: median });
   return {
     window: { from: "2026-09-06", to: "2026-10-05", timezone: "Pacific/Port_Moresby", note: "" },
     as_of: "2026-10-05",
     currency: "PGK",
+    applications: {
+      received: m(overrides.received ?? 9, "Applications submitted in the window."),
+      approved: m(6, "Applications given a final APPROVE decision in the window."),
+      rejected: m(2, "Applications rejected in the window."),
+      approval_rate: m(0.75, "approved / (approved + rejected)."),
+      rejection_rate: m(0.25, "rejected / (approved + rejected)."),
+      by_prime_category: m(
+        { "PRIME 2": { count: 4, amount: 2000 }, "PRIME 10": { count: 1, amount: 9000 }, "PRIME 1": { count: 3, amount: 600 }, "not PRIME": { count: 1, amount: 50 } },
+        "Applications submitted in the window by PRIME category.",
+      ),
+    },
     disbursements: {
       loans_disbursed: m(overrides.loans_disbursed ?? 4, "Loans disbursed in the window."),
       principal_disbursed: m(overrides.principal_disbursed ?? 2100, "Sum of principal paid out in the window."),
       interest_contracted: m(700, "Interest."),
       expected_repayment: m(2800, "Expected."),
+      by_prime_category: m({ "PRIME 1": { count: 2, amount: 600 }, "PRIME 2": { count: 2, amount: 1500 } }, "Loans disbursed by PRIME category."),
+    },
+    repayments: {
+      verified_repayments: m(1250, "Cash received: verified repayments."),
+      penalties_charged: m(37.5, "Late-payment penalties added."),
+    },
+    processing_times: {
+      submitted_to_decided: m(t(5.5, 8), "Hours from submission to the final decision."),
+      approved_to_disbursed: m(t(60, 4), "Hours from approval to disbursement."),
+      submitted_to_disbursed: m(t(null, 0), "Hours from submission to disbursement."),
     },
     portfolio: {
       active_loans: m(overrides.active_loans ?? 3, "Open loans."),

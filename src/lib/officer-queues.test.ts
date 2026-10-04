@@ -76,7 +76,7 @@ describe("staffStatusLabel", () => {
 
   it("labels decided states rather than calling them in progress", () => {
     expect(staffStatusLabel("rejected")).toBe("Rejected");
-    expect(staffStatusLabel("awaiting_disbursement")).toBe("Approved, awaiting disbursement");
+    expect(staffStatusLabel("awaiting_disbursement")).toBe("Approved — Awaiting Disbursement");
   });
 
   it("never shows a raw status value", () => {

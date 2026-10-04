@@ -94,7 +94,7 @@ const STAFF_STATUS_LABELS: Record<string, string> = {
   // application and in Customer History's previous applications.
   draft: "Draft",
   approved: "Approved",
-  awaiting_disbursement: "Approved, awaiting disbursement",
+  awaiting_disbursement: "Approved — Awaiting Disbursement",
   disbursed: "Disbursed",
   rejected: "Rejected",
 };

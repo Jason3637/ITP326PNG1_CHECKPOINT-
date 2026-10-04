@@ -866,3 +866,19 @@ export interface AdminAnalytics {
     overdue_value: Metric<number>;
   };
 }
+
+// GET /admin/applications/<id>: the officer review payload plus the
+// administrator's pieces. decided_by (a user id) is also sent and never shown.
+export interface AdminFinalDecision {
+  awaiting: boolean;
+  can_approve: boolean;
+  can_reject: boolean;
+  can_return_to_officer: boolean;
+  can_disburse: boolean;
+  decided_at: string | null;
+  loan_id: number | null;
+}
+
+export interface AdminApplicationReview extends ApplicationReview {
+  final_decision: AdminFinalDecision;
+}

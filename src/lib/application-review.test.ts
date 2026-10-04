@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  documentTypeLabel,
   ageFromDob,
   formatDob,
   formatReviewDateTime,
@@ -108,5 +109,12 @@ describe("backend timestamps", () => {
     expect(formatReviewDateTime("2026-09-26T17:16:50Z")).toBe("Sep 27, 2026, 3:16 AM GMT+10");
     expect(formatReviewDateTime(null)).toBeNull();
     expect(formatReviewDateTime("garbage")).toBeNull();
+  });
+});
+
+describe("documentTypeLabel", () => {
+  it("names the administrator's disbursement evidence", () => {
+    expect(documentTypeLabel("disbursement_evidence")).toBe("Disbursement evidence");
+    expect(documentTypeLabel("something_new")).toBe("Document");
   });
 });

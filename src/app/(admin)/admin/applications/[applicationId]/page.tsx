@@ -13,15 +13,18 @@ import { RecommendationHistoryPanel } from "@/components/staff/review/Recommenda
 import { CustomerHistoryView } from "@/components/staff/history/CustomerHistoryView";
 import { OfficerReviewPanel } from "@/components/admin/review/OfficerReviewPanel";
 import { FinalDecisionPanel } from "@/components/admin/review/FinalDecisionPanel";
+import { DisbursementForm } from "@/components/admin/review/DisbursementForm";
+import { DisbursementRecordPanel } from "@/components/admin/review/DisbursementRecordPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { formatReviewDate, formatReviewDateTime, relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
 import { pickChecklist } from "@/lib/checklist";
 import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
 import { staffStatusLabel } from "@/lib/officer-queues";
 import { OUTCOME_STATUS, parseOutcome } from "@/lib/admin-decisions";
-import { adminLoanHref } from "@/lib/admin-queues";
-import { cn, focusRing } from "@/lib/utils";
-import type { AdminApplicationReview, CustomerHistory, ReviewDocument } from "@/lib/types";
+import { isDisbursementMethod, maskAccount } from "@/lib/disbursement";
+import { cn, focusRing, formatKina } from "@/lib/utils";
+import { formatPlainDate } from "@/lib/penalties";
+import type { AdminApplicationReview, AdminLoanDetail, CustomerHistory, ReviewDocument } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -45,7 +48,8 @@ const OUTCOME_BANNER = {
   },
 } as const;
 
-// The Final Application Review screen. Everything the loan officer saw
+// The Final Application Review screen - and, once approved, where the
+// disbursement is recorded. Everything the loan officer saw
 // (reused panels, read-only), the officer's review, the customer's history,
 // and the administrator's three actions: Approve, Reject, Return to Loan
 // Officer. Which of those are offered is the backend's call
@@ -57,7 +61,9 @@ const OUTCOME_BANNER = {
 export default async function AdminApplicationReviewPage({ params, searchParams }: PageProps) {
   const { applicationId } = await params;
   if (!/^\d+$/.test(applicationId)) notFound();
-  const outcome = parseOutcome((await searchParams).decided);
+  const sp = await searchParams;
+  const outcome = parseOutcome(sp.decided);
+  const disbursedParam = typeof sp.disbursed === "string" && /^\d+$/.test(sp.disbursed) ? Number(sp.disbursed) : null;
 
   let review: AdminApplicationReview;
   try {
@@ -80,6 +86,19 @@ export default async function AdminApplicationReviewPage({ params, searchParams 
   }
   const history: CustomerHistory | null = historyRes.status === "fulfilled" ? historyRes.value : null;
   const earlierVersions: ReviewDocument[] | null = docsRes.status === "fulfilled" ? relevantEarlierVersions(application.id, docsRes.value.documents) : null;
+
+  // A disbursed application's loan, read back from the backend. Its status
+  // is the only source of "Loan Active" on this screen.
+  let loan: AdminLoanDetail | null = null;
+  if (fd.loan_id !== null) {
+    try {
+      loan = await serverApiFetch<AdminLoanDetail>(`/admin/loans/${fd.loan_id}`);
+    } catch (err) {
+      if (err instanceof UnauthenticatedError) redirect("/login");
+      loan = null;
+    }
+  }
+  const justDisbursed = loan !== null && disbursedParam === loan.loan_id && loan.status === "active";
 
   const latest = review.recommendations.at(-1) ?? null;
   const showOutcome = outcome !== null && application.status === OUTCOME_STATUS[outcome];
@@ -114,8 +133,21 @@ export default async function AdminApplicationReviewPage({ params, searchParams 
         </div>
       )}
 
+      {justDisbursed && loan && (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+          <div className="text-sm">
+            <p className="font-medium text-neutral-900">Disbursement recorded · Loan Active</p>
+            <p className="mt-0.5 text-neutral-700">
+              Loan #{loan.loan_id} is active. {formatKina(loan.terms.original_total_due)} is due{" "}
+              {formatPlainDate(loan.terms.due_date)}.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Where the application stands when it isn't waiting on a decision. */}
-      {!fd.awaiting && !showOutcome && (
+      {!fd.awaiting && !showOutcome && application.status !== "disbursed" && (
         <div className="flex items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true" />
           <div className="text-sm text-neutral-700">
@@ -127,13 +159,6 @@ export default async function AdminApplicationReviewPage({ params, searchParams 
                   the money is paid out.
                 </p>
               </>
-            ) : application.status === "disbursed" && fd.loan_id !== null ? (
-              <p>
-                Paid out.{" "}
-                <Link href={adminLoanHref(fd.loan_id)} className={linkClass}>
-                  Open loan #{fd.loan_id}
-                </Link>
-              </p>
             ) : application.status === "rejected" ? (
               <p>Rejected{decidedOn ? ` ${decidedOn}` : ""}.</p>
             ) : (
@@ -145,13 +170,32 @@ export default async function AdminApplicationReviewPage({ params, searchParams 
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <OfficerReviewPanel review={review} />
-        <FinalDecisionPanel
-          applicationId={application.id}
-          canApprove={fd.can_approve}
-          canReject={fd.can_reject}
-          canReturn={fd.can_return_to_officer}
-          latestRecommendation={latest?.recommendation ?? null}
-        />
+        {fd.can_disburse ? (
+          <DisbursementForm
+            applicationId={application.id}
+            amount={application.pricing?.amount ?? application.amount_requested}
+            totalRepayable={application.pricing?.total_repayable ?? null}
+            requestedMethod={
+              isDisbursementMethod(application.disbursement_method_requested) ? application.disbursement_method_requested : null
+            }
+            maskedDestination={maskAccount(application.disbursement_account_reference)}
+          />
+        ) : loan ? (
+          <DisbursementRecordPanel loan={loan} />
+        ) : application.status === "disbursed" ? (
+          <Card>
+            <CardTitle>Disbursement</CardTitle>
+            <p className="mt-1 text-sm text-neutral-600">The loan record couldn&apos;t be loaded. Refresh to try again.</p>
+          </Card>
+        ) : (
+          <FinalDecisionPanel
+            applicationId={application.id}
+            canApprove={fd.can_approve}
+            canReject={fd.can_reject}
+            canReturn={fd.can_return_to_officer}
+            latestRecommendation={latest?.recommendation ?? null}
+          />
+        )}
       </div>
 
       {(review.recommendations.length > 1 || review.admin_returns.length > 0) && (

@@ -1,4 +1,4 @@
-import { LayoutDashboard, HandCoins, ClipboardList, User, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, HandCoins, ClipboardList, User, BarChart3, type LucideIcon } from "lucide-react";
 import { OFFICER_QUEUES } from "./officer-queues";
 import { ADMIN_QUEUES, adminQueueHref } from "./admin-queues";
 
@@ -26,7 +26,10 @@ export const navItems: NavItem[] = [
 export const staffNavItems: NavItem[] = [{ href: "/staff", label: "Overview", icon: LayoutDashboard }];
 
 // Administrator area - same rule: a tab per admin screen, as it's built.
-export const adminNavItems: NavItem[] = [{ href: "/admin", label: "Overview", icon: LayoutDashboard }];
+export const adminNavItems: NavItem[] = [
+  { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+];
 
 // Picked by name inside the client nav components rather than passed in as
 // a prop: NavItem.icon is a component, which can't cross the server-to-

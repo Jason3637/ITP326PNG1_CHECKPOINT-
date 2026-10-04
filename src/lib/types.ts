@@ -848,17 +848,45 @@ export interface Metric<T> {
   definition: string;
 }
 
-// GET /admin/analytics. Only the sections a screen uses are typed;
-// applications, repayments and processing_times are also returned.
+// {"PRIME 1": {count, amount}, ...} - amount is the amount requested
+// (applications) or the principal (disbursements).
+export type CategoryBreakdown = Record<string, { count: number; amount: number }>;
+
+export interface ProcessingTime {
+  count: number;
+  average_hours: number | null;
+  median_hours: number | null;
+}
+
+// GET /admin/analytics?from&to. Flow metrics count events inside the
+// window; portfolio metrics are as of now.
 export interface AdminAnalytics {
   window: { from: string; to: string; timezone: string; note: string };
   as_of: string;
   currency: string;
+  applications: {
+    received: Metric<number>;
+    approved: Metric<number>;
+    rejected: Metric<number>;
+    approval_rate: Metric<number | null>;
+    rejection_rate: Metric<number | null>;
+    by_prime_category: Metric<CategoryBreakdown>;
+  };
   disbursements: {
     loans_disbursed: Metric<number>;
     principal_disbursed: Metric<number>;
     interest_contracted: Metric<number>;
     expected_repayment: Metric<number>;
+    by_prime_category: Metric<CategoryBreakdown>;
+  };
+  repayments: {
+    verified_repayments: Metric<number>;
+    penalties_charged: Metric<number>;
+  };
+  processing_times: {
+    submitted_to_decided: Metric<ProcessingTime>;
+    approved_to_disbursed: Metric<ProcessingTime>;
+    submitted_to_disbursed: Metric<ProcessingTime>;
   };
   portfolio: {
     active_loans: Metric<number>;

@@ -9,7 +9,7 @@ import {
   pageCount,
   recommendationLabel,
 } from "./admin-queues";
-import { adminQueueNavItems, isTopNavItemActive } from "./nav";
+import { adminNavItems, adminQueueNavItems, isTopNavItemActive } from "./nav";
 
 describe("ADMIN_QUEUES", () => {
   it("covers exactly the backend's seven queues, in workflow order", () => {
@@ -76,5 +76,13 @@ describe("recommendationLabel / pageCount", () => {
     expect(pageCount(0, 25)).toBe(1);
     expect(pageCount(25, 25)).toBe(1);
     expect(pageCount(26, 25)).toBe(2);
+  });
+});
+
+describe("admin nav", () => {
+  it("has Overview and Analytics, each highlighted only on its own page", () => {
+    expect(adminNavItems.map((i) => i.href)).toEqual(["/admin", "/admin/analytics"]);
+    expect(isTopNavItemActive("/admin/analytics", "/admin", "admin")).toBe(false);
+    expect(isTopNavItemActive("/admin/analytics", "/admin/analytics", "admin")).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { cn, formatKina } from "@/lib/utils";
 import type { LoanPaymentList, MyLoans } from "@/lib/types";
+import { isCurrentLoan } from "@/lib/loan-status";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function RepaymentHistoryPage() {
   // relevant loan (the active one, or the most recently created) rather
   // than requiring the member to pick one. Members with more than one
   // loan in their history only see one loan's payments here for now.
-  const relevantLoan = loans.loans.find((l) => l.status === "active") ?? loans.loans[loans.loans.length - 1];
+  const relevantLoan = loans.loans.find(isCurrentLoan) ?? loans.loans[loans.loans.length - 1];
 
   let payments: LoanPaymentList | null = null;
   if (relevantLoan) {

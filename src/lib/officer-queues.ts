@@ -95,6 +95,7 @@ const STAFF_STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
   approved: "Approved",
   awaiting_disbursement: "Approved, awaiting disbursement",
+  disbursed: "Disbursed",
   rejected: "Rejected",
 };
 

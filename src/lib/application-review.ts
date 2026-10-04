@@ -125,13 +125,12 @@ function asStringArray(value: unknown): string[] {
 // Copies ONLY the explanatory fields out of the backend's
 // credit_evaluation_result - a runtime whitelist, not just a type, so the
 // score / eligible / "review"|"decline" recommendation / max eligible
-// amount never reach the rendered page, even by accident.
+// amount never reach the rendered page, even by accident. The model name
+// and stored disclaimer are dropped too (see CreditAdvisory in types.ts).
 export function toCreditAdvisory(raw: unknown): CreditAdvisory | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   return {
-    algorithm: typeof r.algorithm === "string" ? r.algorithm : "unknown",
-    disclaimer: typeof r.disclaimer === "string" ? r.disclaimer : "",
     evaluated_at: typeof r.evaluated_at === "string" ? r.evaluated_at : "",
     insufficient_data: r.insufficient_data === true,
     reasons: asStringArray(r.reasons),

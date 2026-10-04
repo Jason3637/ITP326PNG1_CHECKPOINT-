@@ -20,18 +20,22 @@ export const navItems: NavItem[] = [
   { href: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
-// Staff (loan_officer/admin) area. Only lists routes that exist - tabs are
-// added as each staff screen is built, never as placeholders that 404.
+// Loan Officer area. Only lists routes that exist - tabs are added as each
+// staff screen is built, never as placeholders that 404.
 export const staffNavItems: NavItem[] = [{ href: "/staff", label: "Overview", icon: LayoutDashboard }];
+
+// Administrator area - same rule: a tab per admin screen, as it's built.
+export const adminNavItems: NavItem[] = [{ href: "/admin", label: "Overview", icon: LayoutDashboard }];
 
 // Picked by name inside the client nav components rather than passed in as
 // a prop: NavItem.icon is a component, which can't cross the server-to-
 // client boundary from a layout.
-export type NavVariant = "customer" | "staff";
+export type NavVariant = "customer" | "staff" | "admin";
 
 export const navItemsByVariant: Record<NavVariant, NavItem[]> = {
   customer: navItems,
   staff: staffNavItems,
+  admin: adminNavItems,
 };
 
 export interface SubNavItem {
@@ -51,6 +55,7 @@ export const staffQueueNavItems: SubNavItem[] = OFFICER_QUEUES.map((q) => ({
 export const subNavItemsByVariant: Record<NavVariant, Record<string, SubNavItem[]>> = {
   customer: {},
   staff: { "/staff": staffQueueNavItems },
+  admin: {},
 };
 
 // A top-level item is highlighted by the same rule as everywhere else
@@ -63,11 +68,11 @@ export function isTopNavItemActive(pathname: string, href: string, variant: NavV
   return !(subNavItemsByVariant[variant][href] ?? []).some((sub) => isNavItemActive(pathname, sub.href));
 }
 
-// "/dashboard" must match exactly - it's also a prefix of every other
-// member tab's href. The rest match exactly or on a nested sub-route, which
+// "/dashboard" and "/admin" must match exactly - each is a prefix of every
+// other tab's href in its area. The rest match exactly or on a nested sub-route, which
 // includes "/staff": Overview covers every staff screen that isn't a queue
 // page (see isTopNavItemActive for how queue sub-items take over).
-const AREA_ROOTS = new Set(["/dashboard"]);
+const AREA_ROOTS = new Set(["/dashboard", "/admin"]);
 
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (AREA_ROOTS.has(href)) return pathname === href;

@@ -820,8 +820,8 @@ export interface AdminRepaymentItem {
   payment_date: string | null; // YYYY-MM-DD, when the customer says they paid
   payment_method: string | null;
   reference_number: string | null;
-  receipts: unknown[];
-  status: string;
+  receipts: AdminReceiptRef[];
+  status: AdminPaymentStatus;
   reported_at: string | null;
   loan_outstanding: number | null;
 }
@@ -900,15 +900,95 @@ export interface AdminLoanDisbursement {
   note: string | null;
 }
 
+export type AdminPaymentStatus = "reported" | "verification_pending" | "verified" | "rejected";
+
+// One ledger line. Signed: what the customer owes is positive, what they
+// paid is negative, so the outstanding balance is the plain sum.
+export interface AdminLedgerEntry {
+  id: number;
+  entry_type: "original_obligation" | "penalty" | "verified_repayment";
+  amount: number;
+  effective_date: string; // YYYY-MM-DD
+  created_at: string | null;
+  created_by_kind: "system" | "admin";
+  payment_transaction_id: number | null;
+  penalty_tier: number | null;
+  note: string | null;
+}
+
+// A receipt attached to a payment. Only the id is used (to open it) - the
+// rest of the document, e.g. its storage path, is never rendered.
+export interface AdminReceiptRef {
+  id: number;
+}
+
+export interface AdminLoanPayment {
+  id: number;
+  loan_id: number;
+  amount: number;
+  payment_method: string | null;
+  payment_date: string | null; // YYYY-MM-DD, when the customer says they paid
+  reference_number: string | null;
+  status: AdminPaymentStatus;
+  rejection_reason: string | null;
+  reported_at: string | null;
+  paid_at: string | null; // when it was verified
+  receipts: AdminReceiptRef[];
+}
+
+// actor_id and entity ids are also sent and never shown; details is a
+// free-form dict, so only named keys are ever read from it.
+export interface AdminAuditEntry {
+  id: number;
+  action: string;
+  actor_role: string | null;
+  entity_type: string;
+  details: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
 export interface AdminLoanDetail {
   loan_id: number;
   application_id: number;
+  customer: AdminCustomerRef;
   status: LoanStatus;
   terms: {
+    prime_category: string | null;
     principal: number;
+    interest_rate: number;
+    interest_amount: number;
     original_total_due: number;
     term_days: number;
+    disbursed_at: string | null;
     due_date: string; // YYYY-MM-DD
   };
+  balance: {
+    original_obligation: number;
+    penalties: number;
+    verified_repayments: number;
+    outstanding: number;
+    days_overdue: number;
+  };
   disbursement: AdminLoanDisbursement | null;
+  closure: {
+    closed_at: string | null;
+    closure_reason: "paid_in_full" | "defaulted";
+    total_verified_paid: number;
+    total_penalties: number;
+    outstanding_at_closure: number;
+    final_payment_date: string | null;
+    repayment_duration_days: number | null;
+    timeliness: string | null;
+  } | null;
+  ledger: AdminLedgerEntry[];
+  payments: AdminLoanPayment[];
+  audit_history: AdminAuditEntry[];
+}
+
+export interface AdminRepaymentPage {
+  status: "awaiting" | "verified" | "rejected" | "all";
+  page: number;
+  per_page: number;
+  total: number;
+  items: AdminRepaymentItem[];
 }

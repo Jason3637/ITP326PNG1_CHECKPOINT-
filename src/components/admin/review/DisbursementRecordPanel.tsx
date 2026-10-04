@@ -8,20 +8,14 @@ import { DISBURSEMENT_COPY } from "@/lib/disbursement";
 import { formatPlainDate } from "@/lib/penalties";
 import { adminLoanHref } from "@/lib/admin-queues";
 import { cn, focusRing, formatKina } from "@/lib/utils";
-import type { AdminLoanDetail, LoanStatus } from "@/lib/types";
-
-// The loan's own status from GET /admin/loans/<id> - "Loan Active" is only
-// ever shown when the backend says the loan is active.
-export function loanStatusBadge(status: LoanStatus): { label: string; variant: "success" | "danger" | "neutral" } {
-  if (status === "active") return { label: "Loan Active", variant: "success" };
-  if (status === "overdue") return { label: "Loan Overdue", variant: "danger" };
-  return { label: "Loan Closed", variant: "neutral" };
-}
+import { adminLoanStatus } from "@/lib/admin-loans";
+import type { AdminLoanDetail } from "@/lib/types";
 
 // What was recorded, read back from the backend after the save.
-export function DisbursementRecordPanel({ loan }: { loan: AdminLoanDetail }) {
+export function DisbursementRecordPanel({ loan, showLoanLink = true }: { loan: AdminLoanDetail; showLoanLink?: boolean }) {
   const d = loan.disbursement;
-  const badge = loanStatusBadge(loan.status);
+  // The loan's own status - "Loan Active" only when the backend says so.
+  const badge = adminLoanStatus(loan);
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -54,12 +48,14 @@ export function DisbursementRecordPanel({ loan }: { loan: AdminLoanDetail }) {
       ) : (
         <p className="mt-2 text-sm text-neutral-600">No disbursement record was returned for this loan.</p>
       )}
-      <Link
-        href={adminLoanHref(loan.loan_id)}
-        className={cn("mt-4 inline-block rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
-      >
-        Open loan #{loan.loan_id}
-      </Link>
+      {showLoanLink && (
+        <Link
+          href={adminLoanHref(loan.loan_id)}
+          className={cn("mt-4 inline-block rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
+        >
+          Open loan #{loan.loan_id}
+        </Link>
+      )}
     </Card>
   );
 }

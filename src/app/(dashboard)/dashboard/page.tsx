@@ -6,7 +6,8 @@ import { ActiveLoanCard } from "@/components/dashboard/ActiveLoanCard";
 import { BorrowingPowerCard } from "@/components/dashboard/BorrowingPowerCard";
 import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
-import { isTerminalRejected } from "@/lib/loan-wizard";
+import { isApplicationFinished, isTerminalRejected } from "@/lib/loan-wizard";
+import { isCurrentLoan } from "@/lib/loan-status";
 import { daysUntil } from "@/lib/utils";
 import type { AccountSummary, Dashboard, LoanApplicationList, MyLoans } from "@/lib/types";
 
@@ -48,9 +49,12 @@ export default async function DashboardPage() {
     throw err;
   }
 
-  const hasActiveLoan = summary.counts.active > 0;
+  // An overdue loan is still the customer's current loan - it used to be
+  // missed here (counts.active excludes overdue), so an overdue customer
+  // saw their application card instead of the loan they need to repay.
+  const hasCurrentLoan = summary.counts.active + summary.counts.overdue > 0;
 
-  if (hasActiveLoan) {
+  if (hasCurrentLoan) {
     let loans: MyLoans;
     try {
       loans = await serverApiFetch<MyLoans>("/loans/mine");
@@ -58,7 +62,7 @@ export default async function DashboardPage() {
       if (err instanceof UnauthenticatedError) redirect("/login");
       throw err;
     }
-    const activeLoan = loans.loans.find((l) => l.status === "active");
+    const activeLoan = loans.loans.find(isCurrentLoan);
     const nextInstallment = activeLoan?.repayment_schedule.find((item) => item.status !== "paid");
     const daysRemaining = nextInstallment ? daysUntil(nextInstallment.due_date) : null;
 
@@ -95,7 +99,10 @@ export default async function DashboardPage() {
   // is always the relevant one, whatever its status.
   const latest = applications.applications[0] ?? null;
 
-  if (latest && !isTerminalRejected(latest.status)) {
+  // Still in progress (including approved and waiting for the payout).
+  // A finished one - rejected, or paid out with its loan since repaid -
+  // falls through to the normal "Apply for a Loan" view below.
+  if (latest && !isApplicationFinished(latest)) {
     return (
       <div className="flex flex-col gap-4 lg:gap-6">
         <ApplicationStatusCard application={latest} />
@@ -111,7 +118,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-6">
-      {latest ? <ApplicationStatusCard application={latest} /> : <BorrowingPowerCard />}
+      {latest && isTerminalRejected(latest.status) ? <ApplicationStatusCard application={latest} /> : <BorrowingPowerCard />}
 
       <div>
         <h2 className="font-accent mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">

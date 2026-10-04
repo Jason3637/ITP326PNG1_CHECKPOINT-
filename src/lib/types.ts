@@ -198,6 +198,7 @@ export type LoanApplicationStatus =
   | "approved"
   | "rejected"
   | "awaiting_disbursement"
+  | "disbursed" // paid out, loan created (newer backends; older ones leave it at awaiting_disbursement + loan_id)
   | "returned_to_officer";
 
 export type LoanStatus = "active" | "overdue" | "paid" | "closed";

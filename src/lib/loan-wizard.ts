@@ -83,6 +83,7 @@ const STATUS_LABELS: Record<LoanApplicationStatus, string> = {
   approved: "Approved",
   rejected: "Not Approved",
   awaiting_disbursement: "Approved - Processing Disbursement",
+  disbursed: "Disbursed",
 };
 
 export function humanApplicationStatus(status: string): string {
@@ -101,7 +102,17 @@ export function isActionRequired(status: string): boolean {
 // a Loan" should be offered (the backend allows only one open application
 // at a time).
 export function isOpenApplication(status: string): boolean {
-  return !["approved", "rejected", "awaiting_disbursement"].includes(status);
+  return !["approved", "rejected", "awaiting_disbursement", "disbursed"].includes(status);
+}
+
+// Nothing more will happen to this application, so the customer is free to
+// apply again (once any loan from it is repaid). Rejected, paid out
+// ("disbursed"), or - on backends that leave a paid-out application at
+// awaiting_disbursement - one that already has a loan. awaiting_disbursement
+// WITHOUT a loan is still in progress: approved, waiting for the payout.
+export function isApplicationFinished(application: { status: string; loan_id: number | null }): boolean {
+  if (application.status === "rejected" || application.status === "disbursed") return true;
+  return application.loan_id !== null;
 }
 
 // Mirrors the backend rule (loan_processing._HAS_EMPLOYER): an employer -

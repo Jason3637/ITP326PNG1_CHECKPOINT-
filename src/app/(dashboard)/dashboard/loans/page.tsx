@@ -4,23 +4,11 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { formatKina } from "@/lib/utils";
+import { customerLoanBadge } from "@/lib/loan-status";
 import type { MyLoans } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
-
-function statusVariant(status: string): "success" | "warning" | "danger" | "neutral" {
-  if (status === "active" || status === "paid") return "success";
-  if (status === "overdue") return "danger";
-  // "closed" is deliberately neutral, not success - it covers both a
-  // happily-paid-off loan and a written-off/defaulted one
-  // (Loan.closure_reason, not shown here, distinguishes them).
-  return "neutral";
-}
-
-function statusLabel(status: string): string {
-  return { active: "Active", overdue: "Overdue", paid: "Paid", closed: "Closed" }[status] ?? status;
-}
 
 export default async function MyLoansPage() {
   let data: MyLoans;
@@ -51,7 +39,7 @@ export default async function MyLoansPage() {
                 </p>
                 <p className="text-xs text-neutral-500">{formatKina(loan.total_repayable)} total repayable</p>
               </div>
-              <Badge variant={statusVariant(loan.status)}>{statusLabel(loan.status)}</Badge>
+              <Badge variant={customerLoanBadge(loan).variant}>{customerLoanBadge(loan).label}</Badge>
             </li>
           ))}
         </ul>

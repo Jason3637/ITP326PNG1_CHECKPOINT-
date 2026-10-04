@@ -72,6 +72,14 @@ describe("POST /api/session - login handoff decides the portal from the backend"
     expect(await res.json()).toEqual({ ok: true, redirectTo: "/staff" });
   });
 
+  it("sends an admin to the admin area", async () => {
+    const { session } = await loadRoutes();
+    fetchMock.mockResolvedValue(meResponse("admin"));
+    const res = await session.POST(loginHandoff({ access_token: "a", refresh_token: "r" }));
+    expect(setSessionCookies).toHaveBeenCalledWith("a", "r", "admin");
+    expect(await res.json()).toEqual({ ok: true, redirectTo: "/admin" });
+  });
+
   it("sets no session when the backend rejects the token", async () => {
     const { session } = await loadRoutes();
     fetchMock.mockResolvedValue(meResponse("x", false));
@@ -107,11 +115,15 @@ describe("GET /api/session/role - re-syncs a stale or edited role cookie", () =>
     expect(new URL(res.headers.get("location")!).pathname).toBe("/dashboard");
   });
 
-  it("staff are sent to /staff", async () => {
+  it("loan officers are sent to /staff and admins to /admin", async () => {
     const { role } = await loadRoutes();
-    serverApiFetch.mockResolvedValue({ role: "admin" });
-    const res = await role.GET(req());
+    serverApiFetch.mockResolvedValue({ role: "loan_officer" });
+    let res = await role.GET(req());
     expect(new URL(res.headers.get("location")!).pathname).toBe("/staff");
+    serverApiFetch.mockResolvedValue({ role: "admin" });
+    res = await role.GET(req());
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/admin");
+    expect(updateRoleCookie).toHaveBeenLastCalledWith("admin");
   });
 
   it("no session goes to /login", async () => {

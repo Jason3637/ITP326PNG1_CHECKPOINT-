@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { homePathForRole, isStaffRole, roleLabel } from "./roles";
+import { areaForPath, areaForRole, homePathForRole, isStaffRole, roleLabel } from "./roles";
 import { isNavItemActive } from "./nav";
 
 describe("isStaffRole", () => {
@@ -19,11 +19,30 @@ describe("isStaffRole", () => {
 });
 
 describe("homePathForRole", () => {
-  it("sends staff to /staff and everyone else to /dashboard", () => {
+  it("sends each role to its own area, and anything else to /dashboard", () => {
     expect(homePathForRole("loan_officer")).toBe("/staff");
-    expect(homePathForRole("admin")).toBe("/staff");
+    expect(homePathForRole("admin")).toBe("/admin");
     expect(homePathForRole("customer")).toBe("/dashboard");
     expect(homePathForRole(null)).toBe("/dashboard");
+    expect(homePathForRole("ADMIN")).toBe("/dashboard");
+  });
+});
+
+describe("areaForRole / areaForPath", () => {
+  it("gives each role exactly one area", () => {
+    expect(areaForRole("admin")).toBe("admin");
+    expect(areaForRole("loan_officer")).toBe("officer");
+    expect(areaForRole("customer")).toBe("customer");
+    expect(areaForRole("superuser")).toBe("customer");
+  });
+
+  it("maps URLs to areas on a segment boundary", () => {
+    expect(areaForPath("/admin")).toBe("admin");
+    expect(areaForPath("/admin/loans/4")).toBe("admin");
+    expect(areaForPath("/staff/queues/awaiting_review")).toBe("officer");
+    expect(areaForPath("/dashboard/loans")).toBe("customer");
+    expect(areaForPath("/administrator")).toBe("customer");
+    expect(areaForPath("/staffing")).toBe("customer");
   });
 });
 
@@ -38,6 +57,11 @@ describe("isNavItemActive", () => {
   it("matches the member dashboard root exactly, not as a prefix", () => {
     expect(isNavItemActive("/dashboard", "/dashboard")).toBe(true);
     expect(isNavItemActive("/dashboard/loans", "/dashboard")).toBe(false);
+  });
+
+  it("matches the admin root exactly too, so later admin tabs don't double-highlight", () => {
+    expect(isNavItemActive("/admin", "/admin")).toBe(true);
+    expect(isNavItemActive("/admin/loans", "/admin")).toBe(false);
   });
 
   it("keeps the single staff tab highlighted on every staff screen", () => {

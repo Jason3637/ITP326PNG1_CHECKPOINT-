@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ACCESS_COOKIE, REFRESH_COOKIE, ROLE_COOKIE } from "@/lib/session";
-import { CUSTOMER_HOME, STAFF_HOME, isStaffRole } from "@/lib/roles";
+import { areaForPath, areaForRole, homePathForRole } from "@/lib/roles";
 
 // Coarse, fast gate: no session cookie at all (never logged in, or fully
 // logged out) means an immediate redirect, before any dashboard code runs.
@@ -26,23 +26,16 @@ export function proxy(request: NextRequest) {
   // security boundary: each area's layout re-checks the role against
   // /auth/me, and the backend enforces it on every endpoint. A missing
   // role cookie is let through for the layout to decide.
+  // Each role has one area (customer, loan officer, admin); anyone on
+  // another area's URL is sent to their own home.
   const role = request.cookies.get(ROLE_COOKIE)?.value;
-  if (role) {
-    const { pathname } = request.nextUrl;
-    const onStaffArea = pathname === STAFF_HOME || pathname.startsWith(`${STAFF_HOME}/`);
-    const staff = isStaffRole(role);
-
-    if (onStaffArea && !staff) {
-      return NextResponse.redirect(new URL(CUSTOMER_HOME, request.url));
-    }
-    if (!onStaffArea && staff) {
-      return NextResponse.redirect(new URL(STAFF_HOME, request.url));
-    }
+  if (role && areaForPath(request.nextUrl.pathname) !== areaForRole(role)) {
+    return NextResponse.redirect(new URL(homePathForRole(role), request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/staff/:path*"],
+  matcher: ["/dashboard/:path*", "/staff/:path*", "/admin/:path*"],
 };

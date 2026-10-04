@@ -1,10 +1,5 @@
-import { redirect } from "next/navigation";
-import { Header } from "@/components/layout/Header";
-import { BottomNav } from "@/components/layout/BottomNav";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { serverApiFetch, UnauthenticatedError, ApiError } from "@/lib/server-api";
-import { isStaffRole, ROLE_RESYNC_PATH } from "@/lib/roles";
-import type { MeResponse } from "@/lib/types";
+import { PortalShell } from "@/components/layout/PortalShell";
+import { requireAreaUser } from "@/lib/portal-guard";
 
 // Every page under (dashboard) reads the session cookie and calls the
 // backend per-request - never statically prerenderable. Stated explicitly
@@ -17,42 +12,15 @@ import type { MeResponse } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 // Defense-in-depth alongside src/proxy.ts: proxy only checks that a
-// session cookie exists; this is the authoritative check (also handles the
-// transparent access-token refresh) and is what actually fetches the
-// signed-in member's name for the header.
+// session cookie exists; requireAreaUser is the authoritative check (it
+// also handles the transparent access-token refresh) and fetches the
+// signed-in member's name for the header. Loan officers and admins are
+// sent to their own areas.
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  let me: MeResponse;
-  try {
-    me = await serverApiFetch<MeResponse>("/auth/me");
-  } catch (err) {
-    if (err instanceof UnauthenticatedError) {
-      redirect("/login");
-    }
-    // A reachable-but-erroring backend (500, etc.) shouldn't render a blank
-    // dashboard silently - send the member back to log in rather than show
-    // broken chrome with no name/session confirmed.
-    if (err instanceof ApiError) {
-      redirect("/login");
-    }
-    throw err;
-  }
-
-  // Loan officers/admins belong in the staff portal, not a member's
-  // dashboard. Goes via the role re-sync route rather than straight to
-  // /staff, in case the proxy's pv_role cookie is what sent them here.
-  // Routing only - see src/lib/roles.ts.
-  if (isStaffRole(me.role)) {
-    redirect(ROLE_RESYNC_PATH);
-  }
-
+  const me = await requireAreaUser("customer");
   return (
-    <div className="flex min-h-screen bg-neutral-50">
-      <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <Header fullName={me.full_name} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 md:pb-6">{children}</main>
-        <BottomNav />
-      </div>
-    </div>
+    <PortalShell variant="customer" fullName={me.full_name}>
+      {children}
+    </PortalShell>
   );
 }

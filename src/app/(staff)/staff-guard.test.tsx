@@ -21,6 +21,7 @@ vi.mock("@/lib/server-api", async (importOriginal) => {
 
 import StaffLayout from "./layout";
 import DashboardLayout from "../(dashboard)/layout";
+import AdminLayout from "../(admin)/layout";
 import { ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { ROLE_RESYNC_PATH } from "@/lib/roles";
 
@@ -56,10 +57,9 @@ describe("staff layout guard (authoritative, from /auth/me)", () => {
     expect(hrefs.every((h) => h?.startsWith("/staff"))).toBe(true);
   });
 
-  it("renders for an admin", async () => {
+  it("sends an admin to their own area - the Loan Officer area is for loan officers", async () => {
     serverApiFetch.mockResolvedValue(me("admin"));
-    render(await StaffLayout({ children: <p>staff content</p> }));
-    expect(screen.getByText("Admin")).toBeInTheDocument();
+    await expect(StaffLayout({ children: <p>staff content</p> })).rejects.toThrow(`REDIRECT:${ROLE_RESYNC_PATH}`);
   });
 
   it("sends anyone without a valid session to /login", async () => {
@@ -84,6 +84,8 @@ describe("customer layout guard", () => {
   it("sends staff out of the customer dashboard", async () => {
     serverApiFetch.mockResolvedValue(me("loan_officer"));
     await expect(DashboardLayout({ children: null })).rejects.toThrow(`REDIRECT:${ROLE_RESYNC_PATH}`);
+    serverApiFetch.mockResolvedValue(me("admin"));
+    await expect(DashboardLayout({ children: null })).rejects.toThrow(`REDIRECT:${ROLE_RESYNC_PATH}`);
   });
 
   it("renders the customer shell for a customer", async () => {
@@ -91,5 +93,42 @@ describe("customer layout guard", () => {
     render(await DashboardLayout({ children: <p>member content</p> }));
     expect(screen.getByText("member content")).toBeInTheDocument();
     expect(screen.queryByText("Loan Officer")).not.toBeInTheDocument();
+  });
+});
+
+describe("admin layout guard (authoritative, from /auth/me)", () => {
+  beforeEach(() => {
+    // Block body on purpose - see above.
+    serverApiFetch.mockReset();
+  });
+
+  it("blocks a loan officer, a customer and an unknown role - never renders the admin shell", async () => {
+    for (const role of ["loan_officer", "customer", "superuser"]) {
+      serverApiFetch.mockResolvedValue(me(role));
+      await expect(AdminLayout({ children: <p>admin content</p> })).rejects.toThrow(`REDIRECT:${ROLE_RESYNC_PATH}`);
+    }
+    expect(serverApiFetch).toHaveBeenCalledWith("/auth/me");
+  });
+
+  it("renders the admin shell for an admin, with admin nav only", async () => {
+    serverApiFetch.mockResolvedValue({ ...me("admin"), full_name: "Ada Admin" });
+    render(await AdminLayout({ children: <p>admin content</p> }));
+    expect(screen.getByText("admin content")).toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.queryByText("Loan Officer")).not.toBeInTheDocument();
+    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(hrefs.every((h) => h?.startsWith("/admin"))).toBe(true);
+  });
+
+  it("sends anyone without a valid session to /login", async () => {
+    serverApiFetch.mockImplementation(async () => {
+      throw new UnauthenticatedError();
+    });
+    await expect(AdminLayout({ children: null })).rejects.toThrow("REDIRECT:/login");
+    serverApiFetch.mockImplementation(async () => {
+      throw new ApiError(500, "boom");
+    });
+    await expect(AdminLayout({ children: null })).rejects.toThrow("REDIRECT:/login");
   });
 });

@@ -46,7 +46,8 @@ const customer: ReviewCustomer = {
 describe("CreditAdvisoryPanel", () => {
   const raw = {
     algorithm: "interim-v2",
-    disclaimer: "Interim model.",
+    // Older results store superseded developer wording, frozen at evaluation time.
+    disclaimer: "Interim underwriting model - thresholds are still engineering guesses.",
     evaluated_at: "2026-09-28T01:00:00Z",
     score: 35,
     eligible: false,
@@ -66,10 +67,22 @@ describe("CreditAdvisoryPanel", () => {
       />,
     );
     expect(screen.getByText("Advisory - not a decision input")).toBeInTheDocument();
-    expect(screen.getByText(/never approves, rejects or changes an application/)).toBeInTheDocument();
+    expect(screen.getByText(/does not replace the judgment of the Loan Officer or Administrator/)).toBeInTheDocument();
     expect(screen.queryByText(/\b35\b/)).not.toBeInTheDocument();
     expect(screen.queryByText(/decline|eligible/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/K350/)).not.toBeInTheDocument();
+  });
+
+  it("shows one disclaimer, never the stored copy or the model name", () => {
+    const { container } = render(
+      <CreditAdvisoryPanel advisory={toCreditAdvisory(raw)} label="Advisory - not a decision input" application={application} />,
+    );
+    const text = container.textContent ?? "";
+    expect(text.match(/Advisory assessment only\./g)).toHaveLength(1);
+    expect(text).not.toMatch(/never approves/); // the old, second wording
+    expect(text).not.toMatch(/engineering guesses|Interim underwriting/);
+    expect(text).not.toMatch(/interim-v2|by model/);
+    expect(text).toMatch(/Produced .*2026/);
   });
 
   it("explains what each check looked at, and the inputs used", () => {

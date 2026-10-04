@@ -537,9 +537,10 @@ export interface ReviewApplication {
 // recommendation ("review"/"decline") and max_eligible_amount are left out
 // on purpose: on a review screen they read as an instruction, and the
 // backend itself says this model is advisory, never a decision input.
+// algorithm (an internal model version) and the stored disclaimer (frozen
+// at evaluation time, so possibly superseded wording) aren't shown either -
+// CreditAdvisoryPanel shows one current disclaimer itself.
 export interface CreditAdvisory {
-  algorithm: string;
-  disclaimer: string;
   evaluated_at: string;
   insufficient_data: boolean;
   reasons: string[];

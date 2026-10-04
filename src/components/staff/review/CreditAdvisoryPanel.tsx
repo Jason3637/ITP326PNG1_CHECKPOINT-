@@ -11,6 +11,16 @@ interface CreditAdvisoryPanelProps {
   application: Pick<ReviewApplication, "amount_requested" | "monthly_income" | "employment_status" | "existing_monthly_debt">;
 }
 
+// One disclaimer, shown once. It's the backend's current wording
+// (credit_evaluation.DISCLAIMER), kept here rather than read from the
+// result: each result stores the disclaimer from when it was produced, so
+// older applications still carry superseded developer wording. The
+// model/version name (e.g. "interim-v2") isn't shown - it's internal and
+// tells an officer nothing.
+const ADVISORY_DISCLAIMER =
+  "Advisory assessment only. It does not replace the judgment of the Loan Officer or Administrator. " +
+  "The assessment criteria are provisional until Prime's Vault's lending policy is finalised.";
+
 // The credit model's notes, presented as background reading for the
 // officer - never as a verdict. What's shown: what was checked, what each
 // check looked at, and the notes it produced. What's deliberately NOT
@@ -29,9 +39,7 @@ export function CreditAdvisoryPanel({ advisory, label, application }: CreditAdvi
       <div className="mt-3 flex gap-2 rounded-lg bg-neutral-50 p-3 text-sm text-neutral-700">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
         <p>
-          Background information only. The system never approves, rejects or changes an application based on these
-          notes - the decision is yours and the administrator&apos;s. Income and employment are as reported by the
-          customer and are not verified.
+          {ADVISORY_DISCLAIMER} Income and employment are as reported by the customer and are not verified.
         </p>
       </div>
 
@@ -76,8 +84,7 @@ export function CreditAdvisoryPanel({ advisory, label, application }: CreditAdvi
           </p>
 
           <p className="mt-4 text-xs text-neutral-500">
-            Produced {formatReviewDateTime(advisory.evaluated_at) ?? "at submission"} by model{" "}
-            {advisory.algorithm}. {advisory.disclaimer}
+            Produced {formatReviewDateTime(advisory.evaluated_at) ?? "at submission"}.
           </p>
         </>
       )}

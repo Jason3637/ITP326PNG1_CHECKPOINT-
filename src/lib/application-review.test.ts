@@ -28,15 +28,13 @@ describe("toCreditAdvisory", () => {
   it("keeps only the explanatory fields - never the score, verdict or cap", () => {
     const advisory = toCreditAdvisory(rawCreditResult);
     expect(advisory).toEqual({
-      algorithm: "interim-v2",
-      disclaimer: "Interim underwriting model.",
       evaluated_at: "2026-09-28T01:00:00+00:00",
       insufficient_data: false,
       reasons: ["Member account is less than 30 days old - limited track record."],
       criteria_checked: ["minimum_income", "membership_tenure"],
     });
     const keys = Object.keys(advisory!);
-    for (const banned of ["score", "eligible", "recommendation", "max_eligible_amount", "requested_amount"]) {
+    for (const banned of ["score", "eligible", "recommendation", "max_eligible_amount", "requested_amount", "algorithm", "disclaimer"]) {
       expect(keys).not.toContain(banned);
     }
   });

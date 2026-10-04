@@ -1,5 +1,6 @@
 import { LayoutDashboard, HandCoins, ClipboardList, User, type LucideIcon } from "lucide-react";
 import { OFFICER_QUEUES } from "./officer-queues";
+import { ADMIN_QUEUES, adminQueueHref } from "./admin-queues";
 
 export interface NavItem {
   href: string;
@@ -52,10 +53,16 @@ export const staffQueueNavItems: SubNavItem[] = OFFICER_QUEUES.map((q) => ({
   label: q.summaryLabel,
 }));
 
+// The seven admin queues under the admin Overview, the same way.
+export const adminQueueNavItems: SubNavItem[] = ADMIN_QUEUES.map((q) => ({
+  href: adminQueueHref(q.key),
+  label: q.navLabel,
+}));
+
 export const subNavItemsByVariant: Record<NavVariant, Record<string, SubNavItem[]>> = {
   customer: {},
   staff: { "/staff": staffQueueNavItems },
-  admin: {},
+  admin: { "/admin": adminQueueNavItems },
 };
 
 // A top-level item is highlighted by the same rule as everywhere else

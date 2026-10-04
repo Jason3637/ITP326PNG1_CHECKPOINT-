@@ -754,3 +754,115 @@ export interface CustomerHistory {
   previous_applications: CustomerHistoryApplication[];
   loans: CustomerHistoryLoan[];
 }
+
+// ---- Administrator: queues and analytics -----------------------------------
+// Queue keys are the backend's own (app/services/admin_views.py:QUEUES).
+export type AdminQueue =
+  | "awaiting_decision"
+  | "awaiting_disbursement"
+  | "active_loans"
+  | "due_today"
+  | "due_this_week"
+  | "overdue"
+  | "repayments_awaiting_verification";
+
+// Decides the shape of a queue's items.
+export type AdminQueueKind = "application" | "loan" | "repayment";
+
+export interface AdminQueueCounts {
+  as_of: string; // the Port Moresby date (YYYY-MM-DD) the date-based queues use
+  queues: Record<AdminQueue, { label: string; count: number }>;
+}
+
+export interface AdminCustomerRef {
+  id: number;
+  full_name: string | null;
+  email: string | null;
+}
+
+// The officer queue row plus the admin's pieces.
+export interface AdminApplicationItem extends QueueItem {
+  recommendation: {
+    id: number;
+    recommendation: OfficerRecommendationType;
+    officer_id: number;
+    officer_name: string | null;
+    created_at: string | null;
+  } | null;
+  decided_at: string | null;
+}
+
+// Money figures come from the loan ledger and terms snapshot.
+export interface AdminLoanItem {
+  loan_id: number;
+  application_id: number;
+  customer: AdminCustomerRef;
+  status: LoanStatus;
+  prime_category: string | null;
+  principal: number;
+  interest_amount: number;
+  original_total_due: number;
+  penalties: number;
+  verified_repayments: number;
+  outstanding: number;
+  disbursed_at: string | null;
+  due_date: string; // YYYY-MM-DD
+  days_overdue: number;
+}
+
+export interface AdminRepaymentItem {
+  payment_id: number;
+  loan_id: number;
+  customer: AdminCustomerRef | null;
+  amount_reported: number;
+  payment_date: string | null; // YYYY-MM-DD, when the customer says they paid
+  payment_method: string | null;
+  reference_number: string | null;
+  receipts: unknown[];
+  status: string;
+  reported_at: string | null;
+  loan_outstanding: number | null;
+}
+
+interface AdminQueuePageBase {
+  queue: AdminQueue;
+  label: string;
+  as_of: string;
+  page: number;
+  per_page: number;
+  total: number;
+}
+
+export type AdminQueuePage = AdminQueuePageBase &
+  (
+    | { kind: "application"; items: AdminApplicationItem[] }
+    | { kind: "loan"; items: AdminLoanItem[] }
+    | { kind: "repayment"; items: AdminRepaymentItem[] }
+  );
+
+// Every analytics figure comes with the backend's own definition of it.
+export interface Metric<T> {
+  value: T;
+  definition: string;
+}
+
+// GET /admin/analytics. Only the sections a screen uses are typed;
+// applications, repayments and processing_times are also returned.
+export interface AdminAnalytics {
+  window: { from: string; to: string; timezone: string; note: string };
+  as_of: string;
+  currency: string;
+  disbursements: {
+    loans_disbursed: Metric<number>;
+    principal_disbursed: Metric<number>;
+    interest_contracted: Metric<number>;
+    expected_repayment: Metric<number>;
+  };
+  portfolio: {
+    active_loans: Metric<number>;
+    active_principal_exposure: Metric<number>;
+    outstanding_value: Metric<number>;
+    overdue_loans: Metric<number>;
+    overdue_value: Metric<number>;
+  };
+}

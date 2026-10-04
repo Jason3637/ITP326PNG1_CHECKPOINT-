@@ -1020,3 +1020,49 @@ export interface AdminRepaymentPage {
   total: number;
   items: AdminRepaymentItem[];
 }
+
+// ---- Administrator: pricing / penalty policy (versioned) -------------------
+export interface PricingTier {
+  category: string;
+  min_amount: number; // whole Kina
+  max_amount: number;
+  interest_rate: number; // flat over the term, as a fraction (0.4 = 40%)
+}
+
+export interface PenaltyTier {
+  tier: number;
+  days_late: number;
+  pct_of_original_interest: number; // fraction of the loan's ORIGINAL interest (0.25 = 25%)
+}
+
+export interface PolicyVersion<T> {
+  id: number;
+  label: string;
+  note: string | null;
+  created_at: string | null;
+  is_current: boolean;
+  tiers: T[];
+}
+
+// GET /admin/pricing, /admin/penalty-policy. created_by (a user id) is also
+// sent and never shown.
+export interface PolicyVersions<T> {
+  current: PolicyVersion<T>;
+  history: PolicyVersion<T>[]; // newest first
+  applies_to: string; // the backend's own statement of what a change affects
+}
+
+// ---- Administrator: audit log ----------------------------------------------
+export interface AuditLogItem extends AdminAuditEntry {
+  actor_id: number | null;
+  entity_id: string | null;
+  ip_address: string | null;
+}
+
+export interface AuditLogPage {
+  page: number;
+  per_page: number;
+  total: number;
+  pages: number;
+  items: AuditLogItem[]; // newest first
+}

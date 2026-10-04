@@ -1,4 +1,4 @@
-import { LayoutDashboard, HandCoins, ClipboardList, User, BarChart3, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, HandCoins, ClipboardList, User, BarChart3, SlidersHorizontal, ScrollText, type LucideIcon } from "lucide-react";
 import { OFFICER_QUEUES } from "./officer-queues";
 import { ADMIN_QUEUES, adminQueueHref } from "./admin-queues";
 
@@ -29,6 +29,8 @@ export const staffNavItems: NavItem[] = [{ href: "/staff", label: "Overview", ic
 export const adminNavItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
+  { href: "/admin/audit-log", label: "Audit log", icon: ScrollText },
 ];
 
 // Picked by name inside the client nav components rather than passed in as

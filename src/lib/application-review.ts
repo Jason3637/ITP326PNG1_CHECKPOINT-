@@ -64,6 +64,7 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   proof_of_income: "Proof of income",
   loan_file: "Loan file",
   receipt: "Repayment receipt",
+  disbursement_evidence: "Disbursement evidence",
 };
 
 export function documentTypeLabel(type: string): string {

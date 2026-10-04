@@ -414,7 +414,9 @@ export interface LoanPaymentList {
 
 // ---- Documents --------------------------------------------------------------
 
-export type DocumentType = "id_verification" | "receipt" | "loan_file" | "proof_of_income";
+// disbursement_evidence is uploaded by an administrator (BSP receipt or
+// signed cash acknowledgement), never by the customer.
+export type DocumentType = "id_verification" | "receipt" | "loan_file" | "proof_of_income" | "disbursement_evidence";
 
 export interface Document {
   id: number;
@@ -881,4 +883,32 @@ export interface AdminFinalDecision {
 
 export interface AdminApplicationReview extends ApplicationReview {
   final_decision: AdminFinalDecision;
+}
+
+// GET /admin/loans/<id> (also what POST .../disbursement returns). Only the
+// fields a screen renders are typed; ledger, payments and audit history
+// are also sent.
+export interface AdminLoanDisbursement {
+  method: DisbursementMethod;
+  amount: number;
+  reference: string | null;
+  destination_masked: string | null; // the backend's own mask, BSP only
+  evidence_document_id: number | null;
+  disbursed_at: string | null;
+  recorded_at: string | null;
+  recorded_by_name: string | null;
+  note: string | null;
+}
+
+export interface AdminLoanDetail {
+  loan_id: number;
+  application_id: number;
+  status: LoanStatus;
+  terms: {
+    principal: number;
+    original_total_due: number;
+    term_days: number;
+    due_date: string; // YYYY-MM-DD
+  };
+  disbursement: AdminLoanDisbursement | null;
 }

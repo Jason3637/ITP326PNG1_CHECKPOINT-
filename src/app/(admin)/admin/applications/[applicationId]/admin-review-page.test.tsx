@@ -89,9 +89,25 @@ const history = {
   loans: [],
 };
 
-function mockBackend(review: ReturnType<typeof rawReview>, opts: { historyFails?: boolean } = {}) {
+const loanDetail = (status = "active") => ({
+  loan_id: 12,
+  application_id: 8,
+  status,
+  terms: { principal: 900, original_total_due: 1215, term_days: 14, due_date: "2026-10-19" },
+  disbursement: {
+    method: "bsp_mobile_banking", amount: 900, reference: "BSP-TXN-88213", destination_masked: "•••• 2345",
+    evidence_document_id: 44, disbursed_at: "2026-10-05T00:30:00+00:00", recorded_at: "2026-10-05T00:31:00+00:00",
+    recorded_by: 99, recorded_by_name: "Ada Admin", note: null,
+  },
+});
+
+function mockBackend(
+  review: ReturnType<typeof rawReview>,
+  opts: { historyFails?: boolean; loan?: ReturnType<typeof loanDetail> } = {},
+) {
   serverApiFetch.mockImplementation(async (path: string) => {
     if (path === "/admin/applications/8") return review;
+    if (path === "/admin/loans/12" && opts.loan) return opts.loan;
     if (path === "/admin/applications/8/customer-history") {
       if (opts.historyFails) throw new ApiError(500, "boom");
       return history;
@@ -209,5 +225,56 @@ describe("Final Application Review", () => {
     });
     await expect(renderPage({}, "8")).rejects.toThrow("NOT_FOUND");
     await expect(renderPage({}, "abc")).rejects.toThrow("NOT_FOUND");
+  });
+});
+
+describe("Recording the disbursement", () => {
+  beforeEach(() => {
+    // Block body on purpose - see above.
+    serverApiFetch.mockReset();
+  });
+
+  it("offers the disbursement form, not the decision, once approved", async () => {
+    mockBackend(rawReview({ status: "awaiting_disbursement", fd: { can_disburse: true } }));
+    await renderPage();
+    expect(screen.getByRole("heading", { name: "Record disbursement" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Final decision" })).not.toBeInTheDocument();
+    expect(screen.getByText("•••• 2345")).toBeInTheDocument(); // masked from the application's account
+    expect(document.body.textContent).not.toMatch(/Loan Active/);
+  });
+
+  it("shows Loan Active only from the backend's loan record after the save", async () => {
+    mockBackend(rawReview({ status: "disbursed", fd: { loan_id: 12 } }), { loan: loanDetail("active") });
+    await renderPage({ disbursed: "12" });
+    expect(screen.getByRole("status")).toHaveTextContent("Disbursement recorded · Loan Active");
+    expect(screen.getByRole("status")).toHaveTextContent("Loan #12 is active. K1,215 is due Oct 19, 2026.");
+    const record = card("Disbursement");
+    expect(record).toHaveTextContent("Loan Active");
+    expect(record).toHaveTextContent("BSP-TXN-88213");
+    expect(record).toHaveTextContent("•••• 2345");
+    expect(record).toHaveTextContent("by Ada Admin");
+    expect(screen.getByRole("link", { name: "Open loan #12" })).toHaveAttribute("href", "/admin/loans/12");
+    expect(screen.queryByRole("heading", { name: "Record disbursement" })).not.toBeInTheDocument();
+  });
+
+  it("doesn't say Loan Active when the backend says otherwise", async () => {
+    mockBackend(rawReview({ status: "disbursed", fd: { loan_id: 12 } }), { loan: loanDetail("overdue") });
+    await renderPage({ disbursed: "12" });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Loan Active/);
+    expect(card("Disbursement")).toHaveTextContent("Loan Overdue");
+  });
+
+  it("ignores a ?disbursed= that doesn't match the application's loan", async () => {
+    mockBackend(rawReview({ status: "disbursed", fd: { loan_id: 12 } }), { loan: loanDetail("active") });
+    await renderPage({ disbursed: "13" });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("says the loan record couldn't be loaded rather than guessing", async () => {
+    mockBackend(rawReview({ status: "disbursed", fd: { loan_id: 12 } })); // /admin/loans/12 throws
+    await renderPage({ disbursed: "12" });
+    expect(screen.getByText(/loan record couldn't be loaded/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/Loan Active/);
   });
 });

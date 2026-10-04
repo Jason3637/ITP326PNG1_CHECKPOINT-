@@ -1,0 +1,213 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+
+// The page is an async Server Component: called as a function, its JSX rendered.
+vi.mock("server-only", () => ({}));
+vi.mock("next/navigation", () => ({
+  redirect: (url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  },
+  notFound: () => {
+    throw new Error("NOT_FOUND");
+  },
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+const serverApiFetch = vi.fn();
+vi.mock("@/lib/server-api", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/server-api")>();
+  return { ...real, serverApiFetch: (...a: unknown[]) => serverApiFetch(...a) };
+});
+
+import AdminApplicationReviewPage from "./page";
+import { ApiError } from "@/lib/server-api";
+
+const snapshot = [
+  { item_type: "valid_id", label: "Valid ID checked", required: true, status: "verified", note: null },
+  { item_type: "referee", label: "Referee checked", required: true, status: "verified", note: "Called her." },
+  { item_type: "employment", label: "Employment confirmed", required: false, status: "pending", note: null },
+];
+
+// Shaped like GET /admin/applications/<id>, including fields never shown.
+function rawReview(o: { status?: string; recommendation?: string; fd?: object; returns?: object[] } = {}) {
+  const status = o.status ?? "recommended_for_approval";
+  const awaiting = ["recommended_for_approval", "recommended_for_rejection", "admin_review"].includes(status);
+  return {
+    application: {
+      id: 8, user_id: 7, decided_by: 99, amount_requested: 900, purpose_category: "medical", purpose: "Clinic bill",
+      confirmed_full_name: "Simon Wari", confirmed_email: "simon@test.local", confirmed_phone_number: "+675 7000 0000",
+      prime_category: "PRIME 3",
+      pricing: { category: "PRIME 3", amount: 900, interest_amount: 315, interest_rate: 0.35, total_repayable: 1215, term_days: 14 },
+      monthly_income: 1200, employment_status: "employed", existing_monthly_debt: 100,
+      residential_address: "Gerehu Stage 2", employer_name: "BSP",
+      disbursement_method_requested: "bsp_mobile_banking", disbursement_account_reference: "1001-2345",
+      referees: [{ id: 1, full_name: "Maria Kaupa", relationship: "sibling", mobile_number: "+675 7123 4567" }],
+      status, submitted_at: "2026-09-24T07:16:00+00:00",
+    },
+    customer: {
+      id: 7, full_name: "Simon Wari", email: "simon@test.local", phone_number: null,
+      member_since: "2026-01-01T00:00:00+00:00", is_active: true, date_of_birth: "1988-03-14", verification: null,
+    },
+    documents: [],
+    checklist: {
+      application_id: 8, started: true,
+      items: snapshot.map((i) => ({ ...i, checked_by: 1, checked_by_name: "Olive Officer", checked_at: null, customer_verification_id: null, evidence: null })),
+      summary: { total: 3, required: 2, required_complete: 2, pending: 1, failed: 0, blocking_items: [], ready_for_approval_recommendation: true },
+    },
+    information_requests: [],
+    recommendations: [
+      {
+        id: 3, officer_id: 1, officer_name: "Olive Officer", recommendation: o.recommendation ?? "recommend_approval",
+        comments: "ID, employer and referee confirmed.", checklist_snapshot: snapshot, created_at: "2026-09-26T01:30:00+00:00",
+      },
+    ],
+    admin_returns: o.returns ?? [],
+    assignment: { officer_id: 1, officer_name: "Olive Officer", assigned_at: "2026-09-24T08:00:00+00:00", is_mine: false },
+    credit_assessment: { label: "Advisory - not a decision input", advisory: true, affects_status: false, result: null },
+    allowed_actions: [],
+    customer_history_url: "/api/admin/applications/8/customer-history",
+    final_decision: {
+      awaiting, can_approve: awaiting, can_reject: awaiting, can_return_to_officer: awaiting, can_disburse: status === "awaiting_disbursement",
+      decided_at: awaiting ? null : "2026-10-01T02:00:00+00:00", decided_by: 99, loan_id: null, ...o.fd,
+    },
+    quote: { pricing_version_id: 1, penalty_policy_version_id: 1, interest_rate: 0.35, interest_amount: 315, total_repayable: 1215 },
+  };
+}
+
+const history = {
+  application_id: 8,
+  customer: { id: 7, full_name: "Simon Wari", member_since: "2026-01-01T00:00:00+00:00" },
+  summary: {
+    previous_applications: 2, previous_applications_rejected: 1, loans_total: 1, loans_active: 0, loans_overdue: 0,
+    loans_completed: 1, loans_defaulted: 0, total_borrowed: 300, total_repayable: 405, total_repaid: 405, current_exposure: 0,
+  },
+  repayment_record: {
+    installments_paid_on_time: 1, installments_paid_late: 0, installments_currently_overdue: 0, installments_ever_overdue: 0,
+    payments_verified: 1, payments_rejected: 0, payments_awaiting_verification: 0,
+  },
+  penalties: { applicable: true, policy: "Late payments add a penalty.", count: 0, total_charged: 0, items: [] },
+  previous_applications: [],
+  loans: [],
+};
+
+function mockBackend(review: ReturnType<typeof rawReview>, opts: { historyFails?: boolean } = {}) {
+  serverApiFetch.mockImplementation(async (path: string) => {
+    if (path === "/admin/applications/8") return review;
+    if (path === "/admin/applications/8/customer-history") {
+      if (opts.historyFails) throw new ApiError(500, "boom");
+      return history;
+    }
+    if (path === "/users/7/documents?include_superseded=true") return { documents: [] };
+    throw new Error(`unexpected path ${path}`);
+  });
+}
+
+async function renderPage(search: Record<string, string> = {}, id = "8") {
+  return render(
+    await AdminApplicationReviewPage({ params: Promise.resolve({ applicationId: id }), searchParams: Promise.resolve(search) }),
+  );
+}
+
+const card = (heading: string) => screen.getByRole("heading", { name: heading }).closest("div.rounded-xl") as HTMLElement;
+
+describe("Final Application Review", () => {
+  beforeEach(() => {
+    // Block body on purpose: a function returned from beforeEach is run by
+    // Vitest as cleanup, and mockReset() returns the mock itself.
+    serverApiFetch.mockReset();
+  });
+
+  it("shows the customer, the application's backend figures, the officer's review and the customer history", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+
+    for (const heading of ["Customer", "Application", "Loan Officer review", "Final decision", "Customer history", "Verification checklist"]) {
+      expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+    }
+
+    const app = card("Application");
+    expect(app).toHaveTextContent("#8");
+    expect(app).toHaveTextContent("K900");
+    expect(app).toHaveTextContent("PRIME 3");
+    expect(app).toHaveTextContent("Medical");
+    expect(app).toHaveTextContent("Clinic bill");
+    expect(app).toHaveTextContent("BSP Mobile Banking");
+    expect(app).toHaveTextContent("35% flat for the 14-day term");
+    expect(app).toHaveTextContent("K315");
+    expect(app).toHaveTextContent("K1,215");
+    expect(app).toHaveTextContent("14 days");
+
+    const officer = card("Loan Officer review");
+    expect(officer).toHaveTextContent("Reviewed by Olive Officer");
+    expect(officer).toHaveTextContent("Recommended approval");
+    expect(officer).toHaveTextContent("ID, employer and referee confirmed.");
+    expect(officer).toHaveTextContent("Sep 26, 2026");
+    expect(officer).toHaveTextContent("2 of 2 required checks done");
+
+    expect(screen.getByText("Late payments add a penalty.")).toBeInTheDocument(); // history rendered inline
+    expect(screen.getByText(/Read-only here/)).toBeInTheDocument(); // the admin doesn't edit checks
+  });
+
+  it("offers the three actions while the application awaits a final decision", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    expect(within(card("Final decision")).getAllByRole("radio")).toHaveLength(3);
+  });
+
+  it("confirms an approval as Approved — Awaiting Disbursement, never as an active loan", async () => {
+    mockBackend(rawReview({ status: "awaiting_disbursement", fd: { can_disburse: true } }));
+    await renderPage({ decided: "approved" });
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Approved — Awaiting Disbursement");
+    expect(status).toHaveTextContent("No loan has been created and no money has moved");
+    expect(screen.getByText("Approved — Awaiting Disbursement", { selector: "span" })).toBeInTheDocument(); // status badge
+    expect(document.body.textContent).not.toMatch(/\b(loan is (now )?active|active loan|loan created)\b/i);
+    expect(screen.queryByRole("heading", { name: "Final decision" })).not.toBeInTheDocument();
+  });
+
+  it("describes an approved application reached later without the banner", async () => {
+    mockBackend(rawReview({ status: "awaiting_disbursement", fd: { can_disburse: true } }));
+    await renderPage();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByText(/The loan isn't active yet: it's created when the money is paid out/)).toBeInTheDocument();
+  });
+
+  it("only shows an outcome banner the application's real status backs up", async () => {
+    mockBackend(rawReview());
+    await renderPage({ decided: "approved" });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("confirms a return to the loan officer", async () => {
+    mockBackend(rawReview({ status: "returned_to_officer" }));
+    await renderPage({ decided: "returned" });
+    expect(screen.getByRole("status")).toHaveTextContent("Returned to the loan officer");
+  });
+
+  it("shows earlier rounds when the application was returned before", async () => {
+    mockBackend(rawReview({ returns: [{ id: 1, recommendation_id: 3, returned_by_name: "Ada Admin", reason: "Check the payslip.", created_at: null }] }));
+    await renderPage();
+    expect(screen.getByRole("heading", { name: "Recommendations" })).toBeInTheDocument();
+    expect(screen.getByText("Check the payslip.")).toBeInTheDocument();
+  });
+
+  it("keeps working when the customer history can't be loaded", async () => {
+    mockBackend(rawReview(), { historyFails: true });
+    await renderPage();
+    expect(screen.getByRole("heading", { name: "Customer history couldn't be loaded" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Final decision" })).toBeInTheDocument();
+  });
+
+  it("never renders internal ids", async () => {
+    mockBackend(rawReview({ status: "awaiting_disbursement" }));
+    const { container } = await renderPage();
+    expect(container.innerHTML).not.toMatch(/\b99\b/); // decided_by
+  });
+
+  it("404s for an unknown or malformed application", async () => {
+    serverApiFetch.mockImplementation(async () => {
+      throw new ApiError(404, "not found");
+    });
+    await expect(renderPage({}, "8")).rejects.toThrow("NOT_FOUND");
+    await expect(renderPage({}, "abc")).rejects.toThrow("NOT_FOUND");
+  });
+});

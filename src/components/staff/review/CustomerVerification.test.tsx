@@ -62,7 +62,9 @@ const customer = (over: Partial<ReviewCustomer> = {}): ReviewCustomer => ({
 const applicant = { residentialAddress: "Boroko", employerName: "BSP", employmentStatus: "employed" };
 
 describe("CustomerPanel verification", () => {
-  beforeEach(() => requestReverification.mockReset());
+  beforeEach(() => {
+    requestReverification.mockReset();
+  });
 
   it("shows the date of birth from the customer record even when not verified", () => {
     render(<CustomerPanel customer={customer({ date_of_birth: "1990-05-01" })} applicant={applicant} />);
@@ -144,7 +146,9 @@ const list = (items: ReviewChecklistItem[]): ReviewChecklist => ({
 const row = (label: string) => screen.getByText(label).closest("li")!;
 
 describe("Identity checks in the checklist", () => {
-  beforeEach(() => updateChecklistItem.mockReset());
+  beforeEach(() => {
+    updateChecklistItem.mockReset();
+  });
 
   it("Valid ID sends the chosen ID document and expiry", async () => {
     const user = userEvent.setup();

@@ -8,7 +8,7 @@ body:
       value: |
         Before filing here, check the **UAT test script**'s "Two things that look unfinished on purpose" section.
         If what you saw is about **credit-check scoring/eligibility** or **staff manually
-        recording a payment** (no BSP gateway yet), use the **"UAT: Expected difference
+        recording a payment** (no BSP gateway yet), use the **"UAT: Expected-difference
         feedback"** template instead - those are tracked separately from bugs on purpose.
 
   - type: input

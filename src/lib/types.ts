@@ -325,6 +325,29 @@ export interface Disbursement {
   recorded_by: number | null;
 }
 
+// One late penalty, from the loan ledger. reason is a customer-readable
+// sentence from the backend, e.g. "7 days late: 25% of the original
+// interest K200.00".
+export interface PenaltyItem {
+  tier: number;
+  amount: number;
+  applied_on: string; // YYYY-MM-DD
+  days_late: number | null; // null only if a policy tier row is missing
+  reason: string;
+}
+
+// Ledger-based balance (newer backends). Absent or null on older ones -
+// callers fall back to repayment_schedule / dashboard kpis.
+export interface LoanBalance {
+  original_obligation: number;
+  penalties: number;
+  verified_repayments: number;
+  outstanding: number; // what the customer still owes, penalties included
+  due_date: string | null;
+  days_overdue: number;
+  penalty_items: PenaltyItem[];
+}
+
 export interface Loan {
   id: number;
   application_id: number;
@@ -338,7 +361,8 @@ export interface Loan {
   closure_reason: LoanClosureReason | null;
   disbursed_at: string | null;
   disbursement: Disbursement | null;
-  repayment_schedule: RepaymentScheduleItem[];
+  repayment_schedule: RepaymentScheduleItem[]; // the original amount only - never includes penalties
+  balance?: LoanBalance | null;
 }
 
 export interface MyLoans {
@@ -718,7 +742,15 @@ export interface CustomerHistory {
   customer: { id: number; full_name: string; member_since: string | null };
   summary: CustomerHistorySummary;
   repayment_record: CustomerRepaymentRecord;
-  penalties: { applicable: boolean; note: string | null };
+  // Older backends: {applicable: false, note}. Newer: real penalty data.
+  penalties: {
+    applicable: boolean;
+    note?: string | null;
+    policy?: string | null;
+    count?: number;
+    total_charged?: number;
+    items?: (PenaltyItem & { loan_id: number })[];
+  };
   previous_applications: CustomerHistoryApplication[];
   loans: CustomerHistoryLoan[];
 }

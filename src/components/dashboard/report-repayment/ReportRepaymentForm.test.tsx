@@ -135,3 +135,15 @@ describe("ReportRepaymentForm", () => {
     expect(screen.getByLabelText("Amount paid (PGK)")).toHaveValue(500);
   });
 });
+
+describe("ReportRepaymentForm - amount owed", () => {
+  it("shows what's owed including late penalties, when the backend provides it", () => {
+    render(<ReportRepaymentForm loanId={21} repaymentScheduleId={1} outstanding={750} penalties={250} />);
+    expect(screen.getByText("You currently owe K750, including K250 in late penalties.")).toBeInTheDocument();
+  });
+
+  it("shows nothing extra on backends without a ledger balance", () => {
+    render(<ReportRepaymentForm loanId={21} repaymentScheduleId={1} />);
+    expect(screen.queryByText(/You currently owe/)).not.toBeInTheDocument();
+  });
+});

@@ -4,7 +4,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { formatKina } from "@/lib/utils";
-import { customerLoanBadge } from "@/lib/loan-status";
+import { customerLoanBadge, isCurrentLoan } from "@/lib/loan-status";
 import type { MyLoans } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
@@ -38,6 +38,12 @@ export default async function MyLoansPage() {
                   {formatKina(loan.principal_amount)} over {loan.term_days} days
                 </p>
                 <p className="text-xs text-neutral-500">{formatKina(loan.total_repayable)} total repayable</p>
+                {isCurrentLoan(loan) && loan.balance && (
+                  <p className="text-xs font-medium text-neutral-700">
+                    {formatKina(loan.balance.outstanding)} still owed
+                    {loan.balance.penalties > 0 ? `, including ${formatKina(loan.balance.penalties)} in late penalties` : ""}
+                  </p>
+                )}
               </div>
               <Badge variant={customerLoanBadge(loan).variant}>{customerLoanBadge(loan).label}</Badge>
             </li>

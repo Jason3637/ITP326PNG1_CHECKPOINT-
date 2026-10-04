@@ -2,6 +2,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatDob, formatReviewDate } from "@/lib/application-review";
 import { loanStatusLabel, loanStatusTone, plural } from "@/lib/customer-history";
+import { formatPlainDate } from "@/lib/penalties";
 import { staffStatusLabel } from "@/lib/officer-queues";
 import { cn, formatKina } from "@/lib/utils";
 import type { CustomerHistory } from "@/lib/types";
@@ -102,17 +103,28 @@ export function CustomerHistoryView({ history }: { history: CustomerHistory }) {
 
         <Card>
           <CardTitle>Penalties</CardTitle>
-          {penalties.applicable ? (
-            <p className="mt-2 text-sm text-neutral-700">{penalties.note ?? "Penalties apply to this customer's loans."}</p>
-          ) : (
+          {/* Newer backends send real penalty data (policy, total, items);
+              older ones send applicable: false with no figures. Never claim
+              there's no penalty policy - one exists once the penalty job runs. */}
+          {penalties.items && penalties.items.length > 0 ? (
             <>
-              <p className="mt-2 text-sm font-medium text-neutral-900">Not applicable</p>
-              <p className="mt-1 text-sm text-neutral-600">
-                PRIME loans carry no late-payment penalty or fee, so none are charged or tracked. Late repayment shows in
-                the repayment record instead.
+              <p className="mt-2 text-sm font-medium text-neutral-900">
+                {formatKina(penalties.total_charged ?? penalties.items.reduce((sum, i) => sum + i.amount, 0))} charged
+                across {penalties.items.length === 1 ? "1 penalty" : `${penalties.items.length} penalties`}
               </p>
+              <ul className="mt-2 flex flex-col gap-1 text-sm text-neutral-700">
+                {penalties.items.map((item) => (
+                  <li key={`${item.loan_id}-${item.tier}-${item.applied_on}`}>
+                    Loan #{item.loan_id}: {item.reason}
+                    {formatPlainDate(item.applied_on) ? ` (${formatPlainDate(item.applied_on)})` : ""}
+                  </li>
+                ))}
+              </ul>
             </>
+          ) : (
+            <p className="mt-2 text-sm font-medium text-neutral-900">No late penalties charged</p>
           )}
+          {penalties.policy && <p className="mt-2 text-xs text-neutral-600">{penalties.policy}</p>}
         </Card>
       </div>
 

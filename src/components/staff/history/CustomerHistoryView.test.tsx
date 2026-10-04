@@ -79,7 +79,9 @@ describe("CustomerHistoryView", () => {
     expect(within(record).getByText("On-time repayments").nextSibling).toHaveTextContent("1");
     expect(within(record).getByText("Late repayments").nextSibling).toHaveTextContent("1");
     expect(within(record).getByText("Overdue right now").nextSibling).toHaveTextContent("1");
-    expect(screen.getByText("Not applicable")).toBeInTheDocument(); // penalties
+    // Older backend (applicable: false): neutral, never "PRIME has no penalties".
+    expect(screen.getByText("No late penalties charged")).toBeInTheDocument();
+    expect(screen.queryByText(/no late-payment penalty/i)).not.toBeInTheDocument();
   });
 
   it("lists previous applications and loans without linking to them", () => {
@@ -115,5 +117,37 @@ describe("loan status labels", () => {
     expect(loanStatusTone({ status: "closed", closure_reason: "defaulted" })).toBe("danger");
     expect(loanStatusLabel({ status: "paid", closure_reason: null })).toBe("Paid");
     expect(loanStatusLabel({ status: "weird", closure_reason: null })).toBe("Unknown status");
+  });
+});
+
+describe("CustomerHistoryView penalties (penalty job data)", () => {
+  it("shows the total, each penalty with its reason, and the policy", () => {
+    render(
+      <CustomerHistoryView
+        history={{
+          ...history,
+          penalties: {
+            applicable: true,
+            policy: "Late payments add a penalty: 25% of the loan's original interest at 7 days late.",
+            count: 2,
+            total_charged: 250,
+            items: [
+              { loan_id: 22, tier: 1, amount: 50, applied_on: "2026-09-10", days_late: 7, reason: "7 days late: 25% of the original interest K200.00" },
+              { loan_id: 22, tier: 2, amount: 200, applied_on: "2026-09-17", days_late: 14, reason: "14 days late: 100% of the original interest K200.00" },
+            ],
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText(/K250 charged across 2 penalties/)).toBeInTheDocument();
+    expect(screen.getByText(/Loan #22: 7 days late: 25% of the original interest K200.00 \(Sep 10, 2026\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Loan #22: 14 days late/)).toBeInTheDocument();
+    expect(screen.getByText(/Late payments add a penalty/)).toBeInTheDocument();
+  });
+
+  it("says none were charged when the policy exists but nothing was added", () => {
+    render(<CustomerHistoryView history={{ ...history, penalties: { applicable: true, policy: "Policy text.", count: 0, total_charged: 0, items: [] } }} />);
+    expect(screen.getByText("No late penalties charged")).toBeInTheDocument();
+    expect(screen.getByText("Policy text.")).toBeInTheDocument();
   });
 });

@@ -127,3 +127,38 @@ describe("ActiveLoanCard — other loan details", () => {
     );
   });
 });
+
+describe("ActiveLoanCard - late penalties (ledger balance)", () => {
+  const balance = {
+    original_obligation: 500,
+    penalties: 250,
+    verified_repayments: 500,
+    outstanding: 250,
+    due_date: "2026-09-03",
+    days_overdue: 14,
+    penalty_items: [
+      { tier: 1, amount: 50, applied_on: "2026-09-10", days_late: 7, reason: "7 days late: 25% of the original interest K200.00" },
+      { tier: 2, amount: 200, applied_on: "2026-09-17", days_late: 14, reason: "14 days late: 100% of the original interest K200.00" },
+    ],
+  };
+
+  it("shows the penalties, the reasons, and what's really still owed", () => {
+    const loan = makeLoan({
+      balance,
+      repayment_schedule: [{ id: 1, installment_number: 1, due_date: "2026-09-03", amount_due: 500, amount_paid: 500, status: "paid" }],
+    });
+    render(<ActiveLoanCard kpis={makeKpis({ outstanding_balance: 250 })} hasOverdue loan={loan} />);
+    expect(screen.getByText("Late penalties").closest("div")).toHaveTextContent("K250");
+    expect(screen.getByText("Verified amount paid").closest("div")).toHaveTextContent("K500");
+    expect(screen.getAllByText("Outstanding balance").at(-1)!.closest("div")).toHaveTextContent("K250");
+    expect(screen.getByText(/7 days late: 25% of the original interest K200.00 \(added Sep 10, 2026\)/)).toBeInTheDocument();
+    // Original installment paid, penalty still owed: the due date comes from the balance.
+    expect(screen.getByText("Next due date").closest("div")).toHaveTextContent("Sep 3, 2026");
+  });
+
+  it("shows no penalty section when none were added", () => {
+    render(<ActiveLoanCard kpis={makeKpis()} hasOverdue={false} loan={makeLoan({ balance: { ...balance, penalties: 0, penalty_items: [] } })} />);
+    expect(screen.queryByText("Late penalties")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Late penalties added/)).not.toBeInTheDocument();
+  });
+});

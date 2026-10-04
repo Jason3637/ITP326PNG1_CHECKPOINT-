@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { FileUploadField } from "@/components/ui/FileUploadField";
-import { cn } from "@/lib/utils";
+import { cn, formatKina } from "@/lib/utils";
 import { REPAYMENT_METHODS, type RepaymentMethod } from "@/lib/report-repayment";
 import { uploadLoanDocument } from "@/lib/actions/documents";
 import { reportRepayment } from "@/lib/actions/payments";
@@ -20,6 +20,10 @@ const selectClass = cn(
 interface ReportRepaymentFormProps {
   loanId: number;
   repaymentScheduleId: number;
+  // What's still owed, penalties included - only on backends that provide a
+  // ledger balance (null otherwise, and the line isn't shown).
+  outstanding?: number | null;
+  penalties?: number;
 }
 
 interface FormErrors {
@@ -28,7 +32,12 @@ interface FormErrors {
   otherDescription?: string;
 }
 
-export function ReportRepaymentForm({ loanId, repaymentScheduleId }: ReportRepaymentFormProps) {
+export function ReportRepaymentForm({
+  loanId,
+  repaymentScheduleId,
+  outstanding = null,
+  penalties = 0,
+}: ReportRepaymentFormProps) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
   const [datePaid, setDatePaid] = useState(() => new Date().toISOString().slice(0, 10));
@@ -123,6 +132,12 @@ export function ReportRepaymentForm({ loanId, repaymentScheduleId }: ReportRepay
       <p className="mt-1 text-sm text-neutral-600">
         Loan #{loanId} — tell us what you paid. An admin verifies it before it&apos;s reflected in your balance.
       </p>
+      {typeof outstanding === "number" && (
+        <p className="mt-2 text-sm font-medium text-neutral-900">
+          You currently owe {formatKina(outstanding)}
+          {penalties > 0 ? `, including ${formatKina(penalties)} in late penalties` : ""}.
+        </p>
+      )}
 
       <div className="mt-6 flex flex-col gap-4">
         <Input

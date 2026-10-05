@@ -16,6 +16,7 @@ import {
   weeklyWindows,
 } from "@/lib/admin-analytics";
 import { formatPlainDate } from "@/lib/penalties";
+import { plainDefinition } from "@/lib/plain-definition";
 import { cn, focusRing, formatKina } from "@/lib/utils";
 import type { AdminAnalytics, ProcessingTime } from "@/lib/types";
 
@@ -42,7 +43,8 @@ function hoursValue(t: ProcessingTime): string {
 }
 
 function hoursDefinition(definition: string, t: ProcessingTime): string {
-  return t.count === 0 ? `${definition} None in the period.` : `${definition} Average ${formatHours(t.average_hours)} over ${t.count}.`;
+  const d = plainDefinition(definition);
+  return t.count === 0 ? `${d} None in the period.` : `${d} Average ${formatHours(t.average_hours)} over ${t.count}.`;
 }
 
 // Administrator analytics, all from GET /admin/analytics. Every figure is
@@ -149,31 +151,31 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
       </div>
 
       <MetricGroup title="Money paid out" scope="In the period">
-        <MetricTile label="Principal disbursed" value={formatKina(disb.principal_disbursed.value)} definition={disb.principal_disbursed.definition} />
-        <MetricTile label="Interest contracted" value={formatKina(disb.interest_contracted.value)} definition={disb.interest_contracted.definition} />
-        <MetricTile label="Expected repayment" value={formatKina(disb.expected_repayment.value)} definition={disb.expected_repayment.definition} />
-        <MetricTile label="Loans disbursed" value={String(disb.loans_disbursed.value)} definition={disb.loans_disbursed.definition} />
+        <MetricTile label="Principal disbursed" value={formatKina(disb.principal_disbursed.value)} definition={plainDefinition(disb.principal_disbursed.definition)} />
+        <MetricTile label="Interest contracted" value={formatKina(disb.interest_contracted.value)} definition={plainDefinition(disb.interest_contracted.definition)} />
+        <MetricTile label="Expected repayment" value={formatKina(disb.expected_repayment.value)} definition={plainDefinition(disb.expected_repayment.definition)} />
+        <MetricTile label="Loans disbursed" value={String(disb.loans_disbursed.value)} definition={plainDefinition(disb.loans_disbursed.definition)} />
       </MetricGroup>
 
       <MetricGroup title="Money received" scope="In the period">
-        <MetricTile label="Verified repayments" value={formatKina(reps.verified_repayments.value)} definition={reps.verified_repayments.definition} />
-        <MetricTile label="Penalties charged" value={formatKina(reps.penalties_charged.value)} definition={reps.penalties_charged.definition} />
+        <MetricTile label="Verified repayments" value={formatKina(reps.verified_repayments.value)} definition={plainDefinition(reps.verified_repayments.definition)} />
+        <MetricTile label="Penalties charged" value={formatKina(reps.penalties_charged.value)} definition={plainDefinition(reps.penalties_charged.definition)} />
       </MetricGroup>
 
       <MetricGroup title="Portfolio" scope={`As of ${formatPlainDate(a.as_of)}`}>
-        <MetricTile label="Outstanding" value={formatKina(port.outstanding_value.value)} definition={port.outstanding_value.definition} />
-        <MetricTile label="Active principal exposure" value={formatKina(port.active_principal_exposure.value)} definition={port.active_principal_exposure.definition} />
-        <MetricTile label="Overdue value" value={formatKina(port.overdue_value.value)} definition={port.overdue_value.definition} />
-        <MetricTile label="Active loans" value={String(port.active_loans.value)} definition={port.active_loans.definition} />
-        <MetricTile label="Overdue loans" value={String(port.overdue_loans.value)} definition={port.overdue_loans.definition} />
+        <MetricTile label="Outstanding" value={formatKina(port.outstanding_value.value)} definition={plainDefinition(port.outstanding_value.definition)} />
+        <MetricTile label="Active principal exposure" value={formatKina(port.active_principal_exposure.value)} definition={plainDefinition(port.active_principal_exposure.definition)} />
+        <MetricTile label="Overdue value" value={formatKina(port.overdue_value.value)} definition={plainDefinition(port.overdue_value.definition)} />
+        <MetricTile label="Active loans" value={String(port.active_loans.value)} definition={plainDefinition(port.active_loans.definition)} />
+        <MetricTile label="Overdue loans" value={String(port.overdue_loans.value)} definition={plainDefinition(port.overdue_loans.definition)} />
       </MetricGroup>
 
       <MetricGroup title="Applications" scope="In the period">
-        <MetricTile label="Received" value={String(apps.received.value)} definition={apps.received.definition} />
-        <MetricTile label="Approved" value={String(apps.approved.value)} definition={apps.approved.definition} />
-        <MetricTile label="Rejected" value={String(apps.rejected.value)} definition={apps.rejected.definition} />
-        <MetricTile label="Approval rate" value={formatRate(apps.approval_rate.value)} definition={apps.approval_rate.definition} />
-        <MetricTile label="Rejection rate" value={formatRate(apps.rejection_rate.value)} definition={apps.rejection_rate.definition} />
+        <MetricTile label="Received" value={String(apps.received.value)} definition={plainDefinition(apps.received.definition)} />
+        <MetricTile label="Approved" value={String(apps.approved.value)} definition={plainDefinition(apps.approved.definition)} />
+        <MetricTile label="Rejected" value={String(apps.rejected.value)} definition={plainDefinition(apps.rejected.definition)} />
+        <MetricTile label="Approval rate" value={formatRate(apps.approval_rate.value)} definition={plainDefinition(apps.approval_rate.definition)} />
+        <MetricTile label="Rejection rate" value={formatRate(apps.rejection_rate.value)} definition={plainDefinition(apps.rejection_rate.definition)} />
       </MetricGroup>
 
       <MetricGroup title="Processing times" scope="In the period">
@@ -192,7 +194,7 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
         <div className="grid gap-3 lg:grid-cols-2">
           <ChartCard
             title="Applications received"
-            subtitle={apps.by_prime_category.definition}
+            subtitle={plainDefinition(apps.by_prime_category.definition)}
             emptyMessage="No applications in the period."
             spec={{
               kind: "bar", unit: "count", seriesLabel: "Applications",
@@ -203,7 +205,7 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
           />
           <ChartCard
             title="Principal disbursed"
-            subtitle={disb.by_prime_category.definition}
+            subtitle={plainDefinition(disb.by_prime_category.definition)}
             emptyMessage="No loans disbursed in the period."
             spec={{
               kind: "bar", unit: "kina", seriesLabel: "Principal",

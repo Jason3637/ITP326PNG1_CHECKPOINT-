@@ -1,4 +1,4 @@
-import type { PenaltyTier, PricingTier } from "./types";
+import type { PenaltyTier, PricingTier, SystemParameterKey } from "./types";
 
 // The deliberately limited set an administrator can change: the PRIME
 // pricing table and the late-penalty tiers. Each save creates a new version
@@ -104,3 +104,67 @@ export const NOTE_MAX_LENGTH = 500;
 
 export const CHANGE_WARNING =
   "Changes apply only to applications submitted after you save. Applications already submitted keep the price they were quoted, and existing loans keep their terms and penalty policy - nothing already quoted or disbursed is ever repriced.";
+
+// ---- the three live settings (PUT /admin/parameters) -------------------------
+// Each is read when the work it governs happens, so a change never reaches
+// back: credit notes already produced and verifications already given keep
+// what they were made with.
+export interface ParameterSpec {
+  key: SystemParameterKey;
+  label: string;
+  unit: "kina" | "percent" | "months";
+  effect: string;
+}
+
+export const PARAMETER_SPECS: ParameterSpec[] = [
+  {
+    key: "min_monthly_income",
+    label: "Minimum monthly income",
+    unit: "kina",
+    effect:
+      "Used in the advisory credit notes on applications submitted (or re-checked) after the change. It never approves or rejects anything.",
+  },
+  {
+    key: "max_debt_to_income_ratio",
+    label: "Maximum debt-to-income",
+    unit: "percent",
+    effect:
+      "Existing monthly debt plus the new repayment, as a share of monthly income. Used in the advisory credit notes on applications submitted (or re-checked) after the change. It never approves or rejects anything.",
+  },
+  {
+    key: "customer_verification_validity_months",
+    label: "Customer verification lasts",
+    unit: "months",
+    effect:
+      "How long a customer's identity verification stays valid (never past their ID's expiry). Applies to customers verified after the change; existing verifications keep their expiry date.",
+  },
+];
+
+// The value as the admin types it: percent for the ratio, whole months.
+export function parameterInput(spec: ParameterSpec, value: number): string {
+  return spec.unit === "percent" ? String(Math.round(value * 10000) / 100) : String(value);
+}
+
+export function parameterDisplay(spec: ParameterSpec, value: number): string {
+  if (spec.unit === "kina") return `K${value.toLocaleString("en-US")}`;
+  if (spec.unit === "percent") return `${Math.round(value * 10000) / 100}%`;
+  return value === 1 ? "1 month" : `${value} months`;
+}
+
+// Mirrors the backend: money > 0; the ratio 0 <= x < 1 (0-100%); months >= 1.
+export function validateParameter(spec: ParameterSpec, text: string): string | null {
+  const t = text.trim();
+  if (spec.unit === "months") {
+    return /^\d+$/.test(t) && Number(t) >= 1 ? null : `${spec.label}: enter a whole number of months, at least 1.`;
+  }
+  if (!/^\d+(\.\d+)?$/.test(t)) return `${spec.label}: enter a number.`;
+  if (spec.unit === "kina" && Number(t) <= 0) return `${spec.label}: must be more than K0.`;
+  if (spec.unit === "percent" && Number(t) >= 100) return `${spec.label}: must be below 100%.`;
+  return null;
+}
+
+// What PUT /admin/parameters takes: only the changed keys, in the backend's units.
+export function parameterPayload(spec: ParameterSpec, text: string): number {
+  const n = Number(text.trim());
+  return spec.unit === "percent" ? Math.round(n * 100) / 10000 : spec.unit === "months" ? Math.trunc(n) : n;
+}

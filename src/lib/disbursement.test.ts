@@ -13,6 +13,11 @@ describe("disbursement rules", () => {
     expect(validateDisbursement({ ...base, method: "cash_on_hand", reference: "CASH-ACK-1" })).toBeNull();
   });
 
+  it("requires the receipt for BSP only", () => {
+    expect(validateDisbursement(base, false)).toMatch(/every BSP payout needs one/);
+    expect(validateDisbursement({ ...base, method: "cash_on_hand" }, false)).toBeNull();
+  });
+
   it("keeps to the backend's limits", () => {
     expect(validateDisbursement({ ...base, reference: "x".repeat(256) })).toMatch(/255/);
     expect(validateDisbursement({ ...base, note: "x".repeat(501) })).toMatch(/500/);

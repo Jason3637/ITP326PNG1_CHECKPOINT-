@@ -7,8 +7,9 @@ import type { DisbursementMethod } from "./types";
 //                       the cash acknowledgement number
 //   disbursed_at        optional, when the money moved (default now; never
 //                       in the future or before the approval)
-//   evidence_document_id optional: the BSP receipt or the signed cash
-//                       acknowledgement, uploaded first
+//   evidence_document_id the BSP receipt (REQUIRED for BSP - Prime's
+//                       Vault's rule) or the signed cash acknowledgement
+//                       (optional), uploaded first
 //   note                optional
 // The destination isn't entered: for BSP the backend masks the account the
 // customer gave on their application and stores that.
@@ -35,8 +36,14 @@ export function maskAccount(value: string | null | undefined): string | null {
 
 const LOCAL_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
 
-export function validateDisbursement(input: DisbursementInput): string | null {
+// Every BSP payout must carry its receipt; a cash acknowledgement is optional.
+export function evidenceRequired(method: DisbursementMethod): boolean {
+  return method === "bsp_mobile_banking";
+}
+
+export function validateDisbursement(input: DisbursementInput, hasEvidence = true): string | null {
   if (!isDisbursementMethod(input.method)) return "Choose how the money was paid out.";
+  if (evidenceRequired(input.method) && !hasEvidence) return DISBURSEMENT_COPY.methods[input.method].evidenceRequired;
   const reference = input.reference.trim();
   if (!reference) return DISBURSEMENT_COPY.methods[input.method].referenceRequired;
   if (reference.length > REFERENCE_MAX_LENGTH) return `Keep the reference under ${REFERENCE_MAX_LENGTH} characters.`;
@@ -57,6 +64,7 @@ export const DISBURSEMENT_COPY = {
       referencePlaceholder: "e.g. BSP-TXN-88213",
       referenceRequired: "Enter the BSP transaction number.",
       evidenceLabel: "BSP receipt or screenshot",
+      evidenceRequired: "Attach the BSP receipt or screenshot - every BSP payout needs one.",
     },
     cash_on_hand: {
       label: "Cash on Hand",
@@ -65,9 +73,10 @@ export const DISBURSEMENT_COPY = {
       referencePlaceholder: "e.g. CASH-ACK-0042",
       referenceRequired: "Enter the cash acknowledgement number.",
       evidenceLabel: "Signed cash acknowledgement",
+      evidenceRequired: "",
     },
   } satisfies Record<DisbursementMethod, Record<string, string>>,
-  evidenceHint: "PDF, JPG or PNG, up to 10 MB. Optional.",
+  evidenceHint: "PDF, JPG or PNG, up to 10 MB.",
   disbursedAtLabel: "When the money moved (Port Moresby time)",
   disbursedAtHint: "Leave blank if it moved just now.",
   noteLabel: "Note",

@@ -11,6 +11,7 @@ import { recordDisbursement, uploadDisbursementEvidence } from "@/lib/actions/ad
 import {
   DISBURSEMENT_COPY as COPY,
   NOTE_MAX_LENGTH,
+  evidenceRequired,
   REFERENCE_MAX_LENGTH,
   validateDisbursement,
   type DisbursementInput,
@@ -61,7 +62,7 @@ export function DisbursementForm({
 
   function review() {
     const i = input();
-    const invalid = i ? validateDisbursement(i) : "Choose how the money was paid out.";
+    const invalid = i ? validateDisbursement(i, evidence !== null) : "Choose how the money was paid out.";
     if (invalid) {
       setError(invalid);
       return;
@@ -227,7 +228,7 @@ export function DisbursementForm({
                 }}
               />
               <FileUploadField
-                label={`${copy.evidenceLabel} (optional)`}
+                label={`${copy.evidenceLabel} (${method && evidenceRequired(method) ? "required" : "optional"})`}
                 hint={COPY.evidenceHint}
                 value={evidence}
                 onChange={(f) => {
@@ -264,7 +265,7 @@ export function DisbursementForm({
           )}
 
           <div>
-            <Button onClick={review} disabled={!method || !reference.trim()}>
+            <Button onClick={review} disabled={!method || !reference.trim() || (evidenceRequired(method) && !evidence)}>
               {COPY.review}
             </Button>
           </div>

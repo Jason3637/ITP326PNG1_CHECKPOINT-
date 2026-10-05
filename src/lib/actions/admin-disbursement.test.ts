@@ -21,11 +21,23 @@ describe("recordDisbursement", () => {
   });
 
   it("sends exactly the backend's fields and returns the loan the backend created", async () => {
-    expect(await recordDisbursement(8, input, null)).toEqual({ ok: true, loanId: 12, loanStatus: "active" });
+    expect(await recordDisbursement(8, input, 44)).toEqual({ ok: true, loanId: 12, loanStatus: "active" });
     expect(serverApiFetch).toHaveBeenCalledWith("/admin/applications/8/disbursement", {
       method: "POST",
-      body: { method: "bsp_mobile_banking", reference: "BSP-TXN-88213" },
+      body: { method: "bsp_mobile_banking", reference: "BSP-TXN-88213", evidence_document_id: 44 },
     });
+  });
+
+  it("refuses a BSP payout without its receipt, without calling the backend", async () => {
+    expect(await recordDisbursement(8, input, null)).toEqual({
+      ok: false,
+      error: "Attach the BSP receipt or screenshot - every BSP payout needs one.",
+    });
+    expect(serverApiFetch).not.toHaveBeenCalled();
+  });
+
+  it("records a cash payout without evidence", async () => {
+    expect((await recordDisbursement(8, { ...input, method: "cash_on_hand", reference: "CASH-1" }, null)).ok).toBe(true);
   });
 
   it("adds the optional time, note and evidence only when given", async () => {
@@ -43,7 +55,7 @@ describe("recordDisbursement", () => {
   });
 
   it("never calls the backend without a reference", async () => {
-    expect(await recordDisbursement(8, { ...input, reference: "  " }, null)).toEqual({
+    expect(await recordDisbursement(8, { ...input, reference: "  " }, 44)).toEqual({
       ok: false,
       error: "Enter the BSP transaction number.",
     });
@@ -54,16 +66,26 @@ describe("recordDisbursement", () => {
     serverApiFetch.mockImplementation(async () => {
       throw new ApiError(409, "Application #8 has already been disbursed.");
     });
-    const result = await recordDisbursement(8, input, null);
+    const result = await recordDisbursement(8, input, 44);
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toMatch(/isn't awaiting disbursement any more/);
+  });
+
+  it("rewords the backend's missing-receipt refusal", async () => {
+    serverApiFetch.mockImplementation(async () => {
+      throw new ApiError(400, "evidence_document_id is required for BSP Mobile Banking disbursements: upload the BSP receipt first.");
+    });
+    expect(await recordDisbursement(8, input, 44)).toEqual({
+      ok: false,
+      error: "Attach the BSP receipt or screenshot - every BSP payout needs one.",
+    });
   });
 
   it("rewords the backend's field-named validation errors", async () => {
     serverApiFetch.mockImplementation(async () => {
       throw new ApiError(400, "disbursed_at can't be in the future.");
     });
-    expect(await recordDisbursement(8, input, null)).toEqual({ ok: false, error: "The payout time can't be in the future." });
+    expect(await recordDisbursement(8, input, 44)).toEqual({ ok: false, error: "The payout time can't be in the future." });
   });
 });
 

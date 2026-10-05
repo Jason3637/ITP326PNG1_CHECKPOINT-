@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { LoanApplyWizard } from "@/components/dashboard/loan-apply/LoanApplyWizard";
+import { ApplyBlockedNotice } from "@/components/dashboard/ApplyBlockedNotice";
+import { applyBlock } from "@/lib/apply-eligibility";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { getLastApplicationDraft } from "@/lib/session";
-import type { Document, DocumentList, Profile } from "@/lib/types";
+import type { Document, DocumentList, LoanApplicationList, MyLoans, Profile } from "@/lib/types";
 
 // See (dashboard)/layout.tsx — same reason, applied again since this page
 // calls serverApiFetch independently.
@@ -21,6 +23,22 @@ async function latestDocument(documentType: "id_verification" | "loan_file"): Pr
 }
 
 export default async function LoanApplyPage() {
+  // Someone who can't apply right now (one PRIME loan at a time) is told
+  // why here, instead of filling in the whole form to be refused at the end.
+  let applications: LoanApplicationList;
+  let loans: MyLoans;
+  try {
+    [applications, loans] = await Promise.all([
+      serverApiFetch<LoanApplicationList>("/loans/applications/mine"),
+      serverApiFetch<MyLoans>("/loans/mine"),
+    ]);
+  } catch (err) {
+    if (err instanceof UnauthenticatedError) redirect("/login");
+    throw err;
+  }
+  const block = applyBlock(applications.applications, loans.loans);
+  if (block) return <ApplyBlockedNotice block={block} />;
+
   let profile: Profile;
   let existingIdDocument: Document | undefined;
   let existingIncomeDocument: Document | undefined;

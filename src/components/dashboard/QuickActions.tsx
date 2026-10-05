@@ -14,8 +14,9 @@ const actions: ActionTile[] = [
   { label: "Loan Calculator", href: "/dashboard/loans/calculator", icon: Calculator },
 ];
 
-// Used for the active-loan dashboard state — preserved as-is (see
-// ActiveLoanCard.tsx for the same "adapt, don't rebuild" treatment).
-export function QuickActions() {
-  return <ActionTiles actions={actions} />;
+// Used for the active-loan dashboard state. "Apply for Loan" is left out
+// while the customer can't apply (one PRIME loan at a time - see
+// apply-eligibility.ts), rather than shown and then refused.
+export function QuickActions({ canApply = true }: { canApply?: boolean }) {
+  return <ActionTiles actions={canApply ? actions : actions.filter((a) => a.href !== "/dashboard/loans/apply")} />;
 }

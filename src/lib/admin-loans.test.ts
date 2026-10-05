@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   adminLoanStatus,
-  auditActor,
-  auditLabel,
-  auditSummary,
   canDecidePayment,
   ledgerEntryLabel,
   ledgerWithBalance,
   signedKina,
 } from "./admin-loans";
+import { auditActor, auditLabel, auditSummary } from "./audit-log";
 import { loanDetail } from "@/components/admin/admin-fixtures.test-utils";
 import type { AdminLedgerEntry } from "./types";
 

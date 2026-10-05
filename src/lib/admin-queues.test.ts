@@ -80,8 +80,8 @@ describe("recommendationLabel / pageCount", () => {
 });
 
 describe("admin nav", () => {
-  it("has Overview and Analytics, each highlighted only on its own page", () => {
-    expect(adminNavItems.map((i) => i.href)).toEqual(["/admin", "/admin/analytics"]);
+  it("has Overview, Analytics, Settings and Audit log, each highlighted only on its own page", () => {
+    expect(adminNavItems.map((i) => i.href)).toEqual(["/admin", "/admin/analytics", "/admin/settings", "/admin/audit-log"]);
     expect(isTopNavItemActive("/admin/analytics", "/admin", "admin")).toBe(false);
     expect(isTopNavItemActive("/admin/analytics", "/admin/analytics", "admin")).toBe(true);
   });

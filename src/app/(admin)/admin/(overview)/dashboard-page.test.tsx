@@ -106,7 +106,7 @@ describe("Administrator dashboard", () => {
     const disbursed = card("Disbursed");
     expect(within(disbursed).getByText("K2,100")).toBeInTheDocument();
     expect(within(disbursed).getByText("4 loans paid out, Sep 6, 2026 – Oct 5, 2026")).toBeInTheDocument();
-    expect(within(disbursed).getByText("Sum of principal paid out in the window.")).toBeInTheDocument();
+    expect(within(disbursed).getByText("Sum of principal paid out in the period.")).toBeInTheDocument();
 
     const outstanding = card("Outstanding");
     expect(within(outstanding).getByText("K1,234.5")).toBeInTheDocument(); // not K30 from the two listed loans

@@ -3,11 +3,12 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PolicyEditor } from "@/components/admin/settings/PolicyEditor";
+import { ParametersEditor } from "@/components/admin/settings/ParametersEditor";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { formatReviewDateTime } from "@/lib/application-review";
-import { CHANGE_WARNING, formatPct, penaltyRowsFrom, pricingRowsFrom } from "@/lib/admin-settings";
+import { CHANGE_WARNING, PARAMETER_SPECS, formatPct, parameterDisplay, penaltyRowsFrom, pricingRowsFrom } from "@/lib/admin-settings";
 import { formatKina } from "@/lib/utils";
-import type { PenaltyTier, PolicyVersion, PolicyVersions, PricingTier } from "@/lib/types";
+import type { PenaltyTier, PolicyVersion, PolicyVersions, PricingTier, SystemParameters } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -44,20 +45,23 @@ function History<T>({ versions, render }: { versions: PolicyVersion<T>[]; render
   );
 }
 
-// Parameter management: only the deliberately limited, versioned settings -
-// the PRIME pricing table and the late-penalty tiers (GET/POST
-// /admin/pricing, /admin/penalty-policy). Not a dump of every backend
-// setting. A save never edits the current version: it creates a new one,
-// for applications submitted from then on.
+// Parameter management: the deliberately limited set an administrator can
+// change - the versioned PRIME pricing table and late-penalty tiers (GET/POST
+// /admin/pricing, /admin/penalty-policy; a save creates a new version for
+// applications submitted from then on), and the backend's three live
+// settings (GET/PUT /admin/parameters). Every change applies going forward
+// only; nothing already quoted, disbursed, produced or verified changes.
 export default async function AdminSettingsPage({ searchParams }: PageProps) {
   const saved = (await searchParams).saved;
 
   let pricing: PolicyVersions<PricingTier>;
   let penalty: PolicyVersions<PenaltyTier>;
+  let params: SystemParameters;
   try {
-    [pricing, penalty] = await Promise.all([
+    [pricing, penalty, params] = await Promise.all([
       serverApiFetch<PolicyVersions<PricingTier>>("/admin/pricing"),
       serverApiFetch<PolicyVersions<PenaltyTier>>("/admin/penalty-policy"),
+      serverApiFetch<SystemParameters>("/admin/parameters"),
     ]);
   } catch (err) {
     if (err instanceof UnauthenticatedError) redirect("/login");
@@ -65,12 +69,15 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
   }
 
   const savedLabel = saved === "pricing" ? pricing.current.label : saved === "penalty" ? penalty.current.label : null;
+  const paramSpecs = PARAMETER_SPECS.filter((s) => params.parameters[s.key]);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="font-display text-2xl font-bold tracking-tight text-neutral-900">Pricing &amp; penalties</h2>
-        <p className="mt-1 text-sm text-neutral-600">The PRIME loan pricing table and the late-payment penalty tiers.</p>
+        <h2 className="font-display text-2xl font-bold tracking-tight text-neutral-900">Settings</h2>
+        <p className="mt-1 text-sm text-neutral-600">
+          PRIME loan pricing, late-payment penalties, and the settings behind credit notes and customer verification.
+        </p>
       </div>
 
       <div role="note" className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning-light p-4 text-sm">
@@ -80,6 +87,13 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
           <p className="mt-0.5 text-neutral-800">{CHANGE_WARNING}</p>
         </div>
       </div>
+
+      {saved === "parameters" && (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4 text-sm">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+          <p className="font-medium text-neutral-900">Settings saved. They apply from now on.</p>
+        </div>
+      )}
 
       {savedLabel && (
         <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4 text-sm">
@@ -180,6 +194,41 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
           initialRows={penaltyRowsFrom(penalty.current.tiers)}
         />
       </section>
+
+      {paramSpecs.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <Card>
+            <CardTitle>Credit notes &amp; verification</CardTitle>
+            <p className="mt-1 text-sm text-neutral-600">
+              Each applies from the moment it&apos;s saved. Credit notes already produced and verifications already given
+              keep what they were made with, and none of these changes a loan.
+            </p>
+            <dl className="mt-3 flex flex-col divide-y divide-neutral-100">
+              {paramSpecs.map((s) => {
+                const p = params.parameters[s.key]!;
+                return (
+                  <div key={s.key} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                    <div className="min-w-0">
+                      <dt className="text-sm font-medium text-neutral-900">{s.label}</dt>
+                      <p className="mt-0.5 text-xs text-neutral-600">{s.effect}</p>
+                    </div>
+                    <dd className="shrink-0 text-left sm:text-right">
+                      <p className="font-display text-lg font-bold text-neutral-900">{parameterDisplay(s, p.value)}</p>
+                      <p className="text-xs text-neutral-600">
+                        {p.source === "default" ? "Default" : `Changed ${formatReviewDateTime(p.updated_at) ?? ""}`.trim()}
+                        {s.key === "customer_verification_validity_months" && p.source === "default"
+                          ? " · still to be confirmed by Prime's Vault"
+                          : ""}
+                      </p>
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </Card>
+          <ParametersEditor initial={Object.fromEntries(paramSpecs.map((s) => [s.key, params.parameters[s.key]!.value]))} />
+        </section>
+      )}
 
       <p className="text-xs text-neutral-600">From the system: {pricing.applies_to}</p>
     </div>

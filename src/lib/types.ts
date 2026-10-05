@@ -1066,3 +1066,19 @@ export interface AuditLogPage {
   pages: number;
   items: AuditLogItem[]; // newest first
 }
+
+// GET/PUT /admin/parameters - the backend's short list of live settings.
+// updated_by (a user id) is also sent and never shown.
+export type SystemParameterKey = "min_monthly_income" | "max_debt_to_income_ratio" | "customer_verification_validity_months";
+
+export interface SystemParameter {
+  value: number;
+  type: "money" | "rate" | "int";
+  description: string;
+  source: "default" | "override";
+  updated_at: string | null;
+}
+
+export interface SystemParameters {
+  parameters: Partial<Record<SystemParameterKey, SystemParameter>>;
+}

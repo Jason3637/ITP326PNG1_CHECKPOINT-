@@ -56,7 +56,7 @@ describe("Administrator analytics", () => {
     backend();
     await renderPage();
     const expectations: [string, string, string][] = [
-      ["Principal disbursed", "K2,100", "Sum of principal paid out in the window."],
+      ["Principal disbursed", "K2,100", "Sum of principal paid out in the period."],
       ["Interest contracted", "K700", "Interest."],
       ["Expected repayment", "K2,800", "Expected."],
       ["Verified repayments", "K1,250", "Cash received: verified repayments."],

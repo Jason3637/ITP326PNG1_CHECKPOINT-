@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  PARAMETER_SPECS,
+  parameterDisplay,
+  parameterInput,
+  parameterPayload,
+  validateParameter,
   penaltyPayload,
   penaltyRowsFrom,
   pricingPayload,
@@ -63,5 +68,28 @@ describe("penalties", () => {
     expect(validatePenalty([{ daysLate: "7", pct: "25" }, { daysLate: "7", pct: "50" }])).toContain("Each tier needs a different number of days late.");
     expect(validatePenalty([{ daysLate: "0", pct: "25" }])).toContain("Tier 1: days late must be a whole number, at least 1.");
     expect(validatePenalty([{ daysLate: "7", pct: "1001" }])[0]).toMatch(/at most 1000%/);
+  });
+});
+
+describe("live settings", () => {
+  const [income, dti, months] = PARAMETER_SPECS;
+
+  it("shows and edits each in the admin's units", () => {
+    expect(parameterDisplay(income, 200)).toBe("K200");
+    expect(parameterDisplay(dti, 0.4)).toBe("40%");
+    expect(parameterDisplay(months, 12)).toBe("12 months");
+    expect(parameterInput(dti, 0.4)).toBe("40");
+    expect(parameterPayload(dti, "35.5")).toBe(0.355);
+    expect(parameterPayload(months, "18")).toBe(18);
+  });
+
+  it("mirrors the backend's limits", () => {
+    expect(validateParameter(income, "0")).toMatch(/more than K0/);
+    expect(validateParameter(income, "abc")).toMatch(/enter a number/);
+    expect(validateParameter(dti, "100")).toMatch(/below 100%/);
+    expect(validateParameter(dti, "0")).toBeNull();
+    expect(validateParameter(months, "0")).toMatch(/at least 1/);
+    expect(validateParameter(months, "1.5")).toMatch(/whole number/);
+    expect(validateParameter(months, "24")).toBeNull();
   });
 });

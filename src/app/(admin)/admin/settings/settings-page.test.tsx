@@ -34,6 +34,13 @@ const penalty = {
   applies_to: pricing.applies_to,
 };
 penalty.history = [penalty.current];
+const params = {
+  parameters: {
+    min_monthly_income: { value: 200, type: "money", description: "Minimum self-reported monthly income ...", source: "default", updated_at: null, updated_by: null },
+    max_debt_to_income_ratio: { value: 0.4, type: "rate", description: "Max (existing debt + new installment) / income ...", source: "override", updated_at: "2026-10-01T00:00:00+00:00", updated_by: 99 },
+    customer_verification_validity_months: { value: 12, type: "int", description: "Months ... 12 is an engineering default ...", source: "default", updated_at: null, updated_by: null },
+  },
+};
 
 const renderPage = async (search: Record<string, string> = {}) =>
   render(await AdminSettingsPage({ searchParams: Promise.resolve(search) }));
@@ -43,7 +50,9 @@ describe("Parameter management", () => {
     // Block body on purpose: a function returned from beforeEach is run by
     // Vitest as cleanup, and mockReset() returns the mock itself.
     serverApiFetch.mockReset();
-    serverApiFetch.mockImplementation(async (path: string) => (path === "/admin/pricing" ? pricing : penalty));
+    serverApiFetch.mockImplementation(async (path: string) =>
+      path === "/admin/pricing" ? pricing : path === "/admin/penalty-policy" ? penalty : params,
+    );
   });
 
   it("warns plainly that changes only affect new applications, never existing loans", async () => {
@@ -53,13 +62,25 @@ describe("Parameter management", () => {
     expect(note).toHaveTextContent("existing loans keep their terms and penalty policy");
   });
 
-  it("shows only the limited, versioned settings: PRIME pricing and late penalties", async () => {
+  it("shows the limited set: PRIME pricing, late penalties and the three live settings", async () => {
     await renderPage();
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(
-      expect.arrayContaining(["PRIME pricing", "Late penalties"]),
+      expect.arrayContaining(["PRIME pricing", "Late penalties", "Credit notes & verification"]),
     );
-    expect(screen.queryByText(/min_monthly_income|debt_to_income|verification_validity/i)).not.toBeInTheDocument();
-    expect(serverApiFetch.mock.calls.map((c) => c[0]).sort()).toEqual(["/admin/penalty-policy", "/admin/pricing"]);
+    expect(serverApiFetch.mock.calls.map((c) => c[0]).sort()).toEqual(["/admin/parameters", "/admin/penalty-policy", "/admin/pricing"]);
+  });
+
+  it("shows each live setting in plain words, with what a change affects", async () => {
+    const { container } = await renderPage();
+    const row = (label: string) => screen.getByText(label, { selector: "dt" }).closest("div.flex") as HTMLElement;
+    expect(row("Minimum monthly income")).toHaveTextContent("K200");
+    expect(row("Minimum monthly income")).toHaveTextContent("never approves or rejects anything");
+    expect(row("Maximum debt-to-income")).toHaveTextContent("40%");
+    expect(row("Maximum debt-to-income")).toHaveTextContent("Changed Oct 1, 2026");
+    expect(row("Customer verification lasts")).toHaveTextContent("12 months");
+    expect(row("Customer verification lasts")).toHaveTextContent("still to be confirmed by Prime's Vault");
+    expect(row("Customer verification lasts")).toHaveTextContent("existing verifications keep their expiry date");
+    expect(container.textContent).not.toMatch(/min_monthly_income|max_debt_to_income_ratio|engineering default/);
   });
 
   it("shows the current tables and earlier versions", async () => {
@@ -79,9 +100,15 @@ describe("Parameter management", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Saved as prime-v2. It applies to applications submitted from now on.");
   });
 
-  it("offers an editor for each table", async () => {
+  it("offers an editor for each table and for the settings", async () => {
     await renderPage();
     expect(screen.getByRole("button", { name: "Change PRIME pricing" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change late penalties" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change these settings" })).toBeInTheDocument();
+  });
+
+  it("confirms a settings save", async () => {
+    await renderPage({ saved: "parameters" });
+    expect(screen.getByRole("status")).toHaveTextContent("Settings saved. They apply from now on.");
   });
 });

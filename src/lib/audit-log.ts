@@ -62,6 +62,12 @@ export function auditSummary(entry: Pick<AdminAuditEntry, "details">): string | 
   if (num(d.amount) !== null) parts.push(`K${num(d.amount)!.toLocaleString("en-US")}`);
   if (str(d.method_reference)) parts.push(`Ref ${str(d.method_reference)}`);
   if (str(d.before_version) && str(d.after_version)) parts.push(`${str(d.before_version)} → ${str(d.after_version)}`);
+  // system_parameters_updated: {changes: {key: {before, after}}}
+  if (d.changes && typeof d.changes === "object") {
+    for (const [key, c] of Object.entries(d.changes as Record<string, { before?: unknown; after?: unknown }>)) {
+      if (c && typeof c === "object" && "after" in c) parts.push(`${key.replaceAll("_", " ")}: ${String(c.before)} → ${String(c.after)}`);
+    }
+  }
   for (const key of ["reason", "note"] as const) if (str(d[key])) parts.push(`“${str(d[key])}”`);
   return parts.length ? parts.join(" · ") : null;
 }

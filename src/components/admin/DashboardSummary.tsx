@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { cn, focusRing, formatKina } from "@/lib/utils";
 import { formatPlainDate } from "@/lib/penalties";
+import { plainDefinition } from "@/lib/plain-definition";
 import { plural } from "@/lib/customer-history";
 import type { AdminAnalytics, AdminQueue, AdminQueueCounts } from "@/lib/types";
 
@@ -57,19 +58,19 @@ export function DashboardSummary({ counts, analytics }: DashboardSummaryProps) {
         <CountLink queue="awaiting_disbursement" label="Approved, waiting to be paid out" count={q.awaiting_disbursement.count} />
       </SummaryCard>
 
-      <SummaryCard title="Disbursed" definition={d.principal_disbursed.definition}>
+      <SummaryCard title="Disbursed" definition={plainDefinition(d.principal_disbursed.definition)}>
         <BigFigure>{formatKina(d.principal_disbursed.value)}</BigFigure>
         <p className="text-sm text-neutral-600">
           {plural(d.loans_disbursed.value, "loan")} paid out, {from} – {to}
         </p>
       </SummaryCard>
 
-      <SummaryCard title="Outstanding" definition={p.outstanding_value.definition}>
+      <SummaryCard title="Outstanding" definition={plainDefinition(p.outstanding_value.definition)}>
         <BigFigure>{formatKina(p.outstanding_value.value)}</BigFigure>
         <p className="text-sm text-neutral-600">Across {plural(p.active_loans.value, "active loan")}</p>
       </SummaryCard>
 
-      <SummaryCard title="Due and overdue" definition={p.overdue_value.definition}>
+      <SummaryCard title="Due and overdue" definition={plainDefinition(p.overdue_value.definition)}>
         <CountLink queue="due_today" label="Due today" count={q.due_today.count} />
         <CountLink queue="due_this_week" label="Due this week" count={q.due_this_week.count} />
         <CountLink

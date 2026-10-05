@@ -40,7 +40,20 @@ describe("DisbursementForm", () => {
     expect(screen.getByText("•••• 2345")).toBeInTheDocument();
     expect(screen.getByText("K850")).toBeInTheDocument();
     expect(screen.getByLabelText(/BSP transaction number \(required\)/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/BSP receipt or screenshot \(optional\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/BSP receipt or screenshot \(required\)/)).toBeInTheDocument();
+  });
+
+  it("won't record a BSP payout without its receipt; cash doesn't need one", async () => {
+    const user = userEvent.setup();
+    render(<DisbursementForm {...props} />);
+    await user.type(screen.getByLabelText(/BSP transaction number/), "BSP-TXN-1");
+    expect(screen.getByRole("button", { name: "Review disbursement" })).toBeDisabled();
+    await user.upload(screen.getByLabelText(/BSP receipt or screenshot/), new File(["%PDF"], "receipt.pdf", { type: "application/pdf" }));
+    expect(screen.getByRole("button", { name: "Review disbursement" })).toBeEnabled();
+
+    await user.click(screen.getByRole("radio", { name: /Cash on Hand/ }));
+    await user.type(screen.getByLabelText(/Cash acknowledgement number/), "CASH-1");
+    expect(screen.getByLabelText(/Signed cash acknowledgement \(optional\)/)).toBeInTheDocument();
   });
 
   it("asks cash payouts for the acknowledgement number and the signed acknowledgement", async () => {
@@ -65,16 +78,19 @@ describe("DisbursementForm", () => {
 
   it("records once even on a double-click, and keeps the button locked while saving", async () => {
     let resolve!: (v: unknown) => void;
+    uploadDisbursementEvidence.mockResolvedValue({ ok: true, documentId: 44 });
     recordDisbursement.mockImplementation(() => new Promise((r) => (resolve = r)));
     const user = userEvent.setup();
     render(<DisbursementForm {...props} />);
+    await user.upload(screen.getByLabelText(/BSP receipt or screenshot/), new File(["%PDF"], "receipt.pdf", { type: "application/pdf" }));
     await fillAndReview(user);
 
     const record = screen.getByRole("button", { name: "Record disbursement" });
     fireEvent.click(record);
     fireEvent.click(record);
     fireEvent.click(record);
-    expect(recordDisbursement).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(recordDisbursement).toHaveBeenCalledTimes(1));
+    expect(uploadDisbursementEvidence).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: /Recording disbursement/ })).toBeDisabled();
 
     resolve({ ok: true, loanId: 12, loanStatus: "active" });
@@ -82,7 +98,7 @@ describe("DisbursementForm", () => {
     expect(recordDisbursement).toHaveBeenCalledWith(
       8,
       { method: "bsp_mobile_banking", reference: "BSP-TXN-88213", disbursedAt: "", note: "" },
-      null,
+      44,
     );
     // Never claims the loan is active itself - the page shows that from the backend.
     expect(document.body.textContent).not.toMatch(/Loan Active/i);

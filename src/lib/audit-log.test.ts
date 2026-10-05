@@ -35,6 +35,12 @@ describe("audit entries", () => {
     );
   });
 
+  it("summarises a settings change as before → after", () => {
+    expect(auditSummary({ details: { changes: { max_debt_to_income_ratio: { before: 0.4, after: 0.35 } } } })).toBe(
+      "max debt to income ratio: 0.4 → 0.35",
+    );
+  });
+
   it("never shows file paths or credential-like fields in the details", () => {
     const rows = auditDetailRows({ storage_path: "users/7/x.pdf", document_type: "receipt", access_token: "t", nested: { storage_path: "y", ok: 1 } });
     expect(rows).toEqual([["document type", "receipt"], ["nested", '{"ok":1}']]);

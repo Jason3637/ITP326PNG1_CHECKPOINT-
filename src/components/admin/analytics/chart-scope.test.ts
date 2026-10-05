@@ -19,7 +19,8 @@ function files(dir: string): string[] {
 const rel = (p: string) => relative(src, p).replaceAll("\\", "/");
 const importers = (pattern: RegExp) => files(src).filter((f) => pattern.test(readFileSync(f, "utf8"))).map(rel);
 
-describe("Chart.js is route-scoped to /admin/analytics", () => {
+// Reads every source file - allow for a slow disk.
+describe("Chart.js is route-scoped to /admin/analytics", { timeout: 30000 }, () => {
   it("is imported by one module only", () => {
     expect(importers(/from ["'](chart\.js|react-chartjs-2)["']/)).toEqual(["components/admin/analytics/AnalyticsCharts.tsx"]);
   });

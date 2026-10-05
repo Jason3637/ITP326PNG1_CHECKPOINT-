@@ -3,6 +3,9 @@
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import {
   NOTE_MAX_LENGTH,
+  PARAMETER_SPECS,
+  parameterPayload,
+  validateParameter,
   penaltyPayload,
   pricingPayload,
   validatePenalty,
@@ -10,7 +13,7 @@ import {
   type PenaltyRow,
   type PricingRow,
 } from "@/lib/admin-settings";
-import type { PolicyVersions, PricingTier, PenaltyTier } from "@/lib/types";
+import type { PolicyVersions, PricingTier, PenaltyTier, SystemParameterKey } from "@/lib/types";
 
 export type SaveResult = { ok: true; label: string } | { ok: false; error: string };
 
@@ -73,6 +76,30 @@ export async function savePenaltyPolicy(rows: PenaltyRow[], note: string): Promi
     });
     return { ok: true, label: res.current.label };
   } catch (err) {
+    return failure(err);
+  }
+}
+
+// PUT /admin/parameters with only the changed settings (audited before/after
+// on the backend). Values arrive as typed; converted to the backend's units.
+export async function saveParameters(changes: Partial<Record<SystemParameterKey, string>>): Promise<SaveResult> {
+  const body: Partial<Record<SystemParameterKey, number>> = {};
+  for (const spec of PARAMETER_SPECS) {
+    const text = changes?.[spec.key];
+    if (typeof text !== "string") continue;
+    const invalid = validateParameter(spec, text);
+    if (invalid) return { ok: false, error: invalid };
+    body[spec.key] = parameterPayload(spec, text);
+  }
+  if (Object.keys(body).length === 0) return { ok: false, error: "Nothing has changed." };
+  try {
+    await serverApiFetch("/admin/parameters", { method: "PUT", body });
+    return { ok: true, label: "settings" };
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 400) {
+      const spec = PARAMETER_SPECS.find((p) => err.message.includes(p.key));
+      return { ok: false, error: spec ? `${spec.label}: that value isn't allowed.` : "That value isn't allowed." };
+    }
     return failure(err);
   }
 }

@@ -56,6 +56,7 @@ function disbursementError(err: ApiError): string {
   if (/disbursed_at can't be before/.test(m)) return "The payout time can't be before the application was approved.";
   if (/disbursed_at/.test(m)) return "Enter the date and time the money moved.";
   if (/method_reference/.test(m)) return "Enter the transaction or acknowledgement number (up to 255 characters).";
+  if (/required for BSP/.test(m)) return "Attach the BSP receipt or screenshot - every BSP payout needs one.";
   if (/already attached/.test(m)) return "That evidence file is already attached to another disbursement. Upload it again.";
   if (/evidence_document_id/.test(m)) return "That evidence file can't be used for this application. Upload it again.";
   return customerSafeMessage(err);
@@ -79,7 +80,8 @@ export async function recordDisbursement(
     disbursedAt: typeof input.disbursedAt === "string" ? input.disbursedAt : "",
     note: typeof input.note === "string" ? input.note.trim() : "",
   };
-  const invalid = validateDisbursement(clean);
+  const hasEvidence = evidenceDocumentId !== null && Number.isInteger(evidenceDocumentId);
+  const invalid = validateDisbursement(clean, hasEvidence);
   if (invalid) return { ok: false, error: invalid };
 
   const body: Record<string, unknown> = { method: clean.method, reference: clean.reference };

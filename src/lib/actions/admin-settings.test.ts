@@ -7,7 +7,7 @@ vi.mock("@/lib/server-api", async (importOriginal) => {
   return { ...real, serverApiFetch: (...a: unknown[]) => serverApiFetch(...a) };
 });
 
-import { savePenaltyPolicy, savePricing } from "./admin-settings";
+import { saveParameters, savePenaltyPolicy, savePricing } from "./admin-settings";
 import { ApiError } from "@/lib/server-api";
 
 const rows = [
@@ -58,5 +58,37 @@ describe("saving pricing and penalties", () => {
     });
     const result = await savePricing(rows, "");
     expect(result).toEqual({ ok: false, error: "Tier 2: interest rate must be a fraction above 0 and at most 1 (0.40 = 40%)." });
+  });
+});
+
+describe("saving the live settings", () => {
+  beforeEach(() => {
+    // Block body on purpose - see above.
+    serverApiFetch.mockReset();
+  });
+
+  it("sends only the changed settings, in the backend's units", async () => {
+    serverApiFetch.mockResolvedValue({ parameters: {} });
+    expect((await saveParameters({ max_debt_to_income_ratio: "35", customer_verification_validity_months: "18" })).ok).toBe(true);
+    expect(serverApiFetch).toHaveBeenCalledWith("/admin/parameters", {
+      method: "PUT",
+      body: { max_debt_to_income_ratio: 0.35, customer_verification_validity_months: 18 },
+    });
+  });
+
+  it("never sends an invalid or empty change", async () => {
+    expect((await saveParameters({ min_monthly_income: "0" })).ok).toBe(false);
+    expect(await saveParameters({})).toEqual({ ok: false, error: "Nothing has changed." });
+    expect(serverApiFetch).not.toHaveBeenCalled();
+  });
+
+  it("names the setting the backend refused, without its key", async () => {
+    serverApiFetch.mockImplementation(async () => {
+      throw new ApiError(400, "'max_debt_to_income_ratio' must be a fraction between 0 and 1 (e.g. 0.18).");
+    });
+    expect(await saveParameters({ max_debt_to_income_ratio: "50" })).toEqual({
+      ok: false,
+      error: "Maximum debt-to-income: that value isn't allowed.",
+    });
   });
 });

@@ -95,3 +95,24 @@ describe("customer dashboard with disbursed / closed loans", () => {
     expect(applyLinks()).toHaveLength(0);
   });
 });
+
+describe("customer dashboard - one PRIME loan at a time", () => {
+  beforeEach(() => {
+    // Block body on purpose: a function returned from beforeEach is run by
+    // Vitest as cleanup, and mockReset() returns the mock itself.
+    serverApiFetch.mockReset();
+  });
+
+  it("doesn't offer Apply while the customer has a current loan", async () => {
+    backend({ counts: { active: 1, total: 1 }, loans: [loan("active")], apps: [application("disbursed", 21)] });
+    render(await DashboardPage());
+    expect(applyLinks()).toHaveLength(0);
+    expect(screen.getByRole("link", { name: /My Loans/ })).toBeInTheDocument();
+  });
+
+  it("offers Apply after a written-off loan - a write-off doesn't block a new application", async () => {
+    backend({ counts: { closed: 1, total: 1 }, loans: [loan("closed", "defaulted")], apps: [application("disbursed", 21)] });
+    render(await DashboardPage());
+    expect(applyLinks().length).toBeGreaterThan(0);
+  });
+});

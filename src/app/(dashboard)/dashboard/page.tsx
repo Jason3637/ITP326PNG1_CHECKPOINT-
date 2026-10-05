@@ -5,9 +5,11 @@ import { ActionTiles, type ActionTile } from "@/components/dashboard/ActionTiles
 import { ActiveLoanCard } from "@/components/dashboard/ActiveLoanCard";
 import { BorrowingPowerCard } from "@/components/dashboard/BorrowingPowerCard";
 import { ApplicationStatusCard } from "@/components/dashboard/ApplicationStatusCard";
+import { ApplyBlockedNotice } from "@/components/dashboard/ApplyBlockedNotice";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { isApplicationFinished, isTerminalRejected } from "@/lib/loan-wizard";
 import { isCurrentLoan } from "@/lib/loan-status";
+import { applyBlock } from "@/lib/apply-eligibility";
 import { daysUntil } from "@/lib/utils";
 import type { AccountSummary, Dashboard, LoanApplicationList, MyLoans } from "@/lib/types";
 
@@ -79,7 +81,8 @@ export default async function DashboardPage() {
           <h2 className="font-accent mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Quick actions
           </h2>
-          <QuickActions />
+          {/* A current loan always blocks a new application. */}
+          <QuickActions canApply={false} />
         </div>
       </div>
     );
@@ -89,8 +92,12 @@ export default async function DashboardPage() {
   // via GET /loans/applications/mine, added alongside the two-tier
   // officer/admin review chain).
   let applications: LoanApplicationList;
+  let loans: MyLoans;
   try {
-    applications = await serverApiFetch<LoanApplicationList>("/loans/applications/mine");
+    [applications, loans] = await Promise.all([
+      serverApiFetch<LoanApplicationList>("/loans/applications/mine"),
+      serverApiFetch<MyLoans>("/loans/mine"),
+    ]);
   } catch (err) {
     if (err instanceof UnauthenticatedError) redirect("/login");
     throw err;
@@ -106,6 +113,24 @@ export default async function DashboardPage() {
     return (
       <div className="flex flex-col gap-4 lg:gap-6">
         <ApplicationStatusCard application={latest} />
+        <div>
+          <h2 className="font-accent mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+            Quick actions
+          </h2>
+          <ActionTiles actions={IN_PROGRESS_ACTIONS} />
+        </div>
+      </div>
+    );
+  }
+
+  // Nothing in progress and no current loan, so normally nothing blocks a
+  // new application - checked anyway with the shared rule, so this view
+  // never offers Apply when the backend would refuse it.
+  const block = applyBlock(applications.applications, loans.loans);
+  if (block) {
+    return (
+      <div className="flex flex-col gap-4 lg:gap-6">
+        <ApplyBlockedNotice block={block} />
         <div>
           <h2 className="font-accent mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-500">
             Quick actions

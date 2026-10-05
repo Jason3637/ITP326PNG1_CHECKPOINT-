@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { cn, focusRing, formatKina } from "@/lib/utils";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { isTerminalRejected, isActionRequired } from "@/lib/loan-wizard";
-import type { LoanApplicationList } from "@/lib/types";
+import { applyBlock } from "@/lib/apply-eligibility";
+import type { LoanApplicationList, MyLoans } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -21,21 +22,36 @@ function formatDate(dateStr: string) {
 // status_label (never the raw internal status enum).
 export default async function ApplicationsPage() {
   let data: LoanApplicationList;
+  let loans: MyLoans;
   try {
-    data = await serverApiFetch<LoanApplicationList>("/loans/applications/mine");
+    [data, loans] = await Promise.all([
+      serverApiFetch<LoanApplicationList>("/loans/applications/mine"),
+      serverApiFetch<MyLoans>("/loans/mine"),
+    ]);
   } catch (err) {
     if (err instanceof UnauthenticatedError) redirect("/login");
     throw err;
   }
+  // "Apply" is offered only when a new application is actually possible
+  // (one PRIME loan at a time - see apply-eligibility.ts).
+  const block = applyBlock(data.applications, loans.loans);
 
   return (
     <Card>
       <CardTitle>My applications</CardTitle>
+      {block && data.applications.length > 0 && (
+        <p role="note" className="mt-2 rounded-lg bg-neutral-50 p-3 text-sm text-neutral-700">
+          {block.message}
+        </p>
+      )}
 
       {data.applications.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
           <Inbox className="h-8 w-8 text-neutral-300" aria-hidden="true" />
           <p className="text-sm text-neutral-600">You haven&apos;t applied for a loan yet.</p>
+          {block ? (
+            <p className="text-sm text-neutral-700">{block.message}</p>
+          ) : (
           <Link
             href="/dashboard/loans/apply"
             className={cn(
@@ -45,6 +61,7 @@ export default async function ApplicationsPage() {
           >
             Apply for a Loan
           </Link>
+          )}
         </div>
       ) : (
         <ul className="mt-4 flex flex-col divide-y divide-neutral-100">
@@ -85,7 +102,7 @@ export default async function ApplicationsPage() {
                     </Link>
                   )}
 
-                  {rejected && (
+                  {rejected && !block && (
                     <Link
                       href="/dashboard/loans/apply"
                       className={cn(

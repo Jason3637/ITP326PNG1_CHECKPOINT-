@@ -23,12 +23,15 @@ export interface AlertProps {
   // Defaults by tone: success/info "status", warning "note", danger
   // "alert" (announced at once - keep it for real errors), neutral none.
   role?: "status" | "alert" | "note" | null;
+  // Buttons or links for what to do next - right-aligned on wide screens,
+  // under the message on phones.
+  actions?: ReactNode;
   className?: string;
 }
 
 // A message about the page or an action's outcome. Replaces the
 // hand-written success/warning/info boxes - same look, one component.
-export function Alert({ tone = "info", title, children, icon, role, className }: AlertProps) {
+export function Alert({ tone = "info", title, children, icon, role, actions, className }: AlertProps) {
   const t = TONES[tone];
   const Icon = icon ?? t.Icon;
   return (
@@ -37,9 +40,12 @@ export function Alert({ tone = "info", title, children, icon, role, className }:
       className={cn("flex items-start gap-3 rounded-xl border p-4 text-sm", t.box, className)}
     >
       <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", t.icon)} aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        {title && <p className="font-semibold text-neutral-900">{title}</p>}
-        {children && <div className={cn("text-neutral-800", title && "mt-0.5")}>{children}</div>}
+      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          {title && <p className="font-semibold text-neutral-900">{title}</p>}
+          {children && <div className={cn("text-neutral-800", title && "mt-0.5")}>{children}</div>}
+        </div>
+        {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </div>
     </div>
   );

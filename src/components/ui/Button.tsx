@@ -25,6 +25,19 @@ const sizeClasses = {
   lg: "h-12 px-6 text-base",
 } as const;
 
+const baseClasses =
+  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
+
+// The same look for a link that acts as a button (an in-page jump, a
+// navigation), so a <Link> or <a> needn't copy the classes.
+export function buttonClasses({
+  variant = "primary",
+  size = "md",
+  className,
+}: { variant?: keyof typeof variantClasses; size?: keyof typeof sizeClasses; className?: string } = {}) {
+  return cn(baseClasses, variantClasses[variant], sizeClasses[size], className);
+}
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variantClasses;
   size?: keyof typeof sizeClasses;
@@ -40,12 +53,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         aria-busy={loading || undefined}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-          variantClasses[variant],
-          sizeClasses[size],
-          className,
-        )}
+        className={buttonClasses({ variant, size, className })}
         {...props}
       >
         {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}

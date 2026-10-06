@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // The page is an async Server Component: called as a function, its JSX rendered.
 vi.mock("server-only", () => ({}));
@@ -124,6 +125,7 @@ async function renderPage(search: Record<string, string> = {}, id = "8") {
 }
 
 const card = (heading: string) => screen.getByRole("heading", { name: heading }).closest("div.rounded-xl") as HTMLElement;
+const openTab = (name: RegExp | string) => userEvent.click(screen.getByRole("tab", { name }));
 
 describe("Final Application Review", () => {
   beforeEach(() => {
@@ -136,7 +138,7 @@ describe("Final Application Review", () => {
     mockBackend(rawReview());
     await renderPage();
 
-    for (const heading of ["Customer", "Application", "Loan Officer review", "Final decision", "Customer history", "Verification checklist"]) {
+    for (const heading of ["Customer", "Application", "Loan Officer review", "Final decision"]) {
       expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
     }
 
@@ -159,8 +161,12 @@ describe("Final Application Review", () => {
     expect(officer).toHaveTextContent("Sep 26, 2026");
     expect(officer).toHaveTextContent("2 of 2 required checks done");
 
-    expect(screen.getByText("Late payments add a penalty.")).toBeInTheDocument(); // history rendered inline
-    expect(screen.getByText(/Read-only here/)).toBeInTheDocument(); // the admin doesn't edit checks
+    await openTab("History");
+    expect(screen.getByRole("heading", { name: "Customer history" })).toBeInTheDocument();
+    expect(screen.getByText("Late payments add a penalty.")).toBeVisible();
+    await openTab("Verification");
+    expect(screen.getByRole("heading", { name: "Verification checklist" })).toBeInTheDocument();
+    expect(screen.getByText(/Read-only here/)).toBeVisible(); // the admin doesn't edit checks
   });
 
   it("offers the three actions while the application awaits a final decision", async () => {
@@ -208,7 +214,7 @@ describe("Final Application Review", () => {
 
   it("keeps working when the customer history can't be loaded", async () => {
     mockBackend(rawReview(), { historyFails: true });
-    await renderPage();
+    await renderPage({ tab: "history" });
     expect(screen.getByRole("heading", { name: "Customer history couldn't be loaded" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Final decision" })).toBeInTheDocument();
   });
@@ -225,6 +231,124 @@ describe("Final Application Review", () => {
     });
     await expect(renderPage({}, "8")).rejects.toThrow("NOT_FOUND");
     await expect(renderPage({}, "abc")).rejects.toThrow("NOT_FOUND");
+  });
+});
+
+describe("The review workspace", () => {
+  beforeEach(() => {
+    // Block body on purpose - see above.
+    serverApiFetch.mockReset();
+    window.history.replaceState(null, "", "/admin/applications/8");
+  });
+
+  it("opens with a compact header: number, status, customer, amount, category, purpose, submission date", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    const header = screen.getByRole("heading", { level: 2, name: "Application #8" }).closest("header") as HTMLElement;
+    expect(within(header).getByRole("link", { name: "Back to dashboard" })).toHaveAttribute("href", "/admin");
+    expect(header).toHaveTextContent("Recommended: approve");
+    expect(header).toHaveTextContent("Simon Wari");
+    expect(header).toHaveTextContent("K900 · PRIME 3 · Medical");
+    expect(header).toHaveTextContent("Submitted Sep 24, 2026");
+  });
+
+  it("states where the application stands and jumps to the action", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    expect(screen.getByText("Waiting on your final decision")).toBeInTheDocument();
+    expect(screen.getByText(/Olive Officer: recommended approval/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Make the decision" })).toHaveAttribute("href", "#action-panel");
+    expect(document.getElementById("action-panel")).toContainElement(screen.getByRole("heading", { name: "Final decision" }));
+  });
+
+  it("offers Record disbursement from the status once approved", async () => {
+    mockBackend(rawReview({ status: "awaiting_disbursement", fd: { can_disburse: true } }));
+    await renderPage();
+    expect(screen.getByRole("link", { name: "Record disbursement" })).toHaveAttribute("href", "#action-panel");
+  });
+
+  it("splits the information into five tabs, Overview first", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Overview",
+      "Verification",
+      "Documents0",
+      "Credit assessment",
+      "History",
+    ]);
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("heading", { name: "Credit notes" })).not.toBeInTheDocument(); // hidden until chosen
+  });
+
+  it("keeps every piece of information reachable: each panel is in a tab", async () => {
+    mockBackend(rawReview({ returns: [{ id: 1, recommendation_id: 3, returned_by_name: "Ada Admin", reason: "Check the payslip.", created_at: null }] }));
+    await renderPage();
+    const where: Record<string, string> = {
+      Overview: "Loan Officer review|Recommendations|Customer|Application",
+      Verification: "Customer verification|Verification checklist|Information requests",
+      Documents: "Documents & referees",
+      "Credit assessment": "Credit notes",
+      History: "Customer history|Repayment record|Penalties|Previous applications|Loans",
+    };
+    for (const [tab, headings] of Object.entries(where)) {
+      await openTab(new RegExp(`^${tab}`));
+      for (const h of headings.split("|")) expect(screen.getByRole("heading", { name: h })).toBeInTheDocument();
+    }
+    // The action panel stays outside the tabs, visible from every one.
+    expect(screen.getByRole("heading", { name: "Final decision" })).toBeInTheDocument();
+  });
+
+  it("opens the tab named in ?tab=, and falls back to Overview for anything else", async () => {
+    mockBackend(rawReview());
+    const first = await renderPage({ tab: "credit" });
+    expect(screen.getByRole("tab", { name: "Credit assessment" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Credit notes" })).toBeInTheDocument();
+    expect(screen.getByText(/does not replace the judgment/)).toBeVisible(); // advisory only, as before
+    first.unmount();
+
+    await renderPage({ tab: "nope" });
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("writes the tab to the URL without dropping other parameters", async () => {
+    window.history.replaceState(null, "", "/admin/applications/8?decided=approved");
+    mockBackend(rawReview());
+    await renderPage();
+    await openTab("Verification");
+    expect(window.location.search).toBe("?decided=approved&tab=verification");
+    await openTab("Overview");
+    expect(window.location.search).toBe("?decided=approved");
+  });
+
+  it("moves between tabs with the arrow keys", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    screen.getByRole("tab", { name: "Overview" }).focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Verification" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Verification" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{End}");
+    expect(screen.getByRole("tab", { name: "History" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("loses nothing typed or expanded when switching tabs", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    const decision = card("Final decision");
+    await userEvent.click(within(decision).getByRole("radio", { name: /Reject/ }));
+    await userEvent.type(within(decision).getByRole("textbox"), "Payslip doesn't match.");
+    const everyCheck = screen.getByText("Every check").closest("details") as HTMLDetailsElement;
+    await userEvent.click(screen.getByText("Every check"));
+    expect(everyCheck.open).toBe(true);
+
+    for (const tab of ["Verification", "History", "Credit assessment", "Overview"]) await openTab(tab);
+
+    expect(within(card("Final decision")).getByRole("radio", { name: /Reject/ })).toBeChecked();
+    expect(within(card("Final decision")).getByRole("textbox")).toHaveValue("Payslip doesn't match.");
+    expect(everyCheck.open).toBe(true);
   });
 });
 

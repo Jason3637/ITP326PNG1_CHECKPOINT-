@@ -37,7 +37,8 @@ function backend(pages: Partial<Record<AdminQueue, AdminQueuePage>> = {}, extra:
 }
 
 const section = (title: string) => screen.getByRole("heading", { name: title }).closest("[id^=queue-]") as HTMLElement;
-const card = (title: string) => screen.getByRole("heading", { name: title }).closest("li") as HTMLElement;
+const kpis = (title: string) => screen.getByRole("heading", { name: title }).closest("section") as HTMLElement;
+const tile = (within_: HTMLElement, label: string) => within(within_).getByText(label, { selector: "p" }).closest("li") as HTMLElement;
 
 describe("Administrator dashboard", () => {
   beforeEach(() => {
@@ -77,7 +78,7 @@ describe("Administrator dashboard", () => {
     expect(paths.filter((p: string) => p.endsWith("?per_page=5"))).toHaveLength(7);
   });
 
-  it("answers the five questions from the backend's figures, not from the listed items", async () => {
+  it("answers 'what needs me?' from the backend's figures, not from the listed items", async () => {
     // The listed items deliberately don't add up to the figures: the
     // dashboard must show the backend's numbers, never sum a page of items.
     backend(
@@ -99,27 +100,43 @@ describe("Administrator dashboard", () => {
     );
     render(await AdminDashboardPage());
 
-    const attention = card("Needs your attention");
-    expect(within(attention).getByRole("link", { name: /Waiting on a final decision\s*6/ })).toHaveAttribute("href", "#queue-awaiting_decision");
-    expect(within(attention).getByRole("link", { name: /Approved, waiting to be paid out\s*2/ })).toHaveAttribute("href", "#queue-awaiting_disbursement");
+    // First tier: the four kinds of waiting work, each opening its queue.
+    const attention = kpis("Needs your attention");
+    expect(within(attention).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([
+      "/admin/queues/awaiting_decision",
+      "/admin/queues/awaiting_disbursement",
+      "/admin/repayments",
+      "/admin/queues/overdue",
+    ]);
+    expect(within(attention).getByRole("link", { name: /^Needs decision\s*6/ })).toBeInTheDocument();
+    expect(within(attention).getByRole("link", { name: /^Awaiting disbursement\s*2/ })).toBeInTheDocument();
+    expect(within(attention).getByRole("link", { name: /^Repayments to verify\s*11/ })).toBeInTheDocument(); // not 1 listed item
+    expect(within(attention).getByRole("link", { name: /^Overdue\s*3\s*K310 owed/ })).toBeInTheDocument();
 
-    const disbursed = card("Disbursed");
+    // Second tier: the portfolio.
+    const portfolio = kpis("Portfolio");
+    const active = tile(portfolio, "Active loans");
+    expect(within(active).getByText("3")).toBeInTheDocument();
+    expect(within(active).getByRole("link", { name: "1 due today" })).toHaveAttribute("href", "/admin/queues/due_today");
+    expect(within(active).getByRole("link", { name: "4 due this week" })).toHaveAttribute("href", "/admin/queues/due_this_week");
+
+    const outstanding = tile(portfolio, "Outstanding");
+    expect(within(outstanding).getByText("K1,234.5")).toBeInTheDocument(); // not K30 from the two listed loans
+    expect(within(outstanding).getByText("What is still owed, from the ledger.")).toBeInTheDocument();
+
+    const disbursed = tile(portfolio, "Disbursed, last 30 days");
     expect(within(disbursed).getByText("K2,100")).toBeInTheDocument();
     expect(within(disbursed).getByText("4 loans paid out, Sep 6, 2026 – Oct 5, 2026")).toBeInTheDocument();
     expect(within(disbursed).getByText("Sum of principal paid out in the period.")).toBeInTheDocument();
+  });
 
-    const outstanding = card("Outstanding");
-    expect(within(outstanding).getByText("K1,234.5")).toBeInTheDocument(); // not K30 from the two listed loans
-    expect(within(outstanding).getByText("Across 3 active loans")).toBeInTheDocument();
-    expect(within(outstanding).getByText("What is still owed, from the ledger.")).toBeInTheDocument();
-
-    const due = card("Due and overdue");
-    expect(within(due).getByRole("link", { name: /Due today\s*1/ })).toHaveAttribute("href", "#queue-due_today");
-    expect(within(due).getByRole("link", { name: /Due this week\s*4/ })).toHaveAttribute("href", "#queue-due_this_week");
-    expect(within(due).getByRole("link", { name: /Overdue\s*3\s*K310 owed/ })).toHaveAttribute("href", "#queue-overdue");
-
-    const verification = card("Awaiting verification");
-    expect(within(verification).getByText("11")).toBeInTheDocument(); // not 1 listed item
+  it("makes waiting work loud and an empty queue quiet", async () => {
+    backend({}, { counts: queueCounts({ awaiting_decision: 2, awaiting_disbursement: 0, overdue: 1, repayments_awaiting_verification: 0 }) });
+    render(await AdminDashboardPage());
+    const attention = kpis("Needs your attention");
+    expect(within(attention).getByRole("link", { name: /^Needs decision/ })).toHaveClass("border-primary/50");
+    expect(within(attention).getByRole("link", { name: /^Overdue/ })).toHaveClass("border-danger/50");
+    expect(within(attention).getByRole("link", { name: /^Awaiting disbursement\s*0\s*Nothing to pay out/ })).not.toHaveClass("shadow-md");
   });
 
   it("links every queue item to its workspace", async () => {

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inbox } from "lucide-react";
-import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { AdminQueueItems } from "@/components/admin/AdminQueueItems";
-import { DashboardSummary } from "@/components/admin/DashboardSummary";
+import { OverviewKpis } from "@/components/admin/OverviewKpis";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
-import { ADMIN_QUEUES, adminQueueHref } from "@/lib/admin-queues";
+import { ADMIN_QUEUES, adminQueueDefinition, adminQueueHref } from "@/lib/admin-queues";
 import { formatPlainDate } from "@/lib/penalties";
 import { cn, focusRing } from "@/lib/utils";
 import type { AdminAnalytics, AdminQueue, AdminQueueCounts, AdminQueuePage } from "@/lib/types";
@@ -18,10 +20,18 @@ export const dynamic = "force-dynamic";
 // click away on the full, paginated queue page.
 const PREVIEW_SIZE = 5;
 
-// The Administrator dashboard: the five summary questions, then every
-// admin queue. Counts come from GET /admin/queues, money from GET
-// /admin/analytics, lists from GET /admin/queues/<queue> - so a count and
-// the list under it always agree on what a queue contains.
+// The queues below the figures, grouped the way the sidebar groups them.
+// Two-up on wide screens so a short queue doesn't take a full row.
+const QUEUE_GROUPS: { title: string; queues: AdminQueue[] }[] = [
+  { title: "Applications", queues: ["awaiting_decision", "awaiting_disbursement"] },
+  { title: "Loans", queues: ["overdue", "due_today", "due_this_week", "active_loans"] },
+  { title: "Repayments", queues: ["repayments_awaiting_verification"] },
+];
+
+// The Administrator dashboard: what needs attention first, then the
+// portfolio, then every admin queue. Counts come from GET /admin/queues,
+// money from GET /admin/analytics, lists from GET /admin/queues/<queue> -
+// so a count and the list under it always agree on what a queue contains.
 export default async function AdminDashboardPage() {
   let counts: AdminQueueCounts;
   let analytics: AdminAnalytics;
@@ -41,50 +51,60 @@ export default async function AdminDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section aria-labelledby="summary-heading" className="flex flex-col gap-3">
-        <div>
-          <h2 id="summary-heading" className="font-display text-lg font-bold tracking-tight text-neutral-900">
-            Overview
-          </h2>
-          <p className="text-sm text-neutral-600">As of {formatPlainDate(counts.as_of)}, Port Moresby time.</p>
-        </div>
-        <DashboardSummary counts={counts} analytics={analytics} />
-      </section>
+    <div className="flex flex-col gap-8">
+      <PageHeader title="Overview" description={`As of ${formatPlainDate(counts.as_of)}, Port Moresby time.`} />
 
-      {ADMIN_QUEUES.map((q) => {
-        const page = pages[q.key];
+      <OverviewKpis counts={counts} analytics={analytics} />
+
+      {QUEUE_GROUPS.map((group) => {
+        const headingId = `queues-${group.title.toLowerCase()}`;
         return (
-          <Card key={q.key} id={`queue-${q.key}`} className="scroll-mt-20 px-2 sm:px-5">
-            <div className="flex flex-wrap items-start justify-between gap-2 px-3 sm:px-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <CardTitle>{q.title}</CardTitle>
-                  <Badge variant={page.total > 0 ? "primary" : "neutral"}>{page.total}</Badge>
-                </div>
-                <p className="mt-1 text-sm text-neutral-600">{q.description}</p>
-              </div>
-              {page.total > 0 && (
-                <Link
-                  href={adminQueueHref(q.key)}
-                  className={cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
-                >
-                  {page.total > page.items.length ? `View all ${page.total}` : "Open queue"}
-                </Link>
-              )}
+          <section key={group.title} aria-labelledby={headingId} className="flex flex-col gap-3">
+            <SectionHeader id={headingId} as="h3" title={group.title} />
+            <div className={cn("grid gap-4", group.queues.length > 1 && "lg:grid-cols-2")}>
+              {group.queues.map((key) => (
+                <QueueCard key={key} queue={key} page={pages[key]} />
+              ))}
             </div>
-
-            {page.items.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <Inbox className="h-7 w-7 text-neutral-300" aria-hidden="true" />
-                <p className="text-sm text-neutral-600">{q.emptyMessage}</p>
-              </div>
-            ) : (
-              <AdminQueueItems page={page} />
-            )}
-          </Card>
+          </section>
         );
       })}
     </div>
+  );
+}
+
+// One queue's first few items, its total, and the way into the full queue.
+function QueueCard({ queue, page }: { queue: AdminQueue; page: AdminQueuePage }) {
+  const q = adminQueueDefinition(queue);
+  return (
+    <Card id={`queue-${queue}`} className="flex scroll-mt-24 flex-col p-0">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-5 pt-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-display text-lg font-bold tracking-tight text-neutral-900">{q.title}</h4>
+            <Badge variant={page.total > 0 ? "primary" : "neutral"}>{page.total}</Badge>
+          </div>
+          <p className="mt-0.5 text-helper text-neutral-600">{q.description}</p>
+        </div>
+        {page.total > 0 && (
+          <Link
+            href={adminQueueHref(queue)}
+            className={cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
+          >
+            {page.total > page.items.length ? `View all ${page.total}` : "Open queue"}
+          </Link>
+        )}
+      </div>
+
+      <div className="px-2 pb-2">
+        {page.items.length === 0 ? (
+          <EmptyState size="sm" className="mx-3 mb-2 mt-3">
+            {q.emptyMessage}
+          </EmptyState>
+        ) : (
+          <AdminQueueItems page={page} />
+        )}
+      </div>
+    </Card>
   );
 }

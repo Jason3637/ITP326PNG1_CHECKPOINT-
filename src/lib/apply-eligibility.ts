@@ -1,6 +1,6 @@
 import type { Loan, LoanApplication } from "./types";
 
-// Prime's Vault allows one PRIME loan per customer at a time. The backend enforces this on POST /loans/apply (409);
+// PRIMESTONE allows one PRIME loan per customer at a time. The backend enforces this on POST /loans/apply (409);
 // this mirrors its rule (loan_processing.submit_application) so customers
 // aren't offered "Apply" only to be refused after filling in the form. The
 // backend's refusal stays the real guard.
@@ -11,7 +11,7 @@ import type { Loan, LoanApplication } from "./types";
 //   awaiting_disbursement with no loan yet - once paid out, its loan's
 //   status decides);
 // - a loan that's active or overdue;
-// - a written-off loan Prime's Vault hasn't cleared yet (the backend's
+// - a written-off loan PRIMESTONE hasn't cleared yet (the backend's
 //   blocks_reapplication flag - an admin clears it with a reason).
 // Never blocking: rejected applications, loans closed as paid in full, and
 // written-off loans that have been cleared.
@@ -75,7 +75,7 @@ export function applyBlock(applications: AppLike[], loans: LoanLike[]): ApplyBlo
   if (writtenOff) {
     return {
       kind: "written_off",
-      message: `Your loan (#${writtenOff.id}) was written off, so you can't apply for a new PRIME loan until Prime's Vault has reviewed it. Contact Prime's Vault to ask for a review.`,
+      message: `Your loan (#${writtenOff.id}) was written off, so you can't apply for a new PRIME loan until PRIMESTONE has reviewed it. Contact PRIMESTONE to ask for a review.`,
       href: "/dashboard/loans",
       linkLabel: "View your loans",
     };

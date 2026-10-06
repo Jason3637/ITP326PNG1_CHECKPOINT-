@@ -21,7 +21,7 @@ export interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
   alt?: string;
 }
 
-export function Logo({ variant = "full", alt = "Prime's Vault", className, ...props }: LogoProps) {
+export function Logo({ variant = "full", alt = "PRIMESTONE", className, ...props }: LogoProps) {
   const [markMissing, setMarkMissing] = useState(false);
   const markSrc = variant === "mark" && !markMissing ? MARK_LOGO_SRC : null;
   const useMark = markSrc !== null;

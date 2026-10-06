@@ -116,7 +116,7 @@ export default function SignupPage() {
       {step.name === "form" && (
         <>
           <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Sign up</h1>
-          <p className="mt-1 text-sm text-neutral-500">Join Prime&apos;s Vault in a few minutes.</p>
+          <p className="mt-1 text-sm text-neutral-500">Join PRIMESTONE in a few minutes.</p>
 
           <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
             <Input

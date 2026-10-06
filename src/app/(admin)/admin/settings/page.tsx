@@ -217,7 +217,7 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
                       <p className="text-xs text-neutral-600">
                         {p.source === "default" ? "Default" : `Changed ${formatReviewDateTime(p.updated_at) ?? ""}`.trim()}
                         {s.key === "customer_verification_validity_months" && p.source === "default"
-                          ? " · still to be confirmed by Prime's Vault"
+                          ? " · still to be confirmed by PRIMESTONE"
                           : ""}
                       </p>
                     </dd>

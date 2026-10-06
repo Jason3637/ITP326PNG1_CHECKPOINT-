@@ -111,11 +111,11 @@ export function ReviewSubmitStep({
 
       <p className="text-xs text-neutral-600">
         Your interest rate, total repayable amount, and eligibility result are calculated once you submit — they
-        aren&apos;t shown above because Prime&apos;s Vault doesn&apos;t pre-calculate them.
+        aren&apos;t shown above because PRIMESTONE doesn&apos;t pre-calculate them.
       </p>
 
       <Checkbox
-        label={`I confirm the information above is accurate and I accept Prime's Vault's Terms of Service (${TERMS_VERSION}).`}
+        label={`I confirm the information above is accurate and I accept PRIMESTONE's Terms of Service (${TERMS_VERSION}).`}
         checked={data.termsAccepted}
         onChange={(e) => onTermsAcceptedChange(e.target.checked)}
       />

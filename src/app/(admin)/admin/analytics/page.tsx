@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { MetricGroup, MetricTile } from "@/components/admin/analytics/MetricTile";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { MetricGroup, MetricRow, MetricTile } from "@/components/admin/analytics/MetricTile";
 import { ChartCard } from "@/components/admin/analytics/ChartCard";
 import { serverApiFetch, ApiError, UnauthenticatedError, customerSafeMessage } from "@/lib/server-api";
 import {
@@ -112,16 +116,20 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
   const presets = [7, 30, 90].map((d) => ({ days: d, ...lastDays(a.as_of, d) }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-neutral-900">Analytics</h2>
-          <p className="mt-1 text-sm text-neutral-600">
-            {period}, Port Moresby time. Period figures count what happened in these dates; portfolio figures are as of{" "}
-            {formatPlainDate(a.as_of)}.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4">
+        <PageHeader
+          title="Analytics"
+          description={
+            <>
+              {period}, Port Moresby time. Period figures count what happened in these dates; portfolio figures are as of{" "}
+              {formatPlainDate(a.as_of)}.
+            </>
+          }
+        />
+        {/* Date range: presets and a custom range, both plain links / a GET
+            form so the range lives in the URL - unchanged behaviour. */}
+        <Card className="flex flex-col gap-4 p-4 lg:flex-row lg:items-end lg:justify-between">
           <nav aria-label="Date range" className="flex flex-wrap gap-2">
             {presets.map((p) => (
               <Link
@@ -134,64 +142,62 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
               </Link>
             ))}
           </nav>
-          <form method="get" action="/admin/analytics" className="flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
-              From
-              <input type="date" name="from" defaultValue={a.window.from} required className="h-9 rounded-lg border border-neutral-300 bg-white px-2 text-sm text-neutral-900" />
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium text-neutral-700">
-              To
-              <input type="date" name="to" defaultValue={a.window.to} max={a.as_of} required className="h-9 rounded-lg border border-neutral-300 bg-white px-2 text-sm text-neutral-900" />
-            </label>
-            <Button type="submit" variant="secondary" size="sm">
+          <form method="get" action="/admin/analytics" className="flex flex-wrap items-end gap-3" aria-label="Custom date range">
+            <Input type="date" name="from" label="From" defaultValue={a.window.from} required className="w-40" />
+            <Input type="date" name="to" label="To" defaultValue={a.window.to} max={a.as_of} required className="w-40" />
+            <Button type="submit" variant="secondary">
               Apply
             </Button>
           </form>
-        </div>
+        </Card>
       </div>
 
-      <MetricGroup title="Money paid out" scope="In the period">
-        <MetricTile label="Principal disbursed" value={formatKina(disb.principal_disbursed.value)} definition={plainDefinition(disb.principal_disbursed.definition)} />
-        <MetricTile label="Interest contracted" value={formatKina(disb.interest_contracted.value)} definition={plainDefinition(disb.interest_contracted.definition)} />
-        <MetricTile label="Expected repayment" value={formatKina(disb.expected_repayment.value)} definition={plainDefinition(disb.expected_repayment.definition)} />
-        <MetricTile label="Loans disbursed" value={String(disb.loans_disbursed.value)} definition={plainDefinition(disb.loans_disbursed.definition)} />
+      <MetricGroup title="Financial performance" scope="In the period" description="Money paid out on loans and money received back.">
+        <MetricRow columns={4}>
+          <MetricTile label="Principal disbursed" value={formatKina(disb.principal_disbursed.value)} definition={plainDefinition(disb.principal_disbursed.definition)} />
+          <MetricTile label="Interest contracted" value={formatKina(disb.interest_contracted.value)} definition={plainDefinition(disb.interest_contracted.definition)} />
+          <MetricTile label="Expected repayment" value={formatKina(disb.expected_repayment.value)} definition={plainDefinition(disb.expected_repayment.definition)} />
+          <MetricTile label="Verified repayments" value={formatKina(reps.verified_repayments.value)} definition={plainDefinition(reps.verified_repayments.definition)} />
+        </MetricRow>
+        <MetricRow columns={4}>
+          <MetricTile size="sm" label="Loans disbursed" value={String(disb.loans_disbursed.value)} definition={plainDefinition(disb.loans_disbursed.definition)} />
+          <MetricTile size="sm" label="Penalties charged" value={formatKina(reps.penalties_charged.value)} definition={plainDefinition(reps.penalties_charged.definition)} />
+        </MetricRow>
       </MetricGroup>
 
-      <MetricGroup title="Money received" scope="In the period">
-        <MetricTile label="Verified repayments" value={formatKina(reps.verified_repayments.value)} definition={plainDefinition(reps.verified_repayments.definition)} />
-        <MetricTile label="Penalties charged" value={formatKina(reps.penalties_charged.value)} definition={plainDefinition(reps.penalties_charged.definition)} />
+      <MetricGroup title="Portfolio health" scope={`As of ${formatPlainDate(a.as_of)}`}>
+        <MetricRow columns={5}>
+          <MetricTile size="sm" label="Outstanding" value={formatKina(port.outstanding_value.value)} definition={plainDefinition(port.outstanding_value.definition)} />
+          <MetricTile size="sm" label="Active principal exposure" value={formatKina(port.active_principal_exposure.value)} definition={plainDefinition(port.active_principal_exposure.definition)} />
+          <MetricTile size="sm" label="Overdue value" value={formatKina(port.overdue_value.value)} definition={plainDefinition(port.overdue_value.definition)} />
+          <MetricTile size="sm" label="Active loans" value={String(port.active_loans.value)} definition={plainDefinition(port.active_loans.definition)} />
+          <MetricTile size="sm" label="Overdue loans" value={String(port.overdue_loans.value)} definition={plainDefinition(port.overdue_loans.definition)} />
+        </MetricRow>
       </MetricGroup>
 
-      <MetricGroup title="Portfolio" scope={`As of ${formatPlainDate(a.as_of)}`}>
-        <MetricTile label="Outstanding" value={formatKina(port.outstanding_value.value)} definition={plainDefinition(port.outstanding_value.definition)} />
-        <MetricTile label="Active principal exposure" value={formatKina(port.active_principal_exposure.value)} definition={plainDefinition(port.active_principal_exposure.definition)} />
-        <MetricTile label="Overdue value" value={formatKina(port.overdue_value.value)} definition={plainDefinition(port.overdue_value.definition)} />
-        <MetricTile label="Active loans" value={String(port.active_loans.value)} definition={plainDefinition(port.active_loans.definition)} />
-        <MetricTile label="Overdue loans" value={String(port.overdue_loans.value)} definition={plainDefinition(port.overdue_loans.definition)} />
+      <MetricGroup title="Application performance" scope="In the period">
+        <MetricRow columns={5}>
+          <MetricTile size="sm" label="Received" value={String(apps.received.value)} definition={plainDefinition(apps.received.definition)} />
+          <MetricTile size="sm" label="Approved" value={String(apps.approved.value)} definition={plainDefinition(apps.approved.definition)} />
+          <MetricTile size="sm" label="Rejected" value={String(apps.rejected.value)} definition={plainDefinition(apps.rejected.definition)} />
+          <MetricTile size="sm" label="Approval rate" value={formatRate(apps.approval_rate.value)} definition={plainDefinition(apps.approval_rate.definition)} />
+          <MetricTile size="sm" label="Rejection rate" value={formatRate(apps.rejection_rate.value)} definition={plainDefinition(apps.rejection_rate.definition)} />
+        </MetricRow>
       </MetricGroup>
 
-      <MetricGroup title="Applications" scope="In the period">
-        <MetricTile label="Received" value={String(apps.received.value)} definition={plainDefinition(apps.received.definition)} />
-        <MetricTile label="Approved" value={String(apps.approved.value)} definition={plainDefinition(apps.approved.definition)} />
-        <MetricTile label="Rejected" value={String(apps.rejected.value)} definition={plainDefinition(apps.rejected.definition)} />
-        <MetricTile label="Approval rate" value={formatRate(apps.approval_rate.value)} definition={plainDefinition(apps.approval_rate.definition)} />
-        <MetricTile label="Rejection rate" value={formatRate(apps.rejection_rate.value)} definition={plainDefinition(apps.rejection_rate.definition)} />
+      <MetricGroup title="Processing performance" scope="In the period">
+        <MetricRow columns={3}>
+          <MetricTile size="sm" label="Submission to decision" value={hoursValue(times.submitted_to_decided.value)} definition={hoursDefinition(times.submitted_to_decided.definition, times.submitted_to_decided.value)} />
+          <MetricTile size="sm" label="Approval to disbursement" value={hoursValue(times.approved_to_disbursed.value)} definition={hoursDefinition(times.approved_to_disbursed.definition, times.approved_to_disbursed.value)} />
+          <MetricTile size="sm" label="Submission to disbursement" value={hoursValue(times.submitted_to_disbursed.value)} definition={hoursDefinition(times.submitted_to_disbursed.definition, times.submitted_to_disbursed.value)} />
+        </MetricRow>
       </MetricGroup>
 
-      <MetricGroup title="Processing times" scope="In the period">
-        <MetricTile label="Submission to decision" value={hoursValue(times.submitted_to_decided.value)} definition={hoursDefinition(times.submitted_to_decided.definition, times.submitted_to_decided.value)} />
-        <MetricTile label="Approval to disbursement" value={hoursValue(times.approved_to_disbursed.value)} definition={hoursDefinition(times.approved_to_disbursed.definition, times.approved_to_disbursed.value)} />
-        <MetricTile label="Submission to disbursement" value={hoursValue(times.submitted_to_disbursed.value)} definition={hoursDefinition(times.submitted_to_disbursed.definition, times.submitted_to_disbursed.value)} />
-      </MetricGroup>
-
-      <section aria-labelledby="by-category-heading" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-baseline gap-x-3">
-          <h3 id="by-category-heading" className="font-display text-lg font-bold tracking-tight text-neutral-900">
-            By PRIME category
-          </h3>
-          <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">In the period</span>
-        </div>
-        <div className="grid gap-3 lg:grid-cols-2">
+      <section aria-labelledby="by-category-heading" className="flex flex-col gap-3">
+        <SectionHeader id="by-category-heading" as="h3" title="By PRIME category" scope="In the period" />
+        {/* Side by side only from xl: below that each chart gets the full
+            width, which beats two cramped ones. */}
+        <div className="grid gap-4 xl:grid-cols-2">
           <ChartCard
             title="Applications received"
             subtitle={plainDefinition(apps.by_prime_category.definition)}
@@ -217,17 +223,16 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <section aria-labelledby="trend-heading" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-baseline gap-x-3">
-          <h3 id="trend-heading" className="font-display text-lg font-bold tracking-tight text-neutral-900">
-            Weekly trend
-          </h3>
-          <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            {TREND_WEEKS} weeks to {formatPlainDate(a.window.to)} · each point is the week starting that day
-          </span>
-        </div>
+      <section aria-labelledby="trend-heading" className="flex flex-col gap-3">
+        <SectionHeader
+          id="trend-heading"
+          as="h3"
+          title="Weekly trend"
+          scope={`${TREND_WEEKS} weeks to ${formatPlainDate(a.window.to)}`}
+          description="Each point is the 7-day week starting that day."
+        />
         {trendOk ? (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-2">
             <ChartCard
               title="Applications received per week"
               subtitle="Applications submitted in each 7-day week."
@@ -252,9 +257,9 @@ export default async function AdminAnalyticsPage({ searchParams }: PageProps) {
             />
           </div>
         ) : (
-          <Card>
-            <p className="text-sm text-neutral-600">The weekly trend couldn&apos;t be loaded. Refresh to try again.</p>
-          </Card>
+          <EmptyState icon={AlertTriangle} size="sm">
+            The weekly trend couldn&apos;t be loaded. Refresh to try again.
+          </EmptyState>
         )}
       </section>
     </div>

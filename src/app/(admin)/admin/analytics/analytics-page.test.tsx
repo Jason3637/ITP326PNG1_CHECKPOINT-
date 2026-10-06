@@ -74,11 +74,44 @@ describe("Administrator analytics", () => {
   it("separates period figures from the as-of-now portfolio", async () => {
     backend();
     await renderPage();
-    expect(group("Money paid out")).toHaveTextContent("In the period");
-    expect(group("Money received")).toHaveTextContent("In the period");
-    expect(group("Portfolio")).toHaveTextContent("As of Oct 5, 2026");
-    expect(within(group("Portfolio")).getByText("Outstanding")).toBeInTheDocument();
-    expect(within(group("Money paid out")).queryByText("Outstanding")).not.toBeInTheDocument();
+    expect(group("Financial performance")).toHaveTextContent("In the period");
+    expect(group("Application performance")).toHaveTextContent("In the period");
+    expect(group("Processing performance")).toHaveTextContent("In the period");
+    expect(group("Portfolio health")).toHaveTextContent("As of Oct 5, 2026");
+    expect(within(group("Portfolio health")).getByText("Outstanding")).toBeInTheDocument();
+    expect(within(group("Financial performance")).queryByText("Outstanding")).not.toBeInTheDocument();
+  });
+
+  it("leads with the four financial figures, the rest a size down", async () => {
+    backend();
+    await renderPage();
+    const [primary, secondary] = within(group("Financial performance")).getAllByRole("list");
+    expect(within(primary).getAllByRole("listitem").map((li) => li.querySelector("p")?.textContent)).toEqual([
+      "Principal disbursed",
+      "Interest contracted",
+      "Expected repayment",
+      "Verified repayments",
+    ]);
+    expect(within(secondary).getAllByRole("listitem").map((li) => li.querySelector("p")?.textContent)).toEqual([
+      "Loans disbursed",
+      "Penalties charged",
+    ]);
+    expect(tile("Principal disbursed").querySelector("p:nth-child(2)")).toHaveClass("text-metric");
+    expect(tile("Loans disbursed").querySelector("p:nth-child(2)")).toHaveClass("text-2xl");
+  });
+
+  it("keeps the date filters exactly: presets as links, a GET form for a custom range", async () => {
+    backend();
+    await renderPage();
+    const presets = screen.getByRole("navigation", { name: "Date range" });
+    expect(within(presets).getAllByRole("link").map((l) => l.textContent)).toEqual(["Last 7 days", "Last 30 days", "Last 90 days"]);
+    expect(within(presets).getByRole("link", { name: "Last 30 days" })).toHaveAttribute("aria-current", "page");
+    const form = screen.getByRole("form", { name: "Custom date range" });
+    expect(form).toHaveAttribute("method", "get");
+    expect(form).toHaveAttribute("action", "/admin/analytics");
+    expect(within(form).getByLabelText("From")).toHaveAttribute("name", "from");
+    expect(within(form).getByLabelText("From")).toHaveValue("2026-09-06");
+    expect(within(form).getByLabelText("To")).toHaveAttribute("max", "2026-10-05");
   });
 
   it("shows applications and processing times as plain figures", async () => {

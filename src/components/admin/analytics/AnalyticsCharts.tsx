@@ -16,7 +16,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Bar, Line } from "react-chartjs-2";
-import type { ChartSpec } from "./chart-spec";
+import { CHART_HEIGHT, type ChartSpec } from "./chart-spec";
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, LineElement, PointElement, Tooltip, Filler);
 
@@ -32,9 +32,17 @@ function formatValue(spec: ChartSpec, v: number): string {
   return spec.unit === "kina" ? `K${v.toLocaleString("en-US")}` : v.toLocaleString("en-US");
 }
 
+// Axis text in the page's own font (a canvas can't read the CSS variable,
+// so it takes the computed family), at 12px.
+function tickFont() {
+  const family = typeof document !== "undefined" ? getComputedStyle(document.body).fontFamily : undefined;
+  return { family, size: 12 };
+}
+
 export default function AnalyticsChart({ spec }: { spec: ChartSpec }) {
   const reduceMotion =
     typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const font = tickFont();
 
   const common: ChartOptions<"bar" | "line"> = {
     responsive: true,
@@ -44,6 +52,9 @@ export default function AnalyticsChart({ spec }: { spec: ChartSpec }) {
     plugins: {
       legend: { display: false }, // one series per chart - the title names it
       tooltip: {
+        padding: 10,
+        titleFont: { ...font, weight: "bold" },
+        bodyFont: font,
         callbacks: {
           title: (items) => (items[0] ? (spec.tooltipTitles?.[items[0].dataIndex] ?? String(items[0].label)) : ""),
           label: (ctx) => `${spec.seriesLabel}: ${formatValue(spec, Number(ctx.parsed.y))}`,
@@ -51,13 +62,22 @@ export default function AnalyticsChart({ spec }: { spec: ChartSpec }) {
       },
     },
     scales: {
-      x: { grid: { display: false }, border: { color: GRID }, ticks: { color: TICK } },
+      // Labels stay horizontal; Chart.js skips some rather than tilting them.
+      x: {
+        grid: { display: false },
+        border: { color: GRID },
+        ticks: { color: TICK, font, maxRotation: 0, autoSkip: true, autoSkipPadding: 16 },
+      },
       y: {
         beginAtZero: true,
         grid: { color: GRID, lineWidth: 1 },
         border: { display: false },
+        // Round, comma'd values, at most six of them.
         ticks: {
           color: TICK,
+          font,
+          padding: 8,
+          maxTicksLimit: 6,
           precision: spec.unit === "count" ? 0 : undefined,
           callback: (v) => formatValue(spec, Number(v)),
         },
@@ -73,7 +93,7 @@ export default function AnalyticsChart({ spec }: { spec: ChartSpec }) {
             label: spec.seriesLabel,
             data: spec.values,
             backgroundColor: MARK,
-            maxBarThickness: 24,
+            maxBarThickness: 40,
             borderRadius: 4,
             borderSkipped: "start" as const,
           }
@@ -95,7 +115,7 @@ export default function AnalyticsChart({ spec }: { spec: ChartSpec }) {
   };
 
   return (
-    <div className="relative h-56" role="img" aria-label={spec.ariaLabel}>
+    <div className={`relative ${CHART_HEIGHT}`} role="img" aria-label={spec.ariaLabel}>
       {spec.kind === "bar" ? (
         <Bar data={data as never} options={common as ChartOptions<"bar">} />
       ) : (

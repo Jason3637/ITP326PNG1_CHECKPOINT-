@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
@@ -108,14 +109,11 @@ export default function SignupPage() {
 
   return (
     <Card className="sm:p-8">
-      <div className="relative mx-auto h-16 w-full max-w-[220px]">
-        <Logo fill sizes="220px" priority />
-      </div>
-      <p className="font-accent mt-3 text-center text-sm text-neutral-600">Member loans, simplified</p>
+      <Logo size="lg" tagline="Simple Loans. Clear Terms." preload />
 
       {step.name === "form" && (
         <>
-          <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Sign up</h1>
+          <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Create an account</h1>
           <p className="mt-1 text-sm text-neutral-500">Join PRIMESTONE in a few minutes.</p>
 
           <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
@@ -149,9 +147,8 @@ export default function SignupPage() {
               placeholder="+675 7123 4567"
             />
 
-            <Input
+            <PasswordInput
               label="Password"
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -159,9 +156,8 @@ export default function SignupPage() {
               placeholder="At least 8 characters"
             />
 
-            <Input
+            <PasswordInput
               label="Confirm password"
-              type="password"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -191,7 +187,7 @@ export default function SignupPage() {
           </form>
 
           <p className="mt-6 text-center text-sm text-neutral-500">
-            Already have an account?{" "}
+            Already have a PRIMESTONE account?{" "}
             <Link href="/login" className={cn("rounded font-medium text-primary hover:underline", focusRing)}>
               Log in
             </Link>

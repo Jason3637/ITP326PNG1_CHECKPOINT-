@@ -34,13 +34,16 @@
      direction. For hero/header surfaces only — see globals.css comment
      on Button/Badge below for why small UI elements use a solid stop
      instead. */
+  /* Each stop is the logo colour at ~82% brightness (same hue and
+     saturation) - at full strength it read too bright as a full-page
+     background behind the auth card. */
   --brand-gradient: linear-gradient(
     135deg,
-    #d3af5b 0%,
-    #c6924a 25%,
-    #b87131 50%,
-    #a84e1c 75%,
-    #972405 100%
+    #ad904b 0%,
+    #a2783d 25%,
+    #975d28 50%,
+    #8a4017 75%,
+    #7c1e04 100%
   );
 
   --color-primary: var(--color-brand-700);

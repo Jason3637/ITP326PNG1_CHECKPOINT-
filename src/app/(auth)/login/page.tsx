@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
 import { MfaSetupStep } from "@/components/auth/MfaSetupStep";
@@ -115,15 +116,12 @@ export default function LoginPage() {
 
   return (
     <Card className="sm:p-8">
-      <div className="relative mx-auto h-16 w-full max-w-[220px]">
-        <Logo fill sizes="220px" priority />
-      </div>
-      <p className="font-accent mt-3 text-center text-sm text-neutral-600">Member loans, simplified</p>
+      <Logo size="lg" tagline="Simple Loans. Clear Terms." preload />
 
       {step.name === "form" && (
         <>
-          <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Log in</h1>
-          <p className="mt-1 text-sm text-neutral-500">Welcome back to your co-op account.</p>
+          <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Welcome back</h1>
+          <p className="mt-1 text-sm text-neutral-500">Welcome to PRIMESTONE. Sign in to manage your loan account.</p>
 
           <form noValidate onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
             <Input
@@ -136,9 +134,16 @@ export default function LoginPage() {
               placeholder="you@example.com"
             />
 
-            <Input
+            <PasswordInput
               label="Password"
-              type="password"
+              labelAction={
+                <Link
+                  href="/forgot-password"
+                  className={cn("rounded text-sm font-medium text-primary hover:underline", focusRing)}
+                >
+                  Forgot password?
+                </Link>
+              }
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -161,9 +166,9 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-sm text-neutral-500">
-            Don&apos;t have an account?{" "}
+            New to PRIMESTONE?{" "}
             <Link href="/signup" className={cn("rounded font-medium text-primary hover:underline", focusRing)}>
-              Sign up
+              Create an account
             </Link>
           </p>
         </>

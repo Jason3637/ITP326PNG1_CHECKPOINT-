@@ -59,6 +59,11 @@
   --color-danger: #dc2626;
   --color-danger-light: #fee2e2;
 
+  /* Informational / in-progress status (submitted, in review). Text shade
+     is #1e40af on #dbeafe = 7.6:1, so it passes AA as badge text too. */
+  --color-info: #1e40af;
+  --color-info-light: #dbeafe;
+
   --color-neutral-50: #f8fafc;
   --color-neutral-100: #f1f5f9;
   --color-neutral-200: #e2e8f0;
@@ -99,6 +104,8 @@
   --color-warning-light: var(--color-warning-light);
   --color-danger: var(--color-danger);
   --color-danger-light: var(--color-danger-light);
+  --color-info: var(--color-info);
+  --color-info-light: var(--color-info-light);
 
   --color-neutral-50: var(--color-neutral-50);
   --color-neutral-100: var(--color-neutral-100);
@@ -120,6 +127,42 @@
   --font-display: var(--font-barlow-condensed);
   --font-accent: var(--font-bitter);
 }
+
+/*
+ * Type scale. Tailwind's own sizes cover body (text-sm 14px / text-base
+ * 16px), navigation and buttons (text-sm) and card titles (text-lg 18px).
+ * These four fill the gaps in the hierarchy rather than replacing it:
+ *
+ *   text-page-title     28px  one per page, under the shell's h1 greeting
+ *   text-section-title  20px  a page section above its cards
+ *   text-metric         30px  a KPI figure (display font, so it stays narrow)
+ *   text-helper         13px  helper text, metadata, definitions
+ *
+ * Spacing needs no tokens: the 4/8/12/16/24/32/48px rhythm is Tailwind's
+ * 1/2/3/4/6/8/12 steps. Use those, not arbitrary values. Within a card,
+ * gap-2/gap-3; between cards, gap-4; between page sections, gap-6.
+ *
+ * Surfaces: page = bg-neutral-50 (the shell); content = <Card>; important
+ * or interactive = <Card variant="emphasis">, used sparingly.
+ */
+@theme {
+  --text-page-title: 1.75rem;
+  --text-page-title--line-height: 2.25rem;
+  --text-section-title: 1.25rem;
+  --text-section-title--line-height: 1.75rem;
+  --text-metric: 1.875rem;
+  --text-metric--line-height: 2.25rem;
+  --text-helper: 0.8125rem;
+  --text-helper--line-height: 1.125rem;
+}
+
+/*
+ * Control density. An area opts in with data-density="comfortable" on a
+ * wrapper (the admin shell's <main> does). Buttons and form fields inside
+ * it are 44px tall instead of 40px; the customer and staff areas keep
+ * the default. Primitives write it as `h-10 comfortable:h-11`.
+ */
+@custom-variant comfortable (&:where([data-density="comfortable"] *));
 
 body {
   background: var(--background);

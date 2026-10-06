@@ -12,14 +12,20 @@ interface PortalShellProps {
 }
 
 // The chrome every area shares - same header, sidebar and phone bottom bar;
-// only the nav set (variant), home link and role badge differ.
+// only the nav set (variant), home link and role badge differ. The admin
+// area's content uses the comfortable control density (see globals.css).
 export function PortalShell({ variant, fullName, homeHref, roleLabel, children }: PortalShellProps) {
   return (
     <div className="flex min-h-screen bg-neutral-50">
       <Sidebar variant={variant} />
       <div className="flex min-h-screen flex-1 flex-col">
         <Header fullName={fullName} homeHref={homeHref} roleLabel={roleLabel} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 md:pb-6">{children}</main>
+        <main
+          data-density={variant === "admin" ? "comfortable" : undefined}
+          className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 md:pb-6"
+        >
+          {children}
+        </main>
         <BottomNav variant={variant} />
       </div>
     </div>

@@ -16,14 +16,11 @@ export function Sidebar({ variant = "customer" }: { variant?: NavVariant }) {
       <Link
         href={items[0].href}
         className={cn(
-          "flex h-14 items-center gap-2 border-b border-neutral-200 px-5 font-display font-bold tracking-tight text-primary",
+          "flex h-14 items-center border-b border-neutral-200 px-5",
           focusRing,
         )}
       >
-        <div className="relative h-5 w-5 shrink-0">
-          <Logo variant="mark" fill sizes="20px" />
-        </div>
-        <span>PRIMESTONE</span>
+        <Logo size="sm" />
       </Link>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map(({ href, label, icon: Icon }) => {

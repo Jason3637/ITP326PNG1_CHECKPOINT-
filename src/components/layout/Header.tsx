@@ -29,14 +29,10 @@ export function Header({ fullName, homeHref = "/dashboard", roleLabel }: HeaderP
     <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          {/* Small square mark, using the full logo (its own gradient-square
-              background) until a cropped, gradient-free mark is supplied -
-              it will look cleaner at this size. To switch over, add the file
-              to public/brand/ and set MARK_LOGO_SRC in ui/Logo.tsx; nothing
-              here needs to change. */}
-          <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md">
-            <Logo variant="mark" fill sizes="28px" />
-          </div>
+          {/* Mark only - the greeting takes the space a wordmark would. The
+              mark's image is set in one place (MARK_LOGO_SRC in ui/Logo.tsx);
+              nothing here needs to change when it does. */}
+          <Logo variant="mark" size="md" />
           {/* The only h1 in the authenticated dashboard shell — every
               dashboard page previously had none at all (confirmed with
               axe-core's page-has-heading-one rule), a pre-existing gap

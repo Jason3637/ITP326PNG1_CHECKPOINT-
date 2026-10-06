@@ -99,7 +99,7 @@ export function PolicyEditor<R extends PricingRow | PenaltyRow>({
   }
 
   return (
-    <Card className="border-primary/40">
+    <Card variant="emphasis">
       <CardTitle className="text-base">{title}</CardTitle>
       <p className="mt-1 text-sm text-neutral-600">{description}</p>
 

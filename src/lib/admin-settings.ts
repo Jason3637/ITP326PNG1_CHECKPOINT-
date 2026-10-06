@@ -113,7 +113,11 @@ export interface ParameterSpec {
   key: SystemParameterKey;
   label: string;
   unit: "kina" | "percent" | "months";
-  effect: string;
+  // Always shown under the name: what it is, and the safeguard that
+  // matters (advisory only / existing verifications unchanged).
+  summary: string;
+  // The longer how-it-works, behind "How it's used".
+  details: string;
 }
 
 export const PARAMETER_SPECS: ParameterSpec[] = [
@@ -121,22 +125,23 @@ export const PARAMETER_SPECS: ParameterSpec[] = [
     key: "min_monthly_income",
     label: "Minimum monthly income",
     unit: "kina",
-    effect:
-      "Used in the advisory credit notes on applications submitted (or re-checked) after the change. It never approves or rejects anything.",
+    summary: "Minimum income used in the advisory credit notes. It never approves or rejects anything.",
+    details: "Used in the credit notes on applications submitted (or re-checked) after the change.",
   },
   {
     key: "max_debt_to_income_ratio",
     label: "Maximum debt-to-income",
     unit: "percent",
-    effect:
-      "Existing monthly debt plus the new repayment, as a share of monthly income. Used in the advisory credit notes on applications submitted (or re-checked) after the change. It never approves or rejects anything.",
+    summary: "Highest share of income that debts can take, in the advisory credit notes. It never approves or rejects anything.",
+    details:
+      "Existing monthly debt plus the new repayment, as a share of monthly income. Used in the credit notes on applications submitted (or re-checked) after the change.",
   },
   {
     key: "customer_verification_validity_months",
     label: "Customer verification lasts",
     unit: "months",
-    effect:
-      "How long a customer's identity verification stays valid (never past their ID's expiry). Applies to customers verified after the change; existing verifications keep their expiry date.",
+    summary: "How long a customer's identity verification stays valid - existing verifications keep their expiry date.",
+    details: "Never past the customer's ID expiry. Applies to customers verified after the change.",
   },
 ];
 

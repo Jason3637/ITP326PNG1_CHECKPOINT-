@@ -8,9 +8,13 @@ import { cn } from "@/lib/utils";
 
 // The control's own box. Height is separate (controlHeight) because a
 // textarea doesn't take one.
+// :focus, not :focus-visible: a text field always shows where typing goes,
+// and Chromium doesn't match :focus-visible on date/time fields while focus
+// moves between their parts. :focus-within as well, for the date field's
+// own calendar button - focus inside the field, but not on it.
 export const controlClass =
-  "rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary disabled:opacity-50";
-export const controlErrorClass = "border-danger focus-visible:ring-danger";
+  "rounded-lg border border-neutral-300 bg-white px-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary focus-within:ring-2 focus-within:ring-primary focus-within:border-primary disabled:opacity-50";
+export const controlErrorClass = "border-danger focus:ring-danger focus-within:ring-danger";
 export const controlHeight = "h-10 comfortable:h-11";
 
 export const labelClass = "text-sm font-medium text-neutral-700";

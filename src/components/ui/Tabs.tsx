@@ -114,7 +114,7 @@ export function Tabs<K extends string>({ label, tabs, initialTab, param = "tab",
           aria-labelledby={`${baseId}-tab-${t.id}`}
           hidden={t.id !== selected}
           tabIndex={0}
-          className={cn("pt-5 focus-visible:outline-none")}
+          className="mt-5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
         >
           {t.content}
         </div>

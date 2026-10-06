@@ -51,7 +51,7 @@ export function OfficerReviewPanel({ review }: { review: Pick<ApplicationReview,
             <p className="mt-1 text-sm text-neutral-700">Not done: {outstanding.map((i) => i.label).join(", ")}</p>
           )}
           <details className="mt-2">
-            <summary className="cursor-pointer text-xs font-medium text-neutral-700">Every check</summary>
+            <summary className="cursor-pointer py-1 text-xs font-medium text-neutral-700">Every check</summary>
             <ul className="mt-1 flex flex-col gap-0.5 text-xs text-neutral-700">
               {snapshot.map((i) => (
                 <li key={i.item_type}>

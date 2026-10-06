@@ -33,6 +33,8 @@ interface PageProps {
 }
 
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
+// Previous / Next: standalone targets, so at least 24px tall.
+const pagerLinkClass = cn(linkClass, "inline-flex min-h-6 items-center px-1");
 
 // The full audit log (GET /reports/audit-logs), newest first, 50 a page,
 // as a table (components/admin/audit/AuditTable). Filters - actor (role
@@ -144,7 +146,7 @@ export default async function AdminAuditLogPage({ searchParams }: PageProps) {
             </p>
             <div className="flex items-center gap-4">
               {data.page > 1 && (
-                <Link href={auditLogHref(filters, data.page - 1)} className={linkClass}>
+                <Link href={auditLogHref(filters, data.page - 1)} className={pagerLinkClass}>
                   Newer
                 </Link>
               )}
@@ -152,7 +154,7 @@ export default async function AdminAuditLogPage({ searchParams }: PageProps) {
                 Page {data.page} of {pages}
               </span>
               {data.page < pages && (
-                <Link href={auditLogHref(filters, data.page + 1)} className={linkClass}>
+                <Link href={auditLogHref(filters, data.page + 1)} className={pagerLinkClass}>
                   Older
                 </Link>
               )}

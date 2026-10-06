@@ -77,7 +77,7 @@ describe("Parameter management", () => {
 
   it("puts name, value and a short explanation first; the longer one opens on request", async () => {
     await renderPage();
-    const row = screen.getByText("Maximum debt-to-income", { selector: "dt" }).closest("div.flex") as HTMLElement;
+    const row = screen.getByText("Maximum debt-to-income", { selector: "dt" }).closest("dl > div") as HTMLElement;
     expect(within(row).getByText(/never approves or rejects anything/)).toBeVisible();
     const more = within(row).getByText("How it's used");
     const details = more.closest("details") as HTMLDetailsElement;
@@ -107,7 +107,7 @@ describe("Parameter management", () => {
 
   it("shows each live setting in plain words, with what a change affects", async () => {
     const { container } = await renderPage();
-    const row = (label: string) => screen.getByText(label, { selector: "dt" }).closest("div.flex") as HTMLElement;
+    const row = (label: string) => screen.getByText(label, { selector: "dt" }).closest("dl > div") as HTMLElement;
     expect(row("Minimum monthly income")).toHaveTextContent("K200");
     expect(row("Minimum monthly income")).toHaveTextContent("never approves or rejects anything");
     expect(row("Maximum debt-to-income")).toHaveTextContent("40%");

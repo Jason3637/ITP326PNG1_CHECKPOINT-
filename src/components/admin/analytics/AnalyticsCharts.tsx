@@ -117,9 +117,9 @@ export default function AnalyticsChart({ spec }: { spec: ChartSpec }) {
   return (
     <div className={`relative ${CHART_HEIGHT}`} role="img" aria-label={spec.ariaLabel}>
       {spec.kind === "bar" ? (
-        <Bar data={data as never} options={common as ChartOptions<"bar">} />
+        <Bar data={data as never} options={common as ChartOptions<"bar">} aria-hidden="true" role="presentation" />
       ) : (
-        <Line data={data as never} options={common as ChartOptions<"line">} />
+        <Line data={data as never} options={common as ChartOptions<"line">} aria-hidden="true" role="presentation" />
       )}
     </div>
   );

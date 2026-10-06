@@ -24,7 +24,7 @@ export function PageHeader({ title, description, back, meta, actions, className 
         <Link
           href={back.href}
           className={cn(
-            "inline-flex w-fit items-center gap-1 rounded text-sm font-medium text-primary hover:text-primary-dark",
+            "inline-flex w-fit items-center gap-1 rounded py-1 text-sm font-medium text-primary hover:text-primary-dark",
             focusRing,
           )}
         >

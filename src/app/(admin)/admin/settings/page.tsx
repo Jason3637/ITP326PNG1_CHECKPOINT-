@@ -34,7 +34,7 @@ function History<T>({ versions, render }: { versions: PolicyVersion<T>[]; render
   if (past.length === 0) return null;
   return (
     <details className="border-t border-neutral-100 px-5 py-3">
-      <summary className="cursor-pointer text-sm font-medium text-neutral-700">Earlier versions ({past.length})</summary>
+      <summary className="cursor-pointer py-1 text-sm font-medium text-neutral-700">Earlier versions ({past.length})</summary>
       <ul className="mt-2 flex flex-col gap-3">
         {past.map((v) => (
           <li key={v.id} className="text-sm">
@@ -202,16 +202,11 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
               {paramSpecs.map((s) => {
                 const p = params.parameters[s.key]!;
                 return (
-                  <div key={s.key} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
-                    <div className="min-w-0">
-                      <dt className="font-medium text-neutral-900">{s.label}</dt>
-                      <p className="mt-0.5 text-sm text-neutral-600">{s.summary}</p>
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-helper font-medium text-neutral-700">How it&apos;s used</summary>
-                        <p className="mt-1 text-helper text-neutral-600">{s.details}</p>
-                      </details>
-                    </div>
-                    <dd className="shrink-0 text-left sm:text-right">
+                  // dl > div > dt + dd + dd: the name, its explanation, its
+                  // value. Grid places the value top-right from sm up.
+                  <div key={s.key} className="grid gap-x-8 gap-y-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <dt className="font-medium text-neutral-900 sm:col-start-1 sm:row-start-1">{s.label}</dt>
+                    <dd className="text-left sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:text-right">
                       <p className="font-display text-2xl font-bold tabular-nums text-neutral-900">{parameterDisplay(s, p.value)}</p>
                       <p className="text-helper text-neutral-600">
                         {p.source === "default" ? "Default" : `Changed ${formatReviewDateTime(p.updated_at) ?? ""}`.trim()}
@@ -219,6 +214,13 @@ export default async function AdminSettingsPage({ searchParams }: PageProps) {
                           ? " · still to be confirmed by PRIMESTONE"
                           : ""}
                       </p>
+                    </dd>
+                    <dd className="min-w-0 sm:col-start-1 sm:row-start-2">
+                      <p className="text-sm text-neutral-600">{s.summary}</p>
+                      <details className="mt-1">
+                        <summary className="cursor-pointer py-1 text-helper font-medium text-neutral-700">How it&apos;s used</summary>
+                        <p className="mt-1 text-helper text-neutral-600">{s.details}</p>
+                      </details>
                     </dd>
                   </div>
                 );

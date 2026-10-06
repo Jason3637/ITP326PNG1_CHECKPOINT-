@@ -28,7 +28,7 @@ export function ChartCard({ title, subtitle, spec, table, emptyMessage }: ChartC
         )}
       </div>
       <details className="mt-4 border-t border-neutral-100 pt-3">
-        <summary className="cursor-pointer text-sm font-medium text-neutral-700">Show as a table</summary>
+        <summary className="cursor-pointer py-1 text-sm font-medium text-neutral-700">Show as a table</summary>
         <table className="mt-2 w-full text-sm">
           <thead>
             <tr className="border-b border-neutral-200 text-left text-xs text-neutral-600">

@@ -53,7 +53,7 @@ export default async function AdminLoanPage({ params, searchParams }: PageProps)
 
   return (
     <div className="flex flex-col gap-4">
-      <Link href="/admin" className={cn("inline-flex w-fit items-center gap-1", linkClass)}>
+      <Link href="/admin" className={cn("inline-flex w-fit items-center gap-1 py-1", linkClass)}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to dashboard
       </Link>

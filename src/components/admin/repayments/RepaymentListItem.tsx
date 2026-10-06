@@ -18,11 +18,11 @@ export function RepaymentListItem({ item }: { item: AdminRepaymentItem }) {
     <li className="flex flex-col gap-2 px-3 py-4 md:flex-row md:items-start md:justify-between md:gap-6">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <Link href={adminRepaymentHref(item.payment_id, item.loan_id)} className={cn("text-sm", linkClass)}>
+          <Link href={adminRepaymentHref(item.payment_id, item.loan_id)} className={cn("inline-flex min-h-6 items-center text-sm", linkClass)}>
             Payment #{item.payment_id}
           </Link>
           <span className="text-sm text-neutral-600">·</span>
-          <Link href={adminLoanHref(item.loan_id)} className={cn("text-sm", linkClass)}>
+          <Link href={adminLoanHref(item.loan_id)} className={cn("inline-flex min-h-6 items-center text-sm", linkClass)}>
             Loan #{item.loan_id}
           </Link>
           <Badge variant={s.variant}>{s.label}</Badge>

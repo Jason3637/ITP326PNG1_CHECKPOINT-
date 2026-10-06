@@ -61,7 +61,9 @@ export default async function AdminDashboardPage() {
         return (
           <section key={group.title} aria-labelledby={headingId} className="flex flex-col gap-3">
             <SectionHeader id={headingId} as="h3" title={group.title} />
-            <div className={cn("grid gap-4", group.queues.length > 1 && "lg:grid-cols-2")}>
+            {/* items-start: a short queue keeps its own height instead of
+                stretching into a tall empty box beside a long one. */}
+            <div className={cn("grid gap-4", group.queues.length > 1 && "lg:grid-cols-2 lg:items-start")}>
               {group.queues.map((key) => (
                 <QueueCard key={key} queue={key} page={pages[key]} />
               ))}
@@ -89,7 +91,7 @@ function QueueCard({ queue, page }: { queue: AdminQueue; page: AdminQueuePage })
         {page.total > 0 && (
           <Link
             href={adminQueueHref(queue)}
-            className={cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
+            className={cn("inline-flex min-h-6 items-center rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
           >
             {page.total > page.items.length ? `View all ${page.total}` : "Open queue"}
           </Link>

@@ -363,6 +363,9 @@ export interface Loan {
   disbursement: Disbursement | null;
   repayment_schedule: RepaymentScheduleItem[]; // the original amount only - never includes penalties
   balance?: LoanBalance | null;
+  // True only for a written-off loan that Prime's Vault hasn't yet cleared:
+  // the customer can't apply again until it is. Absent on older backends.
+  blocks_reapplication?: boolean;
 }
 
 export interface MyLoans {
@@ -1011,6 +1014,15 @@ export interface AdminLoanDetail {
   ledger: AdminLedgerEntry[];
   payments: AdminLoanPayment[];
   audit_history: AdminAuditEntry[];
+  // Written-off loans only (null otherwise): whether it still stops the
+  // customer applying, and the admin clearance if there is one.
+  // cleared_by (a user id) is also sent and never shown.
+  reapplication?: {
+    blocked: boolean;
+    cleared_at: string | null;
+    cleared_by_name: string | null;
+    reason: string | null;
+  } | null;
 }
 
 export interface AdminRepaymentPage {

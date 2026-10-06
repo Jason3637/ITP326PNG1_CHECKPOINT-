@@ -52,8 +52,15 @@ describe("Apply page - one PRIME loan at a time", () => {
     expect(screen.getByRole("link", { name: "View your applications" })).toHaveAttribute("href", "/dashboard/applications");
   });
 
+  it("explains instead of showing the form after an uncleared write-off", async () => {
+    backend([app(6, "disbursed", 21)], [{ ...loan(21, "closed", "defaulted"), blocks_reapplication: true }], ready);
+    render(await LoanApplyPage());
+    expect(screen.queryByText("THE WIZARD")).not.toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("Contact Prime's Vault to ask for a review.");
+  });
+
   it("shows the form when nothing blocks a new application", async () => {
-    backend([app(6, "rejected")], [loan(21, "closed", "defaulted")], ready);
+    backend([app(6, "rejected")], [{ ...loan(21, "closed", "defaulted"), blocks_reapplication: false }], ready);
     render(await LoanApplyPage());
     expect(screen.getByText("THE WIZARD")).toBeInTheDocument();
   });

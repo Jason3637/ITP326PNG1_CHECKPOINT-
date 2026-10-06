@@ -10,9 +10,11 @@ import type { Loan, LoanApplication } from "./types";
 // - an application approved and waiting to be paid out (approved, or
 //   awaiting_disbursement with no loan yet - once paid out, its loan's
 //   status decides);
-// - a loan that's active or overdue.
-// Never blocking: rejected applications, and closed loans - paid in full
-// or written off (a write-off doesn't stop a new application).
+// - a loan that's active or overdue;
+// - a written-off loan Prime's Vault hasn't cleared yet (the backend's
+//   blocks_reapplication flag - an admin clears it with a reason).
+// Never blocking: rejected applications, loans closed as paid in full, and
+// written-off loans that have been cleared.
 const OPEN_STATUSES = new Set([
   "submitted",
   "officer_review",
@@ -23,7 +25,7 @@ const OPEN_STATUSES = new Set([
   "returned_to_officer",
 ]);
 
-export type ApplyBlockKind = "current_loan" | "awaiting_payout" | "open_application";
+export type ApplyBlockKind = "current_loan" | "awaiting_payout" | "open_application" | "written_off";
 
 export interface ApplyBlock {
   kind: ApplyBlockKind;
@@ -33,7 +35,7 @@ export interface ApplyBlock {
 }
 
 type AppLike = Pick<LoanApplication, "id" | "status" | "loan_id">;
-type LoanLike = Pick<Loan, "id" | "status" | "closure_reason">;
+type LoanLike = Pick<Loan, "id" | "status" | "closure_reason" | "blocks_reapplication">;
 
 // The reason a new application isn't possible right now, or null - checked
 // in the backend's order (first match wins) with the backend's own
@@ -66,6 +68,16 @@ export function applyBlock(applications: AppLike[], loans: LoanLike[]): ApplyBlo
       message: `You still have a loan (#${current.id}) to repay. You can apply again once it's fully repaid.`,
       href: "/dashboard/loans",
       linkLabel: "View your loan",
+    };
+  }
+  // The backend's flag decides - it knows whether an admin has cleared it.
+  const writtenOff = loans.find((l) => l.blocks_reapplication === true);
+  if (writtenOff) {
+    return {
+      kind: "written_off",
+      message: `Your loan (#${writtenOff.id}) was written off, so you can't apply for a new PRIME loan until Prime's Vault has reviewed it. Contact Prime's Vault to ask for a review.`,
+      href: "/dashboard/loans",
+      linkLabel: "View your loans",
     };
   }
   return null;

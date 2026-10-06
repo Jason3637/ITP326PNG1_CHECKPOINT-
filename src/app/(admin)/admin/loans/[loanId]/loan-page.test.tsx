@@ -22,7 +22,8 @@ import AdminLoanPage from "./page";
 import { ApiError } from "@/lib/server-api";
 
 const card = (heading: string) => screen.getByRole("heading", { name: heading }).closest("div.rounded-xl") as HTMLElement;
-const renderLoan = async (id = "5") => render(await AdminLoanPage({ params: Promise.resolve({ loanId: id }) }));
+const renderLoan = async (id = "5", search: Record<string, string> = {}) =>
+  render(await AdminLoanPage({ params: Promise.resolve({ loanId: id }), searchParams: Promise.resolve(search) }));
 
 describe("Active Loan detail", () => {
   beforeEach(() => {
@@ -93,5 +94,66 @@ describe("Active Loan detail", () => {
     });
     await expect(renderLoan("99")).rejects.toThrow("NOT_FOUND");
     await expect(renderLoan("abc")).rejects.toThrow("NOT_FOUND");
+  });
+});
+
+describe("Written-off loans: applying again", () => {
+  beforeEach(() => {
+    // Block body on purpose - see above.
+    serverApiFetch.mockReset();
+  });
+
+  const writtenOff = (reapplication: unknown) =>
+    loanDetail({ status: "closed", closure: { closure_reason: "defaulted", closed_at: null, total_verified_paid: 0, total_penalties: 0, outstanding_at_closure: 600, final_payment_date: null }, reapplication });
+
+  it("offers 'Clear to apply again' while the write-off still blocks the customer", async () => {
+    serverApiFetch.mockResolvedValue(writtenOff({ blocked: true, cleared_at: null, cleared_by: null, cleared_by_name: null, reason: null }));
+    await renderLoan();
+    expect(screen.getByRole("heading", { name: "Applying again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear to apply again" })).toBeInTheDocument();
+  });
+
+  it("confirms the clearance only when the backend shows it cleared", async () => {
+    serverApiFetch.mockResolvedValue(writtenOff({ blocked: false, cleared_at: "2026-10-06T00:00:00+00:00", cleared_by: 77, cleared_by_name: "Ada Admin", reason: "Settled." }));
+    await renderLoan("5", { cleared: "1" });
+    expect(screen.getByRole("status")).toHaveTextContent("Cleared. The customer can apply for a new PRIME loan.");
+    serverApiFetch.mockResolvedValue(writtenOff({ blocked: true, cleared_at: null, cleared_by: null, cleared_by_name: null, reason: null }));
+    await renderLoan("5", { cleared: "1" });
+    expect(screen.getAllByRole("status")).toHaveLength(1); // only the first render's
+  });
+
+  it("shows nothing about applying again for a loan that wasn't written off", async () => {
+    serverApiFetch.mockResolvedValue(loanDetail({ reapplication: null }));
+    await renderLoan();
+    expect(screen.queryByRole("heading", { name: "Applying again" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Writing off a loan", () => {
+  beforeEach(() => {
+    // Block body on purpose - see above.
+    serverApiFetch.mockReset();
+  });
+
+  it("offers it on an overdue loan with something owing", async () => {
+    serverApiFetch.mockResolvedValue(loanDetail());
+    await renderLoan();
+    expect(screen.getByRole("button", { name: "Write off this loan" })).toBeInTheDocument();
+  });
+
+  it("doesn't offer it on a closed loan, or one with nothing owing", async () => {
+    serverApiFetch.mockResolvedValue(loanDetail({ status: "closed", closure: { closure_reason: "paid_in_full", closed_at: null, total_verified_paid: 840, total_penalties: 0, outstanding_at_closure: 0, final_payment_date: null } }));
+    await renderLoan();
+    expect(screen.queryByRole("button", { name: "Write off this loan" })).not.toBeInTheDocument();
+    serverApiFetch.mockResolvedValue(loanDetail({ balance: { ...loanDetail().balance, outstanding: 0 } }));
+    await renderLoan();
+    expect(screen.queryByRole("button", { name: "Write off this loan" })).not.toBeInTheDocument();
+  });
+
+  it("confirms a write-off only when the backend shows it written off", async () => {
+    serverApiFetch.mockResolvedValue(loanDetail({ status: "closed", closure: { closure_reason: "defaulted", closed_at: null, total_verified_paid: 300, total_penalties: 60, outstanding_at_closure: 600, final_payment_date: null }, reapplication: { blocked: true, cleared_at: null, cleared_by: null, cleared_by_name: null, reason: null } }));
+    await renderLoan("5", { written_off: "1" });
+    expect(screen.getByRole("status")).toHaveTextContent("Loan #5 is written off, with K600 still owed.");
+    expect(screen.getByRole("button", { name: "Clear to apply again" })).toBeInTheDocument();
   });
 });

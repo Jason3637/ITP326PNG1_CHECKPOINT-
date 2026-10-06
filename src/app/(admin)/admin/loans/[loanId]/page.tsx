@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
@@ -9,9 +9,11 @@ import { LedgerPanel } from "@/components/admin/loans/LedgerPanel";
 import { PaymentHistoryPanel } from "@/components/admin/loans/PaymentHistoryPanel";
 import { AuditHistoryPanel } from "@/components/admin/loans/AuditHistoryPanel";
 import { DisbursementRecordPanel } from "@/components/admin/review/DisbursementRecordPanel";
+import { ReapplicationPanel } from "@/components/admin/loans/ReapplicationPanel";
+import { WriteOffPanel } from "@/components/admin/loans/WriteOffPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { formatReviewDateTime } from "@/lib/application-review";
-import { adminLoanStatus } from "@/lib/admin-loans";
+import { adminLoanStatus, canWriteOff } from "@/lib/admin-loans";
 import { formatPlainDate } from "@/lib/penalties";
 import { cn, focusRing, formatKina } from "@/lib/utils";
 import type { AdminLoanDetail } from "@/lib/types";
@@ -21,6 +23,7 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ loanId: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
@@ -28,7 +31,7 @@ const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primar
 // The loan as the backend records it (GET /admin/loans/<id>): terms from the
 // terms snapshot, every amount owed or paid from the ledger, the payments
 // reported against it and the audit trail. Nothing is editable here.
-export default async function AdminLoanPage({ params }: PageProps) {
+export default async function AdminLoanPage({ params, searchParams }: PageProps) {
   const { loanId } = await params;
   if (!/^\d+$/.test(loanId)) notFound();
 
@@ -42,6 +45,10 @@ export default async function AdminLoanPage({ params }: PageProps) {
   }
 
   const status = adminLoanStatus(loan);
+  // Shown only when the backend confirms the loan is now cleared.
+  const sp = (await searchParams) ?? {};
+  const justCleared = sp.cleared === "1" && loan.reapplication?.blocked === false;
+  const justWrittenOff = sp.written_off === "1" && loan.status === "closed" && loan.closure?.closure_reason === "defaulted";
   const awaiting = loan.payments.filter((p) => p.status === "reported" || p.status === "verification_pending").length;
 
   return (
@@ -68,9 +75,26 @@ export default async function AdminLoanPage({ params }: PageProps) {
         </Badge>
       </div>
 
+      {justWrittenOff && (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4 text-sm">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true" />
+          <p className="font-medium text-neutral-900">
+            Loan #{loan.loan_id} is written off, with {formatKina(loan.closure!.outstanding_at_closure)} still owed.
+          </p>
+        </div>
+      )}
+
+      {justCleared && (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4 text-sm">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+          <p className="font-medium text-neutral-900">Cleared. The customer can apply for a new PRIME loan.</p>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
           <LoanSummaryPanel loan={loan} />
+          {loan.reapplication && <ReapplicationPanel loanId={loan.loan_id} reapplication={loan.reapplication} />}
           {loan.closure && (
             <Card>
               <CardTitle>Closure</CardTitle>
@@ -91,6 +115,7 @@ export default async function AdminLoanPage({ params }: PageProps) {
         <div className="flex flex-col gap-4">
           <LedgerPanel entries={loan.ledger} outstanding={loan.balance.outstanding} />
           <PaymentHistoryPanel loanId={loan.loan_id} payments={loan.payments} />
+          {canWriteOff(loan) && <WriteOffPanel loanId={loan.loan_id} outstanding={loan.balance.outstanding} />}
         </div>
       </div>
 

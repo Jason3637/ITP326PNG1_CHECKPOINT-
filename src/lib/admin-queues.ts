@@ -68,7 +68,8 @@ export const ADMIN_QUEUES: AdminQueueDefinition[] = [
     key: "repayments_awaiting_verification",
     kind: "repayment",
     title: "Repayments Awaiting Verification",
-    navLabel: "Repayments to verify",
+    // Sits under a "Repayments" heading in the sidebar.
+    navLabel: "To verify",
     description: "Reported by customers. Not counted against a balance until verified.",
     emptyMessage: "No repayments are waiting to be verified.",
   },

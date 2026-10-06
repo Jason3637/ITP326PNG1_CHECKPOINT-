@@ -65,8 +65,9 @@ export default async function AdminAuditLogPage({ searchParams }: PageProps) {
   const first = data.total === 0 ? 0 : (data.page - 1) * data.per_page + 1;
   const last = Math.min(data.page * data.per_page, data.total);
 
+  // Wide: a log line carries a lot, so the shell gives this page 1440px.
   return (
-    <div className="flex flex-col gap-4">
+    <div data-page-width="wide" className="flex flex-col gap-4">
       <div>
         <h2 className="font-display text-2xl font-bold tracking-tight text-neutral-900">Audit log</h2>
         <p className="mt-1 text-sm text-neutral-600">Everything the system has recorded, newest first. Times are Port Moresby time.</p>

@@ -1,12 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, Loader2, Smartphone } from "lucide-react";
+import { AlertTriangle, Banknote, Smartphone } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
+import { RadioCardGroup } from "@/components/ui/RadioCardGroup";
 import { FileUploadField } from "@/components/ui/FileUploadField";
+import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
 import { recordDisbursement, uploadDisbursementEvidence } from "@/lib/actions/admin-disbursement";
 import {
   DISBURSEMENT_COPY as COPY,
@@ -16,11 +20,12 @@ import {
   validateDisbursement,
   type DisbursementInput,
 } from "@/lib/disbursement";
-import { cn, formatKina } from "@/lib/utils";
+import { formatKina } from "@/lib/utils";
 import type { DisbursementMethod } from "@/lib/types";
 
 interface DisbursementFormProps {
   applicationId: number;
+  customerName: string;
   amount: number; // the principal to pay out - the backend's figure
   totalRepayable: number | null;
   requestedMethod: DisbursementMethod | null; // the customer's preference
@@ -29,20 +34,43 @@ interface DisbursementFormProps {
 
 const ICONS = { bsp_mobile_banking: Smartphone, cash_on_hand: Banknote } as const;
 
-// Records the payout. Two steps (fill in, then confirm) because it can't be
-// undone. The record button locks on the first click - state AND a ref, so
-// a fast double-click can't start a second request before React re-renders
-// - and stays locked until the backend answers. Nothing here ever says the
-// loan is active: the page shows that from the backend's loan record after
-// a successful save.
+// Lets another part of the page (the status bar's "Record disbursement")
+// open the dialog without sharing state through the server page.
+const OPEN_EVENT = "primestone:open-disbursement";
+
+export function RecordDisbursementButton({ label = COPY.title }: { label?: string }) {
+  return <Button onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}>{label}</Button>;
+}
+
+// A datetime-local value is Port Moresby wall-clock time with no offset;
+// shown as written, never converted.
+function formatMoneyMoved(value: string): string {
+  if (!value) return "Just now";
+  const d = new Date(`${value}:00Z`);
+  return Number.isNaN(d.getTime())
+    ? value.replace("T", " ")
+    : `${d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })}, Port Moresby time`;
+}
+
+// Records the payout, in a dialog of its own so the money step is
+// separate from the information around it. Two steps - fill in, then
+// review exactly what will be recorded and confirm - because it can't be
+// undone. The confirm button locks on the first click - state AND a ref,
+// so a fast double-click can't start a second request before React
+// re-renders - and stays locked until the backend answers; the dialog
+// can't be closed while it's in flight. Nothing here ever says the loan is
+// active: the page shows that from the backend's loan record after a
+// successful save.
 export function DisbursementForm({
   applicationId,
+  customerName,
   amount,
   totalRepayable,
   requestedMethod,
   maskedDestination,
 }: DisbursementFormProps) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [method, setMethod] = useState<DisbursementMethod | "">(requestedMethod ?? "");
   const [reference, setReference] = useState("");
   const [disbursedAt, setDisbursedAt] = useState("");
@@ -59,6 +87,20 @@ export function DisbursementForm({
   const copy = method ? COPY.methods[method] : null;
   const input = (): DisbursementInput | null =>
     method ? { method, reference, disbursedAt, note } : null;
+
+  useEffect(() => {
+    const openDialog = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, openDialog);
+    return () => window.removeEventListener(OPEN_EVENT, openDialog);
+  }, []);
+
+  // Closing keeps what was typed (reopening shows it) but always comes
+  // back to the fill-in step, never straight to an armed Confirm.
+  function close() {
+    if (busy) return;
+    setOpen(false);
+    setConfirming(false);
+  }
 
   function review() {
     const i = input();
@@ -113,171 +155,175 @@ export function DisbursementForm({
     }
   }
 
-  return (
-    <Card variant="emphasis">
-      <CardTitle>{COPY.title}</CardTitle>
-      <p className="mt-1 text-sm text-neutral-600">{COPY.intro}</p>
-
-      <dl className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-neutral-50 p-3 text-sm">
+  const figures = (
+    <dl className="grid grid-cols-2 gap-3 rounded-lg bg-neutral-50 p-3 text-sm">
+      <div>
+        <dt className="text-xs text-neutral-600">Pay out</dt>
+        <dd className="font-display text-xl font-bold tabular-nums text-neutral-900">{formatKina(amount)}</dd>
+      </div>
+      {totalRepayable !== null && (
         <div>
-          <dt className="text-xs text-neutral-600">Pay out</dt>
-          <dd className="font-display text-xl font-bold text-neutral-900">{formatKina(amount)}</dd>
-        </div>
-        {totalRepayable !== null && (
-          <div>
-            <dt className="text-xs text-neutral-600">Customer repays</dt>
-            <dd className="font-display text-xl font-bold text-neutral-900">{formatKina(totalRepayable)}</dd>
-          </div>
-        )}
-      </dl>
-
-      {confirming && method && copy ? (
-        <div className="mt-4 rounded-lg border border-neutral-300 p-4">
-          <p className="font-semibold text-neutral-900">{COPY.confirmTitle}</p>
-          <p className="mt-1 text-sm text-neutral-700">{COPY.confirmBody}</p>
-          <dl className="mt-3 flex flex-col gap-1 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Method</dt>
-              <dd className="text-right text-neutral-900">{copy.label}</dd>
-            </div>
-            {method === "bsp_mobile_banking" && maskedDestination && (
-              <div className="flex justify-between gap-3">
-                <dt className="text-neutral-600">Paid to</dt>
-                <dd className="text-right text-neutral-900">{maskedDestination}</dd>
-              </div>
-            )}
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">{copy.referenceLabel}</dt>
-              <dd className="break-all text-right text-neutral-900">{reference.trim()}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Money moved</dt>
-              <dd className="text-right text-neutral-900">{disbursedAt ? disbursedAt.replace("T", " ") : "Just now"}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-neutral-600">Evidence</dt>
-              <dd className="truncate text-right text-neutral-900">{evidence ? evidence.name : "None"}</dd>
-            </div>
-          </dl>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={submit} disabled={busy} aria-busy={busy}>
-              {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-              {phase === "uploading" ? COPY.uploading : phase === "saving" ? COPY.saving : COPY.confirm}
-            </Button>
-            <Button variant="ghost" onClick={() => setConfirming(false)} disabled={busy}>
-              {COPY.back}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-col gap-4">
-          <div role="radiogroup" aria-label="Disbursement method" className="grid gap-2 sm:grid-cols-2">
-            {(["bsp_mobile_banking", "cash_on_hand"] as const).map((m) => {
-              const active = method === m;
-              const Icon = ICONS[m];
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => {
-                    setMethod(m);
-                    setError(null);
-                  }}
-                  className={cn(
-                    "flex items-start gap-3 rounded-lg border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    active ? "border-primary bg-primary-light" : "border-neutral-200 hover:bg-neutral-50",
-                  )}
-                >
-                  <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
-                  <span>
-                    <span className="block text-sm font-semibold text-neutral-900">{COPY.methods[m].label}</span>
-                    <span className="block text-xs text-neutral-600">
-                      {COPY.methods[m].help}
-                      {requestedMethod === m ? " The customer asked for this." : ""}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {method === "bsp_mobile_banking" && (
-            <p className="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-700">
-              {maskedDestination ? (
-                <>
-                  Paid to the account on the application: <span className="font-medium">{maskedDestination}</span>
-                </>
-              ) : (
-                <span className="text-amber-800">The customer didn&apos;t give a BSP account on the application.</span>
-              )}
-            </p>
-          )}
-
-          {method && copy && (
-            <>
-              <Input
-                label={`${copy.referenceLabel} (required)`}
-                value={reference}
-                maxLength={REFERENCE_MAX_LENGTH}
-                placeholder={copy.referencePlaceholder}
-                onChange={(e) => {
-                  setReference(e.target.value);
-                  setError(null);
-                }}
-              />
-              <FileUploadField
-                label={`${copy.evidenceLabel} (${method && evidenceRequired(method) ? "required" : "optional"})`}
-                hint={COPY.evidenceHint}
-                value={evidence}
-                onChange={(f) => {
-                  setEvidence(f);
-                  setError(null);
-                }}
-              />
-              <div className="flex flex-col gap-1">
-                <Input
-                  type="datetime-local"
-                  label={`${COPY.disbursedAtLabel} (optional)`}
-                  value={disbursedAt}
-                  onChange={(e) => {
-                    setDisbursedAt(e.target.value);
-                    setError(null);
-                  }}
-                />
-                <p className="text-xs text-neutral-600">{COPY.disbursedAtHint}</p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="disbursement-note" className="text-sm font-medium text-neutral-700">
-                  {COPY.noteLabel} <span className="font-normal text-neutral-500">(optional)</span>
-                </label>
-                <textarea
-                  id="disbursement-note"
-                  rows={2}
-                  maxLength={NOTE_MAX_LENGTH}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="rounded-lg border border-neutral-300 bg-white p-3 text-sm text-neutral-900 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                />
-              </div>
-            </>
-          )}
-
-          <div>
-            <Button onClick={review} disabled={!method || !reference.trim() || (evidenceRequired(method) && !evidence)}>
-              {COPY.review}
-            </Button>
-          </div>
+          <dt className="text-xs text-neutral-600">Customer repays</dt>
+          <dd className="font-display text-xl font-bold tabular-nums text-neutral-900">{formatKina(totalRepayable)}</dd>
         </div>
       )}
+    </dl>
+  );
 
-      {error && (
-        <p role="alert" className="mt-3 flex items-start gap-1.5 text-sm text-red-700">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
+  const errorLine = error && (
+    <p role="alert" className="mt-4 flex items-start gap-1.5 text-sm text-red-700">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      {error}
+    </p>
+  );
+
+  const fillIn = (
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-neutral-600">{COPY.intro}</p>
+      {figures}
+
+      <RadioCardGroup<DisbursementMethod>
+        legend="Payment method"
+        value={method}
+        onChange={(m) => {
+          setMethod(m);
+          setError(null);
+        }}
+        columns={2}
+        options={(["bsp_mobile_banking", "cash_on_hand"] as const).map((m) => ({
+          value: m,
+          label: COPY.methods[m].label,
+          description: `${COPY.methods[m].help}${requestedMethod === m ? " The customer asked for this." : ""}`,
+          icon: ICONS[m],
+        }))}
+      />
+
+      {method === "bsp_mobile_banking" && (
+        <p className="-mt-2 rounded-lg bg-neutral-50 p-3 text-sm text-neutral-700">
+          {maskedDestination ? (
+            <>
+              Paid to the account on the application: <span className="font-medium">{maskedDestination}</span>
+            </>
+          ) : (
+            <span className="text-amber-800">The customer didn&apos;t give a BSP account on the application.</span>
+          )}
         </p>
       )}
-    </Card>
+
+      {method && copy && (
+        <>
+          <Input
+            label={`${copy.referenceLabel} (required)`}
+            value={reference}
+            maxLength={REFERENCE_MAX_LENGTH}
+            placeholder={copy.referencePlaceholder}
+            className="w-full"
+            onChange={(e) => {
+              setReference(e.target.value);
+              setError(null);
+            }}
+          />
+          <Input
+            type="datetime-local"
+            label={`${COPY.disbursedAtLabel} (optional)`}
+            hint={COPY.disbursedAtHint}
+            value={disbursedAt}
+            className="w-full"
+            onChange={(e) => {
+              setDisbursedAt(e.target.value);
+              setError(null);
+            }}
+          />
+          <FileUploadField
+            label={`${copy.evidenceLabel} (${method && evidenceRequired(method) ? "required" : "optional"})`}
+            hint={COPY.evidenceHint}
+            value={evidence}
+            onChange={(f) => {
+              setEvidence(f);
+              setError(null);
+            }}
+          />
+          <Textarea
+            id="disbursement-note"
+            label={COPY.noteLabel}
+            requirement="optional"
+            rows={2}
+            maxLength={NOTE_MAX_LENGTH}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  const reviewStep = method && copy && (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-neutral-600">{COPY.reviewIntro}</p>
+      <DetailList>
+        <DetailRow label="Customer" value={customerName} />
+        <DetailRow label="Amount paid out" value={formatKina(amount)} />
+        {totalRepayable !== null && <DetailRow label="Customer repays" value={formatKina(totalRepayable)} />}
+        <DetailRow label="Method" value={copy.label} />
+        {method === "bsp_mobile_banking" && maskedDestination && <DetailRow label="Paid to" value={maskedDestination} />}
+        <DetailRow label={copy.referenceLabel} value={<span className="break-all">{reference.trim()}</span>} />
+        <DetailRow label="Money moved" value={formatMoneyMoved(disbursedAt)} />
+        <DetailRow label="Evidence" value={evidence ? <span className="break-all">{evidence.name}</span> : "None"} />
+        {note.trim() && <DetailRow label={COPY.noteLabel} value={<span className="whitespace-pre-line">{note.trim()}</span>} />}
+      </DetailList>
+      <div className="rounded-lg border border-warning/40 bg-warning-light p-3 text-sm">
+        <p className="font-semibold text-neutral-900">{COPY.confirmTitle}</p>
+        <p className="mt-0.5 text-neutral-800">{COPY.confirmBody}</p>
+      </div>
+    </div>
+  );
+
+  const reviewing = confirming && method && copy;
+
+  return (
+    <>
+      <Card variant="emphasis">
+        <CardTitle>Disbursement</CardTitle>
+        <p className="mt-1 text-sm text-neutral-600">Approved and waiting to be paid out. Record it once the money has moved.</p>
+        <div className="mt-4">{figures}</div>
+        <Button className="mt-4 w-full" onClick={() => setOpen(true)}>
+          {COPY.title}
+        </Button>
+      </Card>
+
+      <Dialog
+        open={open}
+        onClose={close}
+        dismissible={!busy}
+        title={reviewing ? COPY.reviewTitle : COPY.title}
+        footer={
+          reviewing ? (
+            <>
+              <Button variant="ghost" onClick={() => setConfirming(false)} disabled={busy}>
+                {COPY.back}
+              </Button>
+              <Button onClick={submit} loading={busy}>
+                {phase === "uploading" ? COPY.uploading : phase === "saving" ? COPY.saving : COPY.confirm}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={close}>
+                {COPY.cancel}
+              </Button>
+              <Button onClick={review} disabled={!method || !reference.trim() || (evidenceRequired(method) && !evidence)}>
+                {COPY.review}
+              </Button>
+            </>
+          )
+        }
+      >
+        {/* Both steps stay mounted; only one shows. The fill-in fields keep
+            their values while reviewing, and Back returns to them as left. */}
+        <div hidden={!!reviewing}>{fillIn}</div>
+        {reviewing && reviewStep}
+        {errorLine}
+      </Dialog>
+    </>
   );
 }

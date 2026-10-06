@@ -18,7 +18,7 @@ import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
 import { CustomerHistoryView } from "@/components/staff/history/CustomerHistoryView";
 import { OfficerReviewPanel } from "@/components/admin/review/OfficerReviewPanel";
 import { FinalDecisionPanel } from "@/components/admin/review/FinalDecisionPanel";
-import { DisbursementForm } from "@/components/admin/review/DisbursementForm";
+import { DisbursementForm, RecordDisbursementButton } from "@/components/admin/review/DisbursementForm";
 import { DisbursementRecordPanel } from "@/components/admin/review/DisbursementRecordPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { formatDob, formatReviewDate, formatReviewDateTime, relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
@@ -135,6 +135,7 @@ export default async function AdminApplicationReviewPage({ params, searchParams 
   const action = fd.can_disburse ? (
     <DisbursementForm
       applicationId={application.id}
+      customerName={customer.full_name}
       amount={application.pricing?.amount ?? application.amount_requested}
       totalRepayable={application.pricing?.total_repayable ?? null}
       requestedMethod={isDisbursementMethod(application.disbursement_method_requested) ? application.disbursement_method_requested : null}
@@ -335,7 +336,7 @@ function StatusBar(p: StatusBarProps) {
         role="status"
         title={banner.title}
         actions={
-          p.showOutcome === "approved" && p.canDisburse ? jump("Record disbursement") : (
+          p.showOutcome === "approved" && p.canDisburse ? <RecordDisbursementButton /> : (
             <Link href="/admin" className={buttonClasses({ variant: "secondary" })}>
               Back to the dashboard
             </Link>
@@ -368,7 +369,7 @@ function StatusBar(p: StatusBarProps) {
         out.
       </>
     );
-    if (p.canDisburse) actions = jump("Record disbursement");
+    if (p.canDisburse) actions = <RecordDisbursementButton />;
   } else if (p.status === "disbursed") {
     tone = "success";
     title = "Disbursed";

@@ -77,7 +77,7 @@ export function RepaymentDecisionPanel({ paymentId, loanId, status, amount, outs
   }
 
   return (
-    <Card>
+    <Card variant="emphasis">
       <CardTitle>Verify or reject</CardTitle>
       <p className="mt-1 text-sm text-neutral-600">
         Check the receipt and reference against the bank or cash record before deciding.

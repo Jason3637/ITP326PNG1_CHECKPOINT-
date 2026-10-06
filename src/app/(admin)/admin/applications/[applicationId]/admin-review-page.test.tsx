@@ -261,10 +261,14 @@ describe("The review workspace", () => {
     expect(document.getElementById("action-panel")).toContainElement(screen.getByRole("heading", { name: "Final decision" }));
   });
 
-  it("offers Record disbursement from the status once approved", async () => {
+  it("offers Record disbursement from the status once approved, opening the dialog", async () => {
     mockBackend(rawReview({ status: "awaiting_disbursement", fd: { can_disburse: true } }));
     await renderPage();
-    expect(screen.getByRole("link", { name: "Record disbursement" })).toHaveAttribute("href", "#action-panel");
+    const [fromStatus, fromPanel] = screen.getAllByRole("button", { name: "Record disbursement" });
+    expect(fromPanel).toBeInTheDocument(); // the action panel has its own
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(fromStatus);
+    expect(screen.getByRole("dialog", { name: "Record disbursement" })).toBeInTheDocument();
   });
 
   it("splits the information into five tabs, Overview first", async () => {
@@ -361,7 +365,7 @@ describe("Recording the disbursement", () => {
   it("offers the disbursement form, not the decision, once approved", async () => {
     mockBackend(rawReview({ status: "awaiting_disbursement", fd: { can_disburse: true } }));
     await renderPage();
-    expect(screen.getByRole("heading", { name: "Record disbursement" })).toBeInTheDocument();
+    expect(within(card("Disbursement")).getByRole("button", { name: "Record disbursement" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Final decision" })).not.toBeInTheDocument();
     expect(screen.getByText("•••• 2345")).toBeInTheDocument(); // masked from the application's account
     expect(document.body.textContent).not.toMatch(/Loan Active/);

@@ -10,3 +10,18 @@ import { cleanup } from "@testing-library/react";
 afterEach(() => {
   cleanup();
 });
+
+// jsdom has <dialog> but none of its behaviour. Enough of it for the
+// modal dialogs here (ui/Dialog, the admin nav drawer): open/close toggle
+// the `open` attribute, and close() fires "close" as a browser does.
+if (typeof HTMLDialogElement !== "undefined" && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.show = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    if (!this.hasAttribute("open")) return;
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+}

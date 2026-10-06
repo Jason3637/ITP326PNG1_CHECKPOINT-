@@ -1,7 +1,7 @@
 import { DISBURSEMENT_METHODS, EMPLOYMENT_STATUSES } from "./loan-wizard";
 import type { CreditAdvisory, DocumentType, ReviewDocument } from "./types";
 
-// Prime's Vault is a PNG cooperative; staff read times in PNG time
+// PRIMESTONE is a PNG cooperative; staff read times in PNG time
 // regardless of where the server rendering the page happens to run.
 const TIME_ZONE = "Pacific/Port_Moresby";
 

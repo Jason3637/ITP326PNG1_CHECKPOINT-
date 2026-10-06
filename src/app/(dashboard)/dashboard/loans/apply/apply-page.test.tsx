@@ -56,7 +56,7 @@ describe("Apply page - one PRIME loan at a time", () => {
     backend([app(6, "disbursed", 21)], [{ ...loan(21, "closed", "defaulted"), blocks_reapplication: true }], ready);
     render(await LoanApplyPage());
     expect(screen.queryByText("THE WIZARD")).not.toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent("Contact Prime's Vault to ask for a review.");
+    expect(screen.getByRole("note")).toHaveTextContent("Contact PRIMESTONE to ask for a review.");
   });
 
   it("shows the form when nothing blocks a new application", async () => {

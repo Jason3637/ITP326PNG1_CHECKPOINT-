@@ -363,7 +363,7 @@ export interface Loan {
   disbursement: Disbursement | null;
   repayment_schedule: RepaymentScheduleItem[]; // the original amount only - never includes penalties
   balance?: LoanBalance | null;
-  // True only for a written-off loan that Prime's Vault hasn't yet cleared:
+  // True only for a written-off loan that PRIMESTONE hasn't yet cleared:
   // the customer can't apply again until it is. Absent on older backends.
   blocks_reapplication?: boolean;
 }

@@ -7,8 +7,8 @@ import type { DisbursementMethod } from "./types";
 //                       the cash acknowledgement number
 //   disbursed_at        optional, when the money moved (default now; never
 //                       in the future or before the approval)
-//   evidence_document_id the BSP receipt (REQUIRED for BSP - Prime's
-//                       Vault's rule) or the signed cash acknowledgement
+//   evidence_document_id the BSP receipt (REQUIRED for BSP -
+//                       PRIMESTONE's rule) or the signed cash acknowledgement
 //                       (optional), uploaded first
 //   note                optional
 // The destination isn't entered: for BSP the backend masks the account the

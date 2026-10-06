@@ -23,7 +23,7 @@ export function Sidebar({ variant = "customer" }: { variant?: NavVariant }) {
         <div className="relative h-5 w-5 shrink-0">
           <Logo variant="mark" fill sizes="20px" />
         </div>
-        <span>Prime&apos;s Vault</span>
+        <span>PRIMESTONE</span>
       </Link>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {items.map(({ href, label, icon: Icon }) => {

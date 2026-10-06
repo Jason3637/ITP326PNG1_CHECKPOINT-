@@ -40,7 +40,7 @@ export default async function MyLoansPage() {
                 <p className="text-xs text-neutral-500">{formatKina(loan.total_repayable)} total repayable</p>
                 {loan.blocks_reapplication && (
                   <p className="text-xs text-red-700">
-                    Written off. You can&apos;t apply for a new loan until Prime&apos;s Vault has reviewed it - contact
+                    Written off. You can&apos;t apply for a new loan until PRIMESTONE has reviewed it - contact
                     us to ask for a review.
                   </p>
                 )}

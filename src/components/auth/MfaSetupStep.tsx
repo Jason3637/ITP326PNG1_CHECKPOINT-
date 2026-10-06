@@ -95,7 +95,7 @@ export function MfaSetupStep({ mfaSetupToken, onVerified }: MfaSetupStepProps) {
         <h2 className="font-display text-xl font-bold tracking-tight text-neutral-900">Set up two-factor login</h2>
       </div>
       <p className="mt-1 text-sm text-neutral-500">
-        Prime&apos;s Vault requires an authenticator app (e.g. Google Authenticator, Authy) for every account. Scan
+        PRIMESTONE requires an authenticator app (e.g. Google Authenticator, Authy) for every account. Scan
         the QR code below, then enter the 6-digit code it shows.
       </p>
 

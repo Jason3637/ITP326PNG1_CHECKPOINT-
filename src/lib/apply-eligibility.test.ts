@@ -31,11 +31,11 @@ describe("applyBlock - one PRIME loan at a time, as the backend checks it", () =
     expect(applyBlock([], [loan(21, "overdue")])?.href).toBe("/dashboard/loans");
   });
 
-  it("blocks a written-off loan until Prime's Vault clears it - the backend's flag decides", () => {
+  it("blocks a written-off loan until PRIMESTONE clears it - the backend's flag decides", () => {
     const blocked = applyBlock([], [loan(21, "closed", "defaulted", true)]);
     expect(blocked?.kind).toBe("written_off");
     expect(blocked?.message).toBe(
-      "Your loan (#21) was written off, so you can't apply for a new PRIME loan until Prime's Vault has reviewed it. Contact Prime's Vault to ask for a review.",
+      "Your loan (#21) was written off, so you can't apply for a new PRIME loan until PRIMESTONE has reviewed it. Contact PRIMESTONE to ask for a review.",
     );
     expect(applyBlock([], [loan(21, "closed", "defaulted", false)])).toBeNull(); // cleared
     expect(applyBlock([], [loan(21, "closed", "defaulted")])).toBeNull(); // backend without the flag

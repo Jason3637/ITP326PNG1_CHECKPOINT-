@@ -110,7 +110,7 @@ describe("customer dashboard - one PRIME loan at a time", () => {
     expect(screen.getByRole("link", { name: /My Loans/ })).toBeInTheDocument();
   });
 
-  it("doesn't offer Apply after a write-off Prime's Vault hasn't cleared, and says why", async () => {
+  it("doesn't offer Apply after a write-off PRIMESTONE hasn't cleared, and says why", async () => {
     backend({
       counts: { closed: 1, total: 1 },
       loans: [{ ...loan("closed", "defaulted"), blocks_reapplication: true }],
@@ -118,7 +118,7 @@ describe("customer dashboard - one PRIME loan at a time", () => {
     });
     render(await DashboardPage());
     expect(applyLinks()).toHaveLength(0);
-    expect(screen.getByRole("note")).toHaveTextContent("until Prime's Vault has reviewed it");
+    expect(screen.getByRole("note")).toHaveTextContent("until PRIMESTONE has reviewed it");
   });
 
   it("offers Apply again once the write-off has been cleared", async () => {

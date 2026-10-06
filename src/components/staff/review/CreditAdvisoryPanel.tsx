@@ -19,7 +19,7 @@ interface CreditAdvisoryPanelProps {
 // tells an officer nothing.
 const ADVISORY_DISCLAIMER =
   "Advisory assessment only. It does not replace the judgment of the Loan Officer or Administrator. " +
-  "The assessment criteria are provisional until Prime's Vault's lending policy is finalised.";
+  "The assessment criteria are provisional until PRIMESTONE's lending policy is finalised.";
 
 // The credit model's notes, presented as background reading for the
 // officer - never as a verdict. What's shown: what was checked, what each

@@ -78,7 +78,7 @@ describe("Parameter management", () => {
     expect(row("Maximum debt-to-income")).toHaveTextContent("40%");
     expect(row("Maximum debt-to-income")).toHaveTextContent("Changed Oct 1, 2026");
     expect(row("Customer verification lasts")).toHaveTextContent("12 months");
-    expect(row("Customer verification lasts")).toHaveTextContent("still to be confirmed by Prime's Vault");
+    expect(row("Customer verification lasts")).toHaveTextContent("still to be confirmed by PRIMESTONE");
     expect(row("Customer verification lasts")).toHaveTextContent("existing verifications keep their expiry date");
     expect(container.textContent).not.toMatch(/min_monthly_income|max_debt_to_income_ratio|engineering default/);
   });

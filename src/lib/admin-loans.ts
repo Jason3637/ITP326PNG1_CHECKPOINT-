@@ -65,3 +65,15 @@ export function paymentMethodLabel(method: string | null): string {
 }
 
 export const REJECT_REASON_MAX_LENGTH = 500; // the backend keeps the first 500 characters
+
+// Clearing a written-off customer to apply again: the backend's limit.
+export const CLEAR_REASON_MAX_LENGTH = 1000;
+
+// Writing off a loan: the backend's documented limit for a reason.
+export const WRITE_OFF_REASON_MAX_LENGTH = 2000;
+
+// The backend writes off only an active or overdue loan with something
+// still owing. Offered on the same terms; the backend checks again.
+export function canWriteOff(loan: Pick<AdminLoanDetail, "status" | "balance">): boolean {
+  return (loan.status === "active" || loan.status === "overdue") && loan.balance.outstanding > 0;
+}

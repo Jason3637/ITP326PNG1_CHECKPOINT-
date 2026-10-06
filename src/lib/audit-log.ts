@@ -32,6 +32,8 @@ const AUDIT_LABELS: Record<string, string> = {
   document_download: "Document opened",
   customer_verified: "Customer verified",
   customer_history_viewed: "Customer history viewed",
+  reapplication_block_cleared: "Cleared to apply again after a write-off",
+  loan_write_off_reason: "Write-off reason recorded",
 };
 
 export function auditLabel(action: string): string {
@@ -141,6 +143,7 @@ export const AUDIT_ACTION_GROUPS: { label: string; actions: string[] }[] = [
     actions: [
       "loan_disbursed", "loan_penalty_applied", "loan_status_changed", "loan_written_off", "loan_closed",
       "payment_reported", "payment_verification_started", "payment_verified", "payment_rejected", "repayment_marked_overdue",
+      "loan_write_off_reason", "reapplication_block_cleared",
     ],
   },
   {

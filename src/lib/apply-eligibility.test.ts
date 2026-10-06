@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { applyBlock } from "./apply-eligibility";
 
 const app = (id: number, status: string, loan_id: number | null = null) => ({ id, status, loan_id }) as never;
-const loan = (id: number, status: string, closure_reason: string | null = null) => ({ id, status, closure_reason }) as never;
+const loan = (id: number, status: string, closure_reason: string | null = null, blocks_reapplication?: boolean) =>
+  ({ id, status, closure_reason, blocks_reapplication }) as never;
 
 describe("applyBlock - one PRIME loan at a time, as the backend checks it", () => {
   it("blocks an open application with the backend's wording", () => {
@@ -30,10 +31,23 @@ describe("applyBlock - one PRIME loan at a time, as the backend checks it", () =
     expect(applyBlock([], [loan(21, "overdue")])?.href).toBe("/dashboard/loans");
   });
 
-  it("never blocks on a rejected application or a closed loan - paid in full or written off", () => {
+  it("blocks a written-off loan until Prime's Vault clears it - the backend's flag decides", () => {
+    const blocked = applyBlock([], [loan(21, "closed", "defaulted", true)]);
+    expect(blocked?.kind).toBe("written_off");
+    expect(blocked?.message).toBe(
+      "Your loan (#21) was written off, so you can't apply for a new PRIME loan until Prime's Vault has reviewed it. Contact Prime's Vault to ask for a review.",
+    );
+    expect(applyBlock([], [loan(21, "closed", "defaulted", false)])).toBeNull(); // cleared
+    expect(applyBlock([], [loan(21, "closed", "defaulted")])).toBeNull(); // backend without the flag
+  });
+
+  it("checks the write-off last, as the backend does", () => {
+    expect(applyBlock([], [loan(21, "closed", "defaulted", true), loan(22, "active")])?.kind).toBe("current_loan");
+  });
+
+  it("never blocks on a rejected application or a loan paid in full", () => {
     expect(applyBlock([app(6, "rejected")], [])).toBeNull();
     expect(applyBlock([], [loan(21, "closed", "paid_in_full")])).toBeNull();
-    expect(applyBlock([], [loan(21, "closed", "defaulted")])).toBeNull();
     expect(applyBlock([], [loan(21, "paid")])).toBeNull();
     expect(applyBlock([], [])).toBeNull();
   });

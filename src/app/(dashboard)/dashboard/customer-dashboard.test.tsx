@@ -110,8 +110,23 @@ describe("customer dashboard - one PRIME loan at a time", () => {
     expect(screen.getByRole("link", { name: /My Loans/ })).toBeInTheDocument();
   });
 
-  it("offers Apply after a written-off loan - a write-off doesn't block a new application", async () => {
-    backend({ counts: { closed: 1, total: 1 }, loans: [loan("closed", "defaulted")], apps: [application("disbursed", 21)] });
+  it("doesn't offer Apply after a write-off Prime's Vault hasn't cleared, and says why", async () => {
+    backend({
+      counts: { closed: 1, total: 1 },
+      loans: [{ ...loan("closed", "defaulted"), blocks_reapplication: true }],
+      apps: [application("disbursed", 21)],
+    });
+    render(await DashboardPage());
+    expect(applyLinks()).toHaveLength(0);
+    expect(screen.getByRole("note")).toHaveTextContent("until Prime's Vault has reviewed it");
+  });
+
+  it("offers Apply again once the write-off has been cleared", async () => {
+    backend({
+      counts: { closed: 1, total: 1 },
+      loans: [{ ...loan("closed", "defaulted"), blocks_reapplication: false }],
+      apps: [application("disbursed", 21)],
+    });
     render(await DashboardPage());
     expect(applyLinks().length).toBeGreaterThan(0);
   });

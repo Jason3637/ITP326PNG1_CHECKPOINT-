@@ -1,13 +1,22 @@
 import { type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+// The content surface. `emphasis` is the stronger treatment for the one
+// important or interactive surface on a screen (a decision form, an open
+// editor) - use it sparingly or it stops meaning anything.
+const variantClasses = {
+  default: "border-neutral-200 shadow-sm",
+  emphasis: "border-primary/40 shadow-md",
+} as const;
+
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  variant?: keyof typeof variantClasses;
+}
+
+export function Card({ className, variant = "default", ...props }: CardProps) {
   return (
     <div
-      className={cn(
-        "rounded-xl border border-neutral-200 bg-white p-5 shadow-sm",
-        className,
-      )}
+      className={cn("rounded-xl border bg-white p-5", variantClasses[variant], className)}
       {...props}
     />
   );

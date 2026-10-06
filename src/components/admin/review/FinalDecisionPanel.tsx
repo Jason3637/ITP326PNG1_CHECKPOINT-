@@ -82,7 +82,7 @@ export function FinalDecisionPanel({
   }
 
   return (
-    <Card>
+    <Card variant="emphasis">
       <CardTitle>{COPY.title}</CardTitle>
       <p className="mt-1 text-sm text-neutral-600">{COPY.intro}</p>
 

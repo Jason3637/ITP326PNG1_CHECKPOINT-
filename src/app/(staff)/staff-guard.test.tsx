@@ -121,6 +121,28 @@ describe("admin layout guard (authoritative, from /auth/me)", () => {
     expect(hrefs.every((h) => h?.startsWith("/admin"))).toBe(true);
   });
 
+  it("shows the queue counts from GET /admin/queues in the nav, and carries on without them if that fails", async () => {
+    const counts = { awaiting_decision: 3, awaiting_disbursement: 0, active_loans: 5, due_today: 0, due_this_week: 1, overdue: 2, repayments_awaiting_verification: 4 };
+    serverApiFetch.mockImplementation(async (path: string) =>
+      path === "/auth/me"
+        ? me("admin")
+        : { as_of: "2026-10-06", queues: Object.fromEntries(Object.entries(counts).map(([k, count]) => [k, { label: k, count }])) },
+    );
+    render(await AdminLayout({ children: <p>admin content</p> }));
+    expect(serverApiFetch).toHaveBeenCalledWith("/admin/queues");
+    // Sidebar and phone drawer both carry the nav.
+    expect(screen.getAllByRole("link", { name: "Final decisions (3)", hidden: true }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Overdue (2)", hidden: true }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "To verify (4)", hidden: true }).length).toBeGreaterThan(0);
+
+    serverApiFetch.mockImplementation(async (path: string) => {
+      if (path === "/auth/me") return me("admin");
+      throw new ApiError(500, "boom");
+    });
+    render(await AdminLayout({ children: <p>still here</p> }));
+    expect(screen.getByText("still here")).toBeInTheDocument();
+  });
+
   it("sends anyone without a valid session to /login", async () => {
     serverApiFetch.mockImplementation(async () => {
       throw new UnauthenticatedError();

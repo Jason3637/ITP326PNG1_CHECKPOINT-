@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Inbox } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { RepaymentListItem } from "@/components/admin/repayments/RepaymentListItem";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
 import { adminRepaymentsHref, pageCount, type RepaymentFilter } from "@/lib/admin-queues";
@@ -27,6 +28,8 @@ interface PageProps {
 }
 
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
+// Previous / Next: standalone targets, so at least 24px tall.
+const pagerLinkClass = cn(linkClass, "inline-flex min-h-6 items-center px-1");
 
 // The Repayment Verification queue: GET /admin/repayments, oldest report
 // first while awaiting (the backend's order). Each payment opens its
@@ -52,7 +55,7 @@ export default async function AdminRepaymentsPage({ searchParams }: PageProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Link href="/admin" className={cn("inline-flex w-fit items-center gap-1", linkClass)}>
+      <Link href="/admin" className={cn("inline-flex w-fit items-center gap-1 py-1", linkClass)}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to dashboard
       </Link>
@@ -90,15 +93,17 @@ export default async function AdminRepaymentsPage({ searchParams }: PageProps) {
         </div>
 
         {data.items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <Inbox className="h-7 w-7 text-neutral-300" aria-hidden="true" />
-            <p className="text-sm text-neutral-600">{data.total > 0 ? "Nothing on this page." : filter.empty}</p>
-            {data.total > 0 && (
-              <Link href={adminRepaymentsHref(filter.value)} className={linkClass}>
-                Go to the first page
-              </Link>
-            )}
-          </div>
+          <EmptyState
+            action={
+              data.total > 0 && (
+                <Link href={adminRepaymentsHref(filter.value)} className={linkClass}>
+                  Go to the first page
+                </Link>
+              )
+            }
+          >
+            {data.total > 0 ? "Nothing on this page." : filter.empty}
+          </EmptyState>
         ) : (
           <ul className="mt-3 flex flex-col divide-y divide-neutral-100">
             {data.items.map((item) => (
@@ -117,7 +122,7 @@ export default async function AdminRepaymentsPage({ searchParams }: PageProps) {
             </p>
             <div className="flex items-center gap-4">
               {data.page > 1 && (
-                <Link href={adminRepaymentsHref(filter.value, data.page - 1)} className={linkClass}>
+                <Link href={adminRepaymentsHref(filter.value, data.page - 1)} className={pagerLinkClass}>
                   Previous
                 </Link>
               )}
@@ -125,7 +130,7 @@ export default async function AdminRepaymentsPage({ searchParams }: PageProps) {
                 Page {data.page} of {pages}
               </span>
               {data.page < pages && (
-                <Link href={adminRepaymentsHref(filter.value, data.page + 1)} className={linkClass}>
+                <Link href={adminRepaymentsHref(filter.value, data.page + 1)} className={pagerLinkClass}>
                   Next
                 </Link>
               )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditApiQuery, auditDetailRows, auditEntityHref, auditLabel, auditLogHref, auditSummary, parseAuditFilters } from "./audit-log";
+import { auditApiQuery, auditChanges, auditDetailRows, auditEntityHref, auditLabel, auditLogHref, auditSummary, parseAuditFilters } from "./audit-log";
 
 describe("audit log filters", () => {
   it("keeps only valid values", () => {
@@ -51,5 +51,18 @@ describe("audit entries", () => {
     expect(auditEntityHref({ entity_type: "LoanApplication", entity_id: "8", details: null })).toBe("/admin/applications/8");
     expect(auditEntityHref({ entity_type: "PaymentTransaction", entity_id: "3", details: { loan_id: 5 } })).toBe("/admin/loans/5/repayments/3");
     expect(auditEntityHref({ entity_type: "Document", entity_id: "9", details: null })).toBeNull();
+  });
+});
+
+describe("auditChanges", () => {
+  it("reads only the before/after the entry carries", () => {
+    expect(auditChanges({ from: "awaiting_disbursement", to: "disbursed", amount: 300 })).toEqual([
+      { field: "status", before: "awaiting disbursement", after: "disbursed" },
+    ]);
+    expect(auditChanges({ changes: { max_debt_to_income_ratio: { before: 0.4, after: 0.35 } } })).toEqual([
+      { field: "max debt to income ratio", before: "0.4", after: "0.35" },
+    ]);
+    expect(auditChanges({ amount: 300, reason: "Paid" })).toEqual([]);
+    expect(auditChanges(null)).toEqual([]);
   });
 });

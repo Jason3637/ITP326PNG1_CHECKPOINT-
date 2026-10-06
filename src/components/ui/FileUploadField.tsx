@@ -3,6 +3,7 @@
 import { useId, useRef } from "react";
 import { UploadCloud, FileCheck2, X } from "lucide-react";
 import { cn, focusRing } from "@/lib/utils";
+import { errorClass, labelClass } from "./Field";
 
 export interface FileUploadFieldProps {
   label: string;
@@ -34,7 +35,7 @@ export function FileUploadField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={generatedId} className="text-sm font-medium text-neutral-700">
+      <label htmlFor={generatedId} className={labelClass}>
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>
@@ -97,7 +98,7 @@ export function FileUploadField({
       )}
 
       {error && (
-        <p id={errorId} className="text-sm text-danger">
+        <p id={errorId} className={errorClass}>
           {error}
         </p>
       )}

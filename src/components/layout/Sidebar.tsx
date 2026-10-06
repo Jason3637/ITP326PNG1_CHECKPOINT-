@@ -3,10 +3,45 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
-import { navItemsByVariant, subNavItemsByVariant, isNavItemActive, isTopNavItemActive, type NavVariant } from "@/lib/nav";
+import { AdminNav } from "./AdminNav";
+import {
+  navItemsByVariant,
+  subNavItemsByVariant,
+  isNavItemActive,
+  isTopNavItemActive,
+  type AdminNavCounts,
+  type NavVariant,
+} from "@/lib/nav";
 import { cn, focusRing } from "@/lib/utils";
 
-export function Sidebar({ variant = "customer" }: { variant?: NavVariant }) {
+interface SidebarProps {
+  variant?: NavVariant;
+  // Admin only: queue counts beside the nav items.
+  adminCounts?: AdminNavCounts | null;
+}
+
+export function Sidebar({ variant = "customer", adminCounts = null }: SidebarProps) {
+  // The admin area's grouped nav: 240px, from lg up (below that it's the
+  // header's menu drawer), and it stays in view while the page scrolls.
+  if (variant === "admin") {
+    return (
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white lg:flex">
+        <Link href="/admin" className={cn("flex h-16 shrink-0 items-center border-b border-neutral-200 px-6", focusRing)}>
+          <Logo size="sm" />
+        </Link>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <AdminNav counts={adminCounts} />
+        </div>
+      </aside>
+    );
+  }
+
+  return <AreaSidebar variant={variant} />;
+}
+
+// The customer and Loan Officer sidebar: top-level items, each with its
+// sub-items (the officer's queues) underneath.
+function AreaSidebar({ variant }: { variant: Exclude<NavVariant, "admin"> }) {
   const pathname = usePathname();
   const items = navItemsByVariant[variant];
   const subItems = subNavItemsByVariant[variant];

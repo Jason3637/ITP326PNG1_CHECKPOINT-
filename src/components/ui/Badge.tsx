@@ -13,6 +13,7 @@ const variantClasses = {
   success: "bg-success-light text-success",
   warning: "bg-warning-light text-amber-800",
   danger: "bg-danger-light text-red-700",
+  info: "bg-info-light text-info",
   neutral: "bg-neutral-100 text-neutral-600",
   primary: "bg-primary-light text-primary-dark",
 } as const;

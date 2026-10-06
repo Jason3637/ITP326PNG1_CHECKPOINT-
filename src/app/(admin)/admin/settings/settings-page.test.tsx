@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
@@ -62,6 +63,40 @@ describe("Parameter management", () => {
     expect(note).toHaveTextContent("existing loans keep their terms and penalty policy");
   });
 
+  it("keeps the warning in plain sight: no hover, no collapsed section, ahead of every editor", async () => {
+    await renderPage();
+    const note = screen.getByRole("note");
+    expect(note).toBeVisible();
+    // Nothing to open or hover - the same for mouse, keyboard, touch and screen readers.
+    expect(note.closest("details, [hidden], [role=tooltip], dialog")).toBeNull();
+    expect(note.querySelector("button, a, [tabindex]")).toBeNull();
+    // Read before any way to change a setting.
+    const firstEditor = screen.getByRole("button", { name: "Change PRIME pricing" });
+    expect(note.compareDocumentPosition(firstEditor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("puts name, value and a short explanation first; the longer one opens on request", async () => {
+    await renderPage();
+    const row = screen.getByText("Maximum debt-to-income", { selector: "dt" }).closest("dl > div") as HTMLElement;
+    expect(within(row).getByText(/never approves or rejects anything/)).toBeVisible();
+    const more = within(row).getByText("How it's used");
+    const details = more.closest("details") as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    // A native <summary>: browsers make it focusable and open it with
+    // Enter/Space, by click and by tap (jsdom only simulates the click).
+    expect(more.tagName).toBe("SUMMARY");
+    await userEvent.click(more);
+    expect(details.open).toBe(true);
+    expect(within(details).getByText(/as a share of monthly income/)).toBeVisible();
+  });
+
+  it("opens the settings editor from the page", async () => {
+    await renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Change these settings" }));
+    expect(screen.getByRole("heading", { name: "Change settings" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Minimum monthly income/ })).toHaveValue("200");
+  });
+
   it("shows the limited set: PRIME pricing, late penalties and the three live settings", async () => {
     await renderPage();
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(
@@ -72,7 +107,7 @@ describe("Parameter management", () => {
 
   it("shows each live setting in plain words, with what a change affects", async () => {
     const { container } = await renderPage();
-    const row = (label: string) => screen.getByText(label, { selector: "dt" }).closest("div.flex") as HTMLElement;
+    const row = (label: string) => screen.getByText(label, { selector: "dt" }).closest("dl > div") as HTMLElement;
     expect(row("Minimum monthly income")).toHaveTextContent("K200");
     expect(row("Minimum monthly income")).toHaveTextContent("never approves or rejects anything");
     expect(row("Maximum debt-to-income")).toHaveTextContent("40%");

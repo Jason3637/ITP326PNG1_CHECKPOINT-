@@ -1,5 +1,12 @@
 import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+// The custom font sizes from globals.css. Without this, tailwind-merge
+// reads `text-page-title` as a colour and drops the real colour class
+// beside it (or vice versa).
+const twMerge = extendTailwindMerge({
+  extend: { theme: { text: ["page-title", "section-title", "metric", "helper"] } },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

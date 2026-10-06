@@ -1,3 +1,4 @@
+import { parseBackendTimestamp } from "./application-review";
 import type { AdminAuditEntry, AuditLogItem } from "./types";
 
 // Shared by every audit view (a loan's audit history, the full audit log):
@@ -91,6 +92,55 @@ export function auditDetailRows(details: Record<string, unknown> | null): [strin
   return Object.entries(details ?? {})
     .filter(([k]) => !HIDDEN_KEY.test(k))
     .map(([k, v]) => [k.replaceAll("_", " "), show(v)]);
+}
+
+// Before/after pairs an entry already carries - never inferred. Three
+// shapes the backend records: per-field changes
+// ({changes: {key: {before, after}}}), a version swap
+// (before_version/after_version) and a status move (from/to).
+export interface AuditChange {
+  field: string;
+  before: string;
+  after: string;
+}
+
+export function auditChanges(details: Record<string, unknown> | null): AuditChange[] {
+  const d = details ?? {};
+  const out: AuditChange[] = [];
+  const text = (v: unknown) => (v === null || v === undefined ? "—" : typeof v === "string" ? v : JSON.stringify(v));
+  if (d.changes && typeof d.changes === "object") {
+    for (const [key, c] of Object.entries(d.changes as Record<string, unknown>)) {
+      if (c && typeof c === "object" && ("before" in c || "after" in c)) {
+        const { before, after } = c as { before?: unknown; after?: unknown };
+        out.push({ field: key.replaceAll("_", " "), before: text(before), after: text(after) });
+      }
+    }
+  }
+  if (typeof d.before_version === "string" || typeof d.after_version === "string") {
+    out.push({ field: "version", before: text(d.before_version), after: text(d.after_version) });
+  }
+  if (typeof d.from === "string" && typeof d.to === "string") {
+    out.push({ field: "status", before: d.from.replaceAll("_", " "), after: d.to.replaceAll("_", " ") });
+  }
+  return out;
+}
+
+// The full recorded time, to the second, in Port Moresby time.
+export function auditExactTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = parseBackendTimestamp(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "Pacific/Port_Moresby",
+    timeZoneName: "short",
+  });
 }
 
 // Where an entry's subject lives in the admin area, when it has a page.

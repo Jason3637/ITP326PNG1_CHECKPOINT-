@@ -9,7 +9,7 @@ import {
   pageCount,
   recommendationLabel,
 } from "./admin-queues";
-import { adminNavItems, adminQueueNavItems, isTopNavItemActive } from "./nav";
+import { adminNavItems, adminNavSections, isNavItemActive } from "./nav";
 
 describe("ADMIN_QUEUES", () => {
   it("covers exactly the backend's seven queues, in workflow order", () => {
@@ -55,10 +55,9 @@ describe("hrefs", () => {
     expect(adminQueueHref("repayments_awaiting_verification", 2)).toBe("/admin/repayments?page=2");
   });
 
-  it("lists every queue in the sidebar, highlighted instead of Overview on its page", () => {
-    expect(adminQueueNavItems.map((i) => i.href)).toEqual(ADMIN_QUEUES.map((q) => adminQueueHref(q.key)));
-    expect(isTopNavItemActive("/admin", "/admin", "admin")).toBe(true);
-    expect(isTopNavItemActive("/admin/queues/overdue", "/admin", "admin")).toBe(false);
+  it("lists every queue in the sidebar, at its own URL", () => {
+    const hrefs = adminNavItems.map((i) => i.href);
+    for (const q of ADMIN_QUEUES) expect(hrefs).toContain(adminQueueHref(q.key));
   });
 });
 
@@ -80,9 +79,49 @@ describe("recommendationLabel / pageCount", () => {
 });
 
 describe("admin nav", () => {
-  it("has Overview, Analytics, Settings and Audit log, each highlighted only on its own page", () => {
-    expect(adminNavItems.map((i) => i.href)).toEqual(["/admin", "/admin/analytics", "/admin/settings", "/admin/audit-log"]);
-    expect(isTopNavItemActive("/admin/analytics", "/admin", "admin")).toBe(false);
-    expect(isTopNavItemActive("/admin/analytics", "/admin/analytics", "admin")).toBe(true);
+  it("groups the existing routes by the work, without new URLs", () => {
+    expect(adminNavSections.map((s) => [s.label, s.items.map((i) => i.label)])).toEqual([
+      [null, ["Overview"]],
+      ["Applications", ["Final decisions", "To disburse"]],
+      ["Loans", ["Active loans", "Due today", "Due this week", "Overdue"]],
+      ["Repayments", ["To verify"]],
+      [null, ["Analytics"]],
+      ["Administration", ["Settings", "Audit log"]],
+    ]);
+    expect(adminNavItems.map((i) => i.href)).toEqual([
+      "/admin",
+      "/admin/queues/awaiting_decision",
+      "/admin/queues/awaiting_disbursement",
+      "/admin/queues/active_loans",
+      "/admin/queues/due_today",
+      "/admin/queues/due_this_week",
+      "/admin/queues/overdue",
+      "/admin/repayments",
+      "/admin/analytics",
+      "/admin/settings",
+      "/admin/audit-log",
+    ]);
+  });
+
+  it("counts only the queues that are work waiting on an administrator", () => {
+    expect(adminNavItems.filter((i) => i.countKey).map((i) => i.countKey)).toEqual([
+      "awaiting_decision",
+      "awaiting_disbursement",
+      "overdue",
+      "repayments_awaiting_verification",
+    ]);
+  });
+
+  it.each([
+    ["/admin", "Overview"],
+    ["/admin/queues/overdue", "Overdue"],
+    ["/admin/repayments", "To verify"],
+    ["/admin/analytics", "Analytics"],
+    ["/admin/audit-log", "Audit log"],
+    ["/admin/applications/8", null],
+    ["/admin/loans/4/repayments/12", null],
+  ])("on %s the current item is %s", (path, expected) => {
+    const current = adminNavItems.filter((i) => isNavItemActive(path, i.href)).map((i) => i.label);
+    expect(current).toEqual(expected ? [expected] : []);
   });
 });

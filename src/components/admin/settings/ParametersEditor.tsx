@@ -53,7 +53,7 @@ export function ParametersEditor({ initial }: { initial: Partial<Record<SystemPa
   }
 
   return (
-    <Card className="border-primary/40">
+    <Card variant="emphasis">
       <CardTitle className="text-base">Change settings</CardTitle>
       <div className="mt-3 flex flex-col gap-3">
         {specs.map((s) => (

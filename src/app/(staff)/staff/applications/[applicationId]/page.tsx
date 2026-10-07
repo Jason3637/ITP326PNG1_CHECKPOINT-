@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ChevronRight, History } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { buttonClasses } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { CompactEmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Panel } from "@/components/ui/Panel";
 import { ProgressSummary } from "@/components/ui/ProgressSummary";
@@ -15,12 +12,12 @@ import { ApplicationPanel } from "@/components/staff/review/ApplicationPanel";
 import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
 import { DocumentsTab } from "@/components/staff/review/workspace/DocumentsTab";
 import { CreditTab } from "@/components/staff/review/workspace/CreditTab";
+import { HistoryTab } from "@/components/staff/review/workspace/HistoryTab";
 import type { HistoryResult } from "@/components/staff/review/workspace/history-result";
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
 import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
 import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
 import { RecommendationForm } from "@/components/staff/review/RecommendationForm";
-import { RecommendationHistoryPanel } from "@/components/staff/review/RecommendationHistoryPanel";
 import { ReviewWorkflowPanel } from "@/components/staff/review/ReviewWorkflowPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
 import { formatReviewDate, formatReviewDateTime, relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
@@ -341,32 +338,12 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   );
 
   const historyTab = (
-    <div className="flex flex-col gap-4">
-      {review.recommendations.length > 0 ? (
-        <RecommendationHistoryPanel recommendations={review.recommendations} adminReturns={review.admin_returns} />
-      ) : (
-        <Panel title="Recommendations" as="h3">
-          <CompactEmptyState>No recommendation has been sent for this application yet.</CompactEmptyState>
-        </Panel>
-      )}
-      <Card className="p-0">
-        <Link
-          href={`/staff/applications/${application.id}/customer-history`}
-          className={cn("flex items-center gap-3 rounded-xl p-5 hover:bg-neutral-50", focusRing)}
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary-dark">
-            <History className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-neutral-900">Customer history</span>
-            <span className="block text-sm text-neutral-600">
-              {customer.full_name}&apos;s past applications, loans and repayments.
-            </span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-neutral-400" aria-hidden="true" />
-        </Link>
-      </Card>
-    </div>
+    <HistoryTab
+      applicationId={application.id}
+      recommendations={review.recommendations}
+      adminReturns={review.admin_returns}
+      history={history}
+    />
   );
 
   // ---- actions -----------------------------------------------------------------

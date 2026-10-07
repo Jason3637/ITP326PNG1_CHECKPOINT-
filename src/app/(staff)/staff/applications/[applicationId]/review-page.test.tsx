@@ -150,10 +150,9 @@ describe("Application Review workspace", () => {
       // Panels in tabs other than the open one are mounted but hidden.
       expect(screen.getByRole("heading", { name: heading, hidden: true })).toBeInTheDocument();
     }
-    expect(screen.getByRole("link", { name: /Customer history/, hidden: true })).toHaveAttribute(
-      "href",
-      "/staff/applications/8/customer-history",
-    );
+    // Customer history is in the History tab itself now (the standalone
+    // /customer-history page still exists).
+    expect(screen.getByRole("heading", { name: "Customer history", hidden: true })).toBeInTheDocument();
     expect(screen.getByText("K1,215")).toBeInTheDocument(); // backend total, not recalculated
   });
 
@@ -375,6 +374,21 @@ describe("workspace structure", () => {
     expect(screen.getByText("Re-check the referee.")).toBeInTheDocument();
     expect(screen.getByText("Problem found: 1 check")).toBeInTheDocument();
     expect(screen.getByText("1 open information request")).toBeInTheDocument();
+  });
+
+  it("reads customer history through the application, and says when it isn't available", async () => {
+    const review = rawReview();
+    serverApiFetch.mockImplementation(async (path: string) => {
+      if (path === "/officer/applications/8") return review;
+      if (path === "/users/7/documents?include_superseded=true") return { documents: review.documents };
+      if (path === "/officer/applications/8/customer-history") throw new ApiError(403, "Not under review.");
+      throw new Error(`unexpected path ${path}`);
+    });
+    await renderPage({ tab: "history" });
+    expect(serverApiFetch).toHaveBeenCalledWith("/officer/applications/8/customer-history");
+    expect(screen.getByRole("heading", { name: "Customer history isn't available" })).toBeVisible();
+    // The credit tab says the same instead of showing record figures.
+    expect(screen.getByText(/customer history is shown only while the application is under review/)).toBeInTheDocument();
   });
 
   it("says so in History when no recommendation has been sent", async () => {

@@ -13,7 +13,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { CustomerPanel } from "@/components/staff/review/CustomerPanel";
 import { ApplicationPanel } from "@/components/staff/review/ApplicationPanel";
 import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
-import { DocumentsPanel } from "@/components/staff/review/DocumentsPanel";
+import { DocumentsTab } from "@/components/staff/review/workspace/DocumentsTab";
 import { CreditAdvisoryPanel } from "@/components/staff/review/CreditAdvisoryPanel";
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
 import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
@@ -309,7 +309,7 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   );
 
   const documentsTab = (
-    <DocumentsPanel
+    <DocumentsTab
       documents={documents}
       earlierVersions={earlierVersions}
       referees={application.referees}

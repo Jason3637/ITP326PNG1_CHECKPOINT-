@@ -18,6 +18,10 @@ export interface TabItem<K extends string = string> {
   content: ReactNode;
 }
 
+// Dispatched on window (detail: { tab }) by TabLink to open another tab of
+// the history="push" Tabs on the page.
+export const TAB_SELECT_EVENT = "tabs:select";
+
 export interface TabsProps<K extends string> {
   // Names the tab list for screen readers.
   label: string;
@@ -64,8 +68,24 @@ export function Tabs<K extends string>({
       const fromUrl = new URL(window.location.href).searchParams.get(param);
       setSelected(ids.find((id) => id === fromUrl) ?? ids[0]);
     };
+    // A TabLink inside a panel asks for another tab: switch to it as a click
+    // would (new history entry) and put focus on that tab.
+    const onSelect = (e: Event) => {
+      const id = ids.find((t) => t === (e as CustomEvent<{ tab: string }>).detail?.tab);
+      if (!id) return;
+      setSelected(id);
+      const url = new URL(window.location.href);
+      if (id === ids[0]) url.searchParams.delete(param);
+      else url.searchParams.set(param, id);
+      if (url.href !== window.location.href) window.history.pushState(null, "", url);
+      tabRefs.current.get(id)?.focus();
+    };
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener(TAB_SELECT_EVENT, onSelect);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener(TAB_SELECT_EVENT, onSelect);
+    };
   }, [history, param, tabIds]);
 
   function select(id: K, focus = false) {

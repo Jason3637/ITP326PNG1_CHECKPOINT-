@@ -10,6 +10,7 @@ import { Section } from "./Section";
 import { StatusBadge } from "./StatusBadge";
 import { Tabs } from "./Tabs";
 import { SegmentedControl } from "./SegmentedControl";
+import { TabLink } from "./TabLink";
 import { useState } from "react";
 
 describe("StatusBadge icon (opt-in)", () => {
@@ -320,5 +321,41 @@ describe("SegmentedControl", () => {
   it("can be disabled", () => {
     render(<Harness disabled />);
     for (const r of screen.getAllByRole("radio")) expect(r).toBeDisabled();
+  });
+});
+
+describe("TabLink", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("switches the page's push-mode Tabs in place: new entry, focus on the tab", async () => {
+    render(
+      <Tabs
+        label="Details"
+        initialTab="documents"
+        history="push"
+        tabs={[
+          { id: "overview", label: "Overview", content: <p>o</p> },
+          { id: "verification", label: "Verification", content: <p>v</p> },
+          { id: "documents", label: "Documents", content: <TabLink tab="verification">Go to check</TabLink> },
+        ]}
+      />,
+    );
+    const push = vi.spyOn(window.history, "pushState");
+    const link = screen.getByRole("link", { name: "Go to check" });
+    expect(link).toHaveAttribute("href", "?tab=verification");
+    await userEvent.click(link);
+    expect(screen.getByRole("tab", { name: "Verification" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Verification" })).toHaveFocus();
+    expect(String(push.mock.calls[0][2])).toMatch(/\?tab=verification$/);
+  });
+
+  it("ignores names that aren't tabs", () => {
+    render(<Tabs label="Details" initialTab="overview" history="push" tabs={[{ id: "overview", label: "Overview", content: <p>o</p> }]} />);
+    act(() => {
+      window.dispatchEvent(new CustomEvent("tabs:select", { detail: { tab: "nope" } }));
+    });
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
   });
 });

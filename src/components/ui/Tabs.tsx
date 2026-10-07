@@ -1,6 +1,6 @@
 "use client";
 
-import { type KeyboardEvent, type ReactNode, useId, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { cn, focusRing } from "@/lib/utils";
 
 export interface TabItem<K extends string = string> {
@@ -27,22 +27,46 @@ export interface TabsProps<K extends string> {
   initialTab: K;
   // The query parameter the selected tab is written to.
   param?: string;
+  // "replace" (default): switching tabs rewrites the current history entry.
+  // "push": each switch is its own entry, so Back and Forward step between
+  // tabs (the tabs follow the URL on popstate).
+  history?: "replace" | "push";
   className?: string;
 }
 
 // Tabs over content that is all rendered up front. Every panel stays
 // mounted and only the selected one is shown, so switching tabs never
 // loses what was typed or expanded in another. The selection is written to
-// the URL with history.replaceState (Next keeps its router in sync with
-// that): no server round trip, no extra history entries, and any other
-// query parameters are kept.
+// the URL with the native History API, which Next keeps its router in sync
+// with: no server round trip, and any other query parameters are kept.
 //
 // WAI-ARIA tabs pattern: arrow keys, Home and End move between tabs and
 // select them; Tab moves from the tab list into the open panel.
-export function Tabs<K extends string>({ label, tabs, initialTab, param = "tab", className }: TabsProps<K>) {
+export function Tabs<K extends string>({
+  label,
+  tabs,
+  initialTab,
+  param = "tab",
+  history = "replace",
+  className,
+}: TabsProps<K>) {
   const [selected, setSelected] = useState<K>(tabs.some((t) => t.id === initialTab) ? initialTab : tabs[0].id);
   const tabRefs = useRef(new Map<K, HTMLButtonElement>());
   const baseId = useId();
+
+  // Back/Forward between tab entries: show the tab the URL now names (the
+  // first tab when it names none or an unknown one).
+  const tabIds = tabs.map((t) => t.id).join(",");
+  useEffect(() => {
+    if (history !== "push") return;
+    const ids = tabIds.split(",") as K[];
+    const onPopState = () => {
+      const fromUrl = new URL(window.location.href).searchParams.get(param);
+      setSelected(ids.find((id) => id === fromUrl) ?? ids[0]);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [history, param, tabIds]);
 
   function select(id: K, focus = false) {
     setSelected(id);
@@ -51,7 +75,13 @@ export function Tabs<K extends string>({ label, tabs, initialTab, param = "tab",
     // The first tab is the default, so it keeps the URL clean.
     if (id === tabs[0].id) url.searchParams.delete(param);
     else url.searchParams.set(param, id);
-    window.history.replaceState(window.history.state, "", url);
+    if (history === "push") {
+      // Re-selecting the open tab adds no entry. null state, as Next's docs
+      // show, so Next attaches its own router state to the new entry.
+      if (url.href !== window.location.href) window.history.pushState(null, "", url);
+    } else {
+      window.history.replaceState(window.history.state, "", url);
+    }
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLButtonElement>) {

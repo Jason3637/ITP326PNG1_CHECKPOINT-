@@ -77,7 +77,9 @@ export function RecommendationForm({
   }
 
   return (
-    <Card>
+    // A size container: the two options sit side by side only when the
+    // form itself is wide enough (not in the narrow action column).
+    <Card className="@container">
       <CardTitle>{COPY.title}</CardTitle>
       <p className="mt-1 text-sm text-neutral-600">{COPY.intro}</p>
 
@@ -119,7 +121,7 @@ export function RecommendationForm({
         </div>
       ) : (
         <>
-          <div role="radiogroup" aria-label="Recommendation" className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div role="radiogroup" aria-label="Recommendation" className="mt-4 grid gap-3 @lg:grid-cols-2">
             {options.map((k) => {
               const active = kind === k;
               const blocked = k === "recommend_approval" && !approvalAllowed;

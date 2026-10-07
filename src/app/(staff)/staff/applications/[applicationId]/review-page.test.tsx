@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 
 // The page is an async Server Component: called as a function, its JSX rendered.
 vi.mock("server-only", () => ({}));
@@ -147,9 +147,13 @@ describe("Application Review workspace", () => {
     mockBackend(rawReview());
     await renderPage();
     for (const heading of ["Verification checklist", "Request more information", "Recommendation", "Information requests", "Customer", "Documents & referees", "Application", "Credit notes"]) {
-      expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+      // Panels in tabs other than the open one are mounted but hidden.
+      expect(screen.getByRole("heading", { name: heading, hidden: true })).toBeInTheDocument();
     }
-    expect(screen.getByRole("link", { name: /Customer history/ })).toHaveAttribute("href", "/staff/applications/8/customer-history");
+    expect(screen.getByRole("link", { name: /Customer history/, hidden: true })).toHaveAttribute(
+      "href",
+      "/staff/applications/8/customer-history",
+    );
     expect(screen.getByText("K1,215")).toBeInTheDocument(); // backend total, not recalculated
   });
 
@@ -176,9 +180,9 @@ describe("Application Review workspace", () => {
     // Another officer viewing Olive's application - the backend offers no actions.
     mockBackend(rawReview({ allowed_actions: [], is_mine: false }));
     await renderPage();
-    expect(screen.queryAllByRole("radiogroup")).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "Start a request" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Recommendation" })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("radiogroup", { hidden: true })).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Start a request", hidden: true })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recommendation", hidden: true })).not.toBeInTheDocument();
     expect(screen.getByText("Assigned to Olive Officer. Only they or an administrator can update these checks.")).toBeInTheDocument();
   });
 
@@ -187,7 +191,7 @@ describe("Application Review workspace", () => {
     await renderPage({ requested: "2" });
     expect(screen.getByRole("status")).toHaveTextContent("2 requests sent to the customer.");
     expect(screen.getByRole("status")).toHaveTextContent("now waiting on the customer");
-    expect(screen.getByText("Waiting on customer")).toBeInTheDocument();
+    expect(screen.getAllByText("Waiting on customer").length).toBeGreaterThan(0);
   });
 
   it("confirms a recommendation in recommend-only language", async () => {
@@ -197,8 +201,8 @@ describe("Application Review workspace", () => {
     expect(status).toHaveTextContent("Recommendation to approve sent.");
     expect(status).toHaveTextContent("now with the administrator for a decision");
     expect(status.textContent).not.toMatch(FORBIDDEN_RECOMMENDATION_WORDING);
-    expect(screen.getByText("Recommended: approve")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Recommendation" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Recommended: approve").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("heading", { name: "Recommendation", hidden: true })).not.toBeInTheDocument();
   });
 
   it("ignores a forged confirmation parameter that doesn't match the application's state", async () => {
@@ -229,7 +233,7 @@ describe("claim / resume on the review workspace", () => {
     await renderPage();
     expect(screen.getByRole("button", { name: "Claim and start review" })).toBeInTheDocument();
     expect(screen.getByText("Checks start once an officer claims this application.")).toBeInTheDocument();
-    expect(screen.queryAllByRole("radiogroup")).toHaveLength(0);
+    expect(screen.queryAllByRole("radiogroup", { hidden: true })).toHaveLength(0);
   });
 
   it("offers Resume (with a reason) while waiting on the customer", async () => {
@@ -245,7 +249,7 @@ describe("claim / resume on the review workspace", () => {
     before.checklist = { ...before.checklist, started: false, items: [] };
     mockBackend(before);
     const view = await renderPage();
-    expect(screen.queryAllByRole("radiogroup")).toHaveLength(0);
+    expect(screen.queryAllByRole("radiogroup", { hidden: true })).toHaveLength(0);
 
     // router.refresh() after the claim re-renders the same page in place with
     // new server data - VerificationChecklist must not keep its old, empty state.
@@ -253,7 +257,7 @@ describe("claim / resume on the review workspace", () => {
     view.rerender(
       await ApplicationReviewPage({ params: Promise.resolve({ applicationId: "8" }), searchParams: Promise.resolve({}) }),
     );
-    expect(screen.getAllByRole("radiogroup", { name: / status$/ })).toHaveLength(2); // the 2 checklist items
+    expect(screen.getAllByRole("radiogroup", { name: / status$/, hidden: true })).toHaveLength(2); // the 2 checklist items
     expect(screen.queryByRole("button", { name: "Claim and start review" })).not.toBeInTheDocument();
   });
 
@@ -262,6 +266,121 @@ describe("claim / resume on the review workspace", () => {
     await renderPage();
     expect(screen.queryByRole("button", { name: "Claim and start review" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Resume the review" })).not.toBeInTheDocument();
+  });
+});
+
+describe("workspace structure", () => {
+  beforeEach(() => {
+    serverApiFetch.mockReset();
+  });
+
+  it("opens with a compact header: title, status and the headline facts", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    const title = screen.getByRole("heading", { level: 2, name: "Application #8 · Simon Wari" });
+    expect(title).toHaveAttribute("id", "workspace-heading");
+    expect(title).toHaveAttribute("tabindex", "-1"); // focus target after a claim
+    expect(screen.getByRole("link", { name: "Back to dashboard" })).toHaveAttribute("href", "/staff");
+    const facts = Object.fromEntries(
+      screen.getAllByRole("term").slice(0, 5).map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]),
+    );
+    expect(facts).toMatchObject({ Assigned: "Assigned to you", Requested: "K900", PRIME: "PRIME 3", Purpose: "Medical" });
+    expect(facts.Submitted).toMatch(/^Sep 24, 2026 · /);
+  });
+
+  it("shows review progress from the backend's checklist summary, as words and a progress bar", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    const bar = screen.getByRole("progressbar", { name: "Required checks" });
+    expect(bar).toHaveAttribute("aria-valuetext", "1 of 2 complete · 1 remaining");
+    expect(screen.getAllByText("1 outstanding").length).toBeGreaterThan(0);
+  });
+
+  it("hides the progress strip until the application is claimed", async () => {
+    const review = rawReview({ status: "submitted", allowed_actions: ["claim"], is_mine: false });
+    review.checklist = { ...review.checklist, started: false, items: [] };
+    mockBackend(review);
+    await renderPage();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("splits the information into five URL tabs, Overview first, with indicators read as words", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    const tabs = within(screen.getByRole("tablist", { name: "Application review" })).getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      "Overview",
+      "Verification1, 1 outstanding",
+      "Documents1, 1 document",
+      "Credit assessment",
+      "History",
+    ]);
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Verification, 1 outstanding" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["documents", "Documents, 1 document"],
+    ["credit", "Credit assessment"],
+    ["history", "History"],
+    ["not-a-tab", "Overview"],
+  ])("deep-links ?tab=%s to %s", async (tab, expected) => {
+    mockBackend(rawReview());
+    await renderPage({ tab });
+    expect(screen.getByRole("tab", { selected: true })).toHaveAccessibleName(expected);
+  });
+
+  it("keeps the officer's actions in their own area, reachable from the header", async () => {
+    mockBackend(rawReview());
+    await renderPage();
+    const actions = screen.getByRole("complementary", { name: "Your actions" });
+    expect(actions).toHaveAttribute("id", "actions");
+    expect(within(actions).getByRole("heading", { name: "Recommendation" })).toBeInTheDocument();
+    expect(within(actions).getByRole("heading", { name: "Request more information" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Your actions" })).toHaveAttribute("href", "#actions");
+  });
+
+  it("has no action area when the backend offers no actions", async () => {
+    mockBackend(rawReview({ allowed_actions: [], is_mine: false }));
+    await renderPage();
+    expect(screen.queryByRole("complementary", { name: "Your actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Your actions" })).not.toBeInTheDocument();
+  });
+
+  it("says plainly when the application is another officer's, or nobody's", async () => {
+    mockBackend(rawReview({ allowed_actions: [], is_mine: false }));
+    const view = await renderPage();
+    // The notice's title (the same words also sit in the header and Workflow).
+    expect(screen.getAllByText("Assigned to Olive Officer").some((el) => el.classList.contains("font-semibold"))).toBe(true);
+    expect(screen.getByText(/Only they or an administrator can update the checks/)).toBeInTheDocument();
+    view.unmount();
+
+    const orphan = rawReview({ allowed_actions: [], is_mine: false });
+    orphan.assignment = { ...orphan.assignment, officer_id: null as never, officer_name: null as never };
+    mockBackend(orphan);
+    await renderPage();
+    expect(screen.getByText("No officer is assigned")).toBeInTheDocument();
+  });
+
+  it("puts what needs attention at the top of Overview: a return, problems, open requests", async () => {
+    const review = rawReview({ status: "returned_to_officer", allowed_actions: ["resume_review"] });
+    review.admin_returns = [
+      { id: 1, recommendation_id: null, returned_by: 5, returned_by_name: "Ada Admin", reason: "Re-check the referee.", created_at: "2026-09-27T00:00:00+00:00" },
+    ] as never;
+    review.checklist.items[0] = { ...review.checklist.items[0], status: "failed", note: "Expired." } as never;
+    review.information_requests[0] = { ...review.information_requests[0], status: "open", response: null as never };
+    mockBackend(review);
+    await renderPage();
+    expect(screen.getByText("Returned by Ada Admin")).toBeInTheDocument();
+    expect(screen.getByText("Re-check the referee.")).toBeInTheDocument();
+    expect(screen.getByText("Problem found: 1 check")).toBeInTheDocument();
+    expect(screen.getByText("1 open information request")).toBeInTheDocument();
+  });
+
+  it("says so in History when no recommendation has been sent", async () => {
+    mockBackend(rawReview());
+    await renderPage({ tab: "history" });
+    expect(screen.getByText("No recommendation has been sent for this application yet.")).toBeVisible();
   });
 });
 

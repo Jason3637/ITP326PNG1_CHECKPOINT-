@@ -12,12 +12,15 @@ export interface PageHeaderProps {
   meta?: ReactNode;
   // Right-aligned on wide screens, under the title on phones.
   actions?: ReactNode;
+  // Opt-in: gives the title this id and makes it focusable from script, so
+  // a page can move focus to it after an action (it isn't a tab stop).
+  titleId?: string;
   className?: string;
 }
 
 // The top of a page. The title is an h2: the shell's Header holds the only
 // h1 (see CardTitle for why).
-export function PageHeader({ title, description, back, meta, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, description, back, meta, actions, titleId, className }: PageHeaderProps) {
   return (
     <header className={cn("flex flex-col gap-3", className)}>
       {back && (
@@ -35,7 +38,16 @@ export function PageHeader({ title, description, back, meta, actions, className 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h2 className="font-display text-page-title font-bold tracking-tight text-neutral-900">{title}</h2>
+            <h2
+              id={titleId}
+              tabIndex={titleId ? -1 : undefined}
+              className={cn(
+                "font-display text-page-title font-bold tracking-tight text-neutral-900",
+                titleId && "rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              )}
+            >
+              {title}
+            </h2>
             {meta}
           </div>
           {description && <p className="mt-1 text-sm text-neutral-600">{description}</p>}

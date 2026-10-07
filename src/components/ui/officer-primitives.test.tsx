@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Clock } from "lucide-react";
 import { Button, buttonClasses } from "./Button";
 import { CompactEmptyState, EmptyState } from "./EmptyState";
@@ -191,5 +192,76 @@ describe("Tabs count options (opt-in)", () => {
     const pill = within(tab).getByText("2");
     expect(pill).toHaveClass("bg-warning-light", "text-amber-800");
     expect(pill).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
+describe("Tabs history modes", () => {
+  const tabs = [
+    { id: "overview", label: "Overview", content: <p>o</p> },
+    {
+      id: "verification",
+      label: "Verification",
+      content: (
+        <label>
+          Note <input />
+        </label>
+      ),
+    },
+    { id: "documents", label: "Documents", content: <p>d</p> },
+  ];
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+    vi.restoreAllMocks();
+  });
+
+  it("push: each switch is a history entry; re-selecting the open tab adds none", async () => {
+    window.history.replaceState(null, "", "/staff/applications/8?requested=1");
+    const push = vi.spyOn(window.history, "pushState");
+    render(<Tabs label="Details" initialTab="overview" history="push" tabs={tabs} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Documents" }));
+    expect(push).toHaveBeenCalledTimes(1);
+    // Other parameters are kept; null state, as Next's docs show.
+    expect(push.mock.calls[0][0]).toBeNull();
+    expect(String(push.mock.calls[0][2])).toMatch(/\/staff\/applications\/8\?requested=1&tab=documents$/);
+    await userEvent.click(screen.getByRole("tab", { name: "Documents" }));
+    expect(push).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(String(push.mock.calls[1][2])).toMatch(/\?requested=1$/); // first tab keeps the URL clean
+  });
+
+  it("push: Back and Forward show the tab the URL names (unknown -> the first tab)", () => {
+    render(<Tabs label="Details" initialTab="overview" history="push" tabs={tabs} />);
+    act(() => {
+      window.history.replaceState(null, "", "/?tab=documents");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "true");
+    act(() => {
+      window.history.replaceState(null, "", "/?tab=bogus");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("keeps typed input when switching away and back", async () => {
+    render(<Tabs label="Details" initialTab="verification" history="push" tabs={tabs} />);
+    await userEvent.type(screen.getByLabelText("Note"), "unsaved draft");
+    await userEvent.click(screen.getByRole("tab", { name: "Documents" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Verification" }));
+    expect(screen.getByLabelText("Note")).toHaveValue("unsaved draft");
+  });
+
+  it("replace (the default, used by the admin page): rewrites the entry and ignores popstate", async () => {
+    const push = vi.spyOn(window.history, "pushState");
+    const replace = vi.spyOn(window.history, "replaceState");
+    render(<Tabs label="Details" initialTab="overview" tabs={tabs} />);
+    await userEvent.click(screen.getByRole("tab", { name: "Documents" }));
+    expect(push).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalledTimes(1);
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "true");
   });
 });

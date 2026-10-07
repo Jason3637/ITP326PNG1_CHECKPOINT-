@@ -7,9 +7,29 @@ import {
   parseAssignmentFilter,
   parsePage,
   queueHref,
+  queueRowAction,
   staffStatusLabel,
   waitingLabel,
 } from "./officer-queues";
+
+describe("queueRowAction", () => {
+  it("offers Review on a new application, whoever it's assigned to", () => {
+    expect(queueRowAction({ status: "submitted", is_mine: false })).toBe("Review");
+    expect(queueRowAction({ status: "submitted", is_mine: true })).toBe("Review");
+  });
+
+  it("offers Continue on the officer's own work", () => {
+    for (const status of ["officer_review", "customer_action_required", "returned_to_officer"] as const) {
+      expect(queueRowAction({ status, is_mine: true })).toBe("Continue");
+    }
+  });
+
+  it("offers View on another officer's work, or one with the administrator", () => {
+    expect(queueRowAction({ status: "officer_review", is_mine: false })).toBe("View");
+    expect(queueRowAction({ status: "recommended_for_approval", is_mine: true })).toBe("View");
+    expect(queueRowAction({ status: "admin_review", is_mine: true })).toBe("View");
+  });
+});
 
 describe("OFFICER_QUEUES", () => {
   it("covers exactly the backend's five queues, in workflow order", () => {

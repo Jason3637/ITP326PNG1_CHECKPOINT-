@@ -143,3 +143,18 @@ export function queueHref(queue: OfficerQueue, opts: { assigned?: QueueAssignmen
   const qs = params.toString();
   return `/staff/queues/${queue}${qs ? `?${qs}` : ""}`;
 }
+
+// The row's action, from what the officer can do once they open it - the
+// detail page still decides what's actually offered (allowed_actions):
+//   Review   - a new application, to look at and claim
+//   Continue - the officer's own application in a stage they work on
+//   View     - everything else (another officer's, or with the administrator)
+export type QueueRowAction = "Review" | "Continue" | "View";
+
+const OWN_WORK_STATUSES = new Set(["officer_review", "customer_action_required", "returned_to_officer"]);
+
+export function queueRowAction(item: Pick<QueueItem, "status" | "is_mine">): QueueRowAction {
+  if (item.status === "submitted") return "Review";
+  if (item.is_mine && OWN_WORK_STATUSES.has(item.status)) return "Continue";
+  return "View";
+}

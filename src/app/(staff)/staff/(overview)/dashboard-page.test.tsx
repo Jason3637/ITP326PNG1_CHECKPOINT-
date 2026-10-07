@@ -45,31 +45,48 @@ const pages: Record<OfficerQueue, QueueItem[]> = {
   under_review: [item(8, { status: "officer_review", is_mine: true, assigned_officer_id: 1 })],
   customer_action_required: [],
   sent_to_admin: [item(12, { status: "recommended_for_rejection", is_mine: true, assigned_officer_id: 1 })],
-  returned_by_admin: [item(15, { status: "returned_to_officer", returned_reason: "Re-check the referee." })],
+  returned_by_admin: [
+    item(15, { status: "returned_to_officer", is_mine: true, assigned_officer_id: 1, returned_reason: "Re-check the referee." }),
+  ],
 };
+// Each list's backend total - under review "mine" holds more than the preview.
 const totals: Record<OfficerQueue, number> = {
   awaiting_review: 7,
-  under_review: 1,
+  under_review: 6,
   customer_action_required: 0,
   sent_to_admin: 1,
   returned_by_admin: 1,
 };
+const queueTotals: Record<OfficerQueue, number> = { ...totals, under_review: 9 };
+
+// The overview's own reads: two lists narrowed to the officer, three whole.
+const EXPECTED_PATHS = [
+  "/officer/queues",
+  "/officer/queues/awaiting_review?per_page=5",
+  "/officer/queues/under_review?per_page=5&assigned=me",
+  "/officer/queues/customer_action_required?per_page=5",
+  "/officer/queues/sent_to_admin?per_page=5",
+  "/officer/queues/returned_by_admin?per_page=5&assigned=me",
+];
 
 function mockBackend() {
   serverApiFetch.mockImplementation(async (path: string) => {
     if (path === "/officer/queues") {
       return {
         queues: Object.fromEntries(
-          Object.entries(totals).map(([k, total]) => [k, { total, mine: k === "awaiting_review" ? 0 : total, unassigned: k === "awaiting_review" ? 7 : 0 }]),
+          Object.entries(queueTotals).map(([k, total]) => [
+            k,
+            { total, mine: k === "awaiting_review" ? 0 : totals[k as OfficerQueue], unassigned: k === "awaiting_review" ? 7 : 0 },
+          ]),
         ),
         definitions: {},
       };
     }
-    const queue = path.match(/^\/officer\/queues\/([a-z_]+)\?per_page=5$/)?.[1] as OfficerQueue | undefined;
-    if (!queue) throw new Error(`unexpected path ${path}`);
+    if (!EXPECTED_PATHS.includes(path)) throw new Error(`unexpected path ${path}`);
+    const queue = path.match(/^\/officer\/queues\/([a-z_]+)\?/)![1] as OfficerQueue;
     const page: QueuePage = {
       queue,
-      statuses: queue === "sent_to_admin" ? ["recommended_for_approval", "recommended_for_rejection", "admin_review"] : ["x" as never],
+      statuses: ["x" as never],
       page: 1,
       per_page: 5,
       total: totals[queue],
@@ -80,61 +97,85 @@ function mockBackend() {
   });
 }
 
-const section = (title: string) => screen.getByRole("heading", { name: title }).closest("div.rounded-xl") as HTMLElement;
+const section = (name: string) => screen.getByRole("region", { name });
 
-describe("Loan Officer dashboard (queues)", () => {
+describe("Loan Officer overview (priority first)", () => {
   beforeEach(() => {
     serverApiFetch.mockReset();
   });
 
-  it("shows the five summary counts with the required labels", async () => {
+  it("shows the five queue totals as tiles linking to each queue", async () => {
     mockBackend();
     render(await StaffDashboardPage());
-    const tiles = within(screen.getByRole("region", { name: "Queue summary" }));
-    for (const [label, n] of [
-      ["New Applications", 7],
-      ["Under Review", 1],
-      ["Awaiting Customer Information", 0],
-      ["Sent to Administrator", 1],
-      ["Returned for Review", 1],
+    const tiles = within(section("Queue summary"));
+    for (const [label, n, href] of [
+      ["New Applications", 7, "/staff/queues/awaiting_review"],
+      ["Under Review", 9, "/staff/queues/under_review"],
+      ["Awaiting Customer Information", 0, "/staff/queues/customer_action_required"],
+      ["Sent to Administrator", 1, "/staff/queues/sent_to_admin"],
+      ["Returned for Review", 1, "/staff/queues/returned_by_admin"],
     ] as const) {
-      expect(tiles.getByText(label).parentElement).toHaveTextContent(`${label}${n}`);
+      const link = tiles.getByText(label).closest("a")!;
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveTextContent(`${label}${n}`);
     }
     expect(tiles.getByText("7 unassigned")).toBeInTheDocument();
+    expect(tiles.getByText("6 assigned to you")).toBeInTheDocument();
   });
 
-  it("shows every queue, each item linking into the review workspace", async () => {
+  it("puts the officer's own work and new applications above what's waiting on others", async () => {
     mockBackend();
     render(await StaffDashboardPage());
-    for (const title of [
-      "Applications Awaiting Review",
-      "Under Review",
-      "Customer Action Required",
-      "Recommended / Sent to Administrator",
-      "Returned by Administrator",
-    ]) {
-      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-    }
-    expect(within(section("Under Review")).getByRole("link", { name: /#8/ })).toHaveAttribute("href", "/staff/applications/8");
-    expect(within(section("Customer Action Required")).getByText("No applications waiting on a customer.")).toBeInTheDocument();
-    expect(within(section("Recommended / Sent to Administrator")).getByText("Recommended: reject")).toBeInTheDocument();
-    expect(within(section("Returned by Administrator")).getByText("Returned: Re-check the referee.")).toBeInTheDocument();
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(["Queue summary", "My work", "Available to claim", "Waiting"]);
+    const waiting = within(section("Waiting"));
+    expect(waiting.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Awaiting Customer Information",
+      "Sent to Administrator",
+    ]);
   });
 
-  it("previews 5 per queue and links to the full queue when there are more", async () => {
+  it("lists my work - returned first, then under review - each row linking into the review workspace", async () => {
     mockBackend();
     render(await StaffDashboardPage());
-    const awaiting = section("Applications Awaiting Review");
-    expect(within(awaiting).getAllByRole("link", { name: /^#\d/ })).toHaveLength(5);
-    expect(within(awaiting).getByRole("link", { name: "View all 7" })).toHaveAttribute("href", "/staff/queues/awaiting_review");
-    expect(serverApiFetch).toHaveBeenCalledWith("/officer/queues/awaiting_review?per_page=5");
+    const table = within(section("My work")).getByRole("table");
+    const links = within(table).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/staff/applications/15", "/staff/applications/8"]);
+    expect(links.map((a) => a.textContent?.trim().split(" ")[0])).toEqual(["Continue", "Continue"]);
+    expect(within(table).getByText("Returned: Re-check the referee.")).toBeInTheDocument();
+    // Its own work: no Assigned column.
+    expect(within(table).queryByRole("columnheader", { name: "Assigned" })).not.toBeInTheDocument();
+    expect(within(section("My work")).getByRole("link", { name: "All under your review (6)" })).toHaveAttribute(
+      "href",
+      "/staff/queues/under_review?assigned=me",
+    );
+    expect(within(section("My work")).queryByRole("link", { name: /All returned to you/ })).not.toBeInTheDocument();
   });
 
-  it("is work queues only - nothing from the admin/reporting endpoints", async () => {
+  it("previews 5 new applications to claim and links to the full queue when there are more", async () => {
+    mockBackend();
+    render(await StaffDashboardPage());
+    const available = within(section("Available to claim"));
+    const rows = within(available.getByRole("table")).getAllByRole("link");
+    expect(rows).toHaveLength(5);
+    expect(rows.every((a) => a.textContent?.startsWith("Review"))).toBe(true);
+    expect(available.getByRole("link", { name: "View all (7)" })).toHaveAttribute("href", "/staff/queues/awaiting_review");
+  });
+
+  it("keeps waiting lists quiet, and an empty one to a single line", async () => {
+    mockBackend();
+    render(await StaffDashboardPage());
+    const waiting = within(section("Waiting"));
+    expect(waiting.getByText("No applications waiting on a customer.").closest("div.rounded-lg")).toHaveClass("py-2.5");
+    expect(within(waiting.getByRole("table", { name: "Sent to Administrator" })).getByText("Recommended: reject")).toBeInTheDocument();
+    expect(waiting.queryByRole("link", { name: /View all/ })).not.toBeInTheDocument();
+  });
+
+  it("reads only the officer queue endpoints - the same six requests as before, no admin or reporting data", async () => {
     mockBackend();
     const { container } = render(await StaffDashboardPage());
     const paths = serverApiFetch.mock.calls.map((c) => c[0] as string);
-    expect(paths.every((p) => p.startsWith("/officer/queues"))).toBe(true);
+    expect([...paths].sort()).toEqual([...EXPECTED_PATHS].sort());
     expect(container.textContent).not.toMatch(/parameter|performance|report/i);
   });
 

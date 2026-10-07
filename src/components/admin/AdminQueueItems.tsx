@@ -15,9 +15,8 @@ import {
 } from "@/lib/admin-queues";
 import type { AdminApplicationItem, AdminLoanItem, AdminQueuePage, AdminRepaymentItem } from "@/lib/types";
 
-// Same row anatomy as the Loan Officer queues (QueueItemRow): the whole row
-// links into the item's workspace; details stack on narrow screens and the
-// dates move to a right-hand column on md+.
+// The whole row links into the item's workspace; details stack on narrow
+// screens and the dates move to a right-hand column on md+.
 function Row({ href, main, side }: { href: string; main: React.ReactNode; side: React.ReactNode }) {
   return (
     <li>

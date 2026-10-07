@@ -1,14 +1,16 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { requestMoreInformation } from "@/lib/actions/information-requests";
 import { documentTypeLabel } from "@/lib/application-review";
 import {
   EMPTY_REQUEST_DRAFT,
+  REQUEST_INFORMATION_OPEN_EVENT,
   REQUESTABLE_DOCUMENT_TYPES,
   REQUEST_LIMITS,
   REQUEST_TYPES,
@@ -174,15 +176,42 @@ function ItemEditor({ index, draft, errors, disabled, removable, onChange, onRem
 
 // Request More Information - one round, 1-10 items, each its own request
 // the customer must answer. On success the application moves to Customer
-// Action Required; the page reloads with a confirmation (and this form
+// Action Required; the page reloads with a confirmation (and this panel
 // disappears, since the backend no longer offers request_information).
-export function RequestInformationForm({ applicationId }: { applicationId: number }) {
+//
+// The form is a modal dialog (ui/Dialog: focus kept inside, Escape closes,
+// focus goes back to whatever opened it). It opens from the panel's own
+// button or from REQUEST_INFORMATION_OPEN_EVENT (the page header and the
+// checklist header), with focus on the first field. Escape or the close
+// button keep what was typed; Cancel discards it. While sending, it can't
+// be closed. `id` names the panel.
+export function RequestInformationForm({ applicationId, id }: { applicationId: number; id?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
   const [drafts, setDrafts] = useState<RequestDraft[]>([{ ...EMPTY_REQUEST_DRAFT }]);
   const [errors, setErrors] = useState<RequestDraftErrors[]>([{}]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by a send that failed validation: focus then moves to the first
+  // highlighted field (after the errors have rendered).
+  const [invalidAttempt, setInvalidAttempt] = useState(0);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(REQUEST_INFORMATION_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(REQUEST_INFORMATION_OPEN_EVENT, onOpen);
+  }, []);
+
+  // Opening: start on the first field (the dialog itself has opened by now -
+  // its effect runs before this one).
+  useEffect(() => {
+    if (open) formRef.current?.querySelector("select")?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (invalidAttempt > 0) formRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
+  }, [invalidAttempt]);
 
   function update(i: number, patch: Partial<RequestDraft>) {
     setDrafts((d) => d.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -199,17 +228,26 @@ export function RequestInformationForm({ applicationId }: { applicationId: numbe
     setErrors((e) => e.filter((_, j) => j !== i));
   }
 
+  function discard() {
+    setOpen(false);
+    setDrafts([{ ...EMPTY_REQUEST_DRAFT }]);
+    setErrors([{}]);
+    setError(null);
+  }
+
   async function submit() {
     const nextErrors = drafts.map(validateRequestDraft);
     setErrors(nextErrors);
     if (nextErrors.some((e) => Object.keys(e).length > 0)) {
       setError("Fix the highlighted fields first.");
+      setInvalidAttempt((n) => n + 1);
       return;
     }
     setSubmitting(true);
     setError(null);
     const result = await requestMoreInformation(applicationId, drafts);
     if (result.ok) {
+      setOpen(false);
       router.replace(`/staff/applications/${applicationId}?requested=${result.requestCount}`, { scroll: true });
       router.refresh();
     } else {
@@ -218,80 +256,77 @@ export function RequestInformationForm({ applicationId }: { applicationId: numbe
     }
   }
 
-  if (!open) {
-    return (
-      <Card className="flex flex-wrap items-center justify-between gap-3">
+  return (
+    <>
+      <Card id={id} className="flex scroll-mt-24 flex-wrap items-center justify-between gap-3">
         <div>
           <CardTitle>Request more information</CardTitle>
           <p className="mt-1 text-sm text-neutral-600">
             Ask the customer for documents or details. The application waits on them until they respond.
           </p>
         </div>
-        <Button variant="outline" onClick={() => setOpen(true)}>
+        <Button variant="outline" aria-haspopup="dialog" onClick={() => setOpen(true)}>
           Start a request
         </Button>
       </Card>
-    );
-  }
 
-  return (
-    <Card>
-      <CardTitle>Request more information</CardTitle>
-      <p className="mt-1 text-sm text-neutral-600">
-        Each request is answered separately by the customer. Sending moves the application to Customer Action Required.
-      </p>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        dismissible={!submitting}
+        title="Request more information"
+        description="Each request is answered separately by the customer. Sending moves the application to Customer Action Required."
+        className="max-w-2xl"
+        footer={
+          <>
+            <Button variant="ghost" disabled={submitting} onClick={discard}>
+              Cancel
+            </Button>
+            <Button onClick={submit} loading={submitting}>
+              Send to customer
+            </Button>
+          </>
+        }
+      >
+        {/* Rendered only while open; the drafts live in this component, so
+            closing and reopening keeps them. */}
+        {open && (
+          <>
+            <div ref={formRef} className="flex flex-col gap-4">
+              {drafts.map((d, i) => (
+                <ItemEditor
+                  key={i}
+                  index={i}
+                  draft={d}
+                  errors={errors[i] ?? {}}
+                  disabled={submitting}
+                  removable={drafts.length > 1}
+                  onChange={(patch) => update(i, patch)}
+                  onRemove={() => remove(i)}
+                />
+              ))}
+            </div>
 
-      <div className="mt-4 flex flex-col gap-4">
-        {drafts.map((d, i) => (
-          <ItemEditor
-            key={i}
-            index={i}
-            draft={d}
-            errors={errors[i] ?? {}}
-            disabled={submitting}
-            removable={drafts.length > 1}
-            onChange={(patch) => update(i, patch)}
-            onRemove={() => remove(i)}
-          />
-        ))}
-      </div>
+            {drafts.length < REQUEST_LIMITS.perRound && (
+              <button
+                type="button"
+                onClick={add}
+                disabled={submitting}
+                className="mt-3 inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Add another request
+              </button>
+            )}
 
-      {drafts.length < REQUEST_LIMITS.perRound && (
-        <button
-          type="button"
-          onClick={add}
-          disabled={submitting}
-          className="mt-3 inline-flex items-center gap-1 rounded text-sm font-medium text-primary hover:text-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Add another request
-        </button>
-      )}
-
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-danger">
-          {error}
-        </p>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button onClick={submit} disabled={submitting}>
-          {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-          Send to customer
-        </Button>
-        <Button
-          variant="ghost"
-          disabled={submitting}
-          onClick={() => {
-            setOpen(false);
-            setDrafts([{ ...EMPTY_REQUEST_DRAFT }]);
-            setErrors([{}]);
-            setError(null);
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
-    </Card>
+            {error && (
+              <p role="alert" className="mt-3 text-sm text-danger">
+                {error}
+              </p>
+            )}
+          </>
+        )}
+      </Dialog>
+    </>
   );
 }

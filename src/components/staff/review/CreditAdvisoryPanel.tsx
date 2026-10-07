@@ -17,7 +17,7 @@ interface CreditAdvisoryPanelProps {
 // older applications still carry superseded developer wording. The
 // model/version name (e.g. "interim-v2") isn't shown - it's internal and
 // tells an officer nothing.
-const ADVISORY_DISCLAIMER =
+export const ADVISORY_DISCLAIMER =
   "Advisory assessment only. It does not replace the judgment of the Loan Officer or Administrator. " +
   "The assessment criteria are provisional until PRIMESTONE's lending policy is finalised.";
 

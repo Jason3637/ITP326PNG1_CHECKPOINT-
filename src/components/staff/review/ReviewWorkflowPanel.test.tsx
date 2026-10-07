@@ -35,6 +35,31 @@ describe("ReviewWorkflowPanel", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it("moves focus to the workspace heading once the claim has gone through", async () => {
+    const user = userEvent.setup();
+    claimApplication.mockResolvedValue({ ok: true });
+    const view = render(
+      <>
+        <h2 id="workspace-heading" tabIndex={-1}>
+          Application #1
+        </h2>
+        <ReviewWorkflowPanel applicationId={1} canClaim canResume={false} status="submitted" focusTargetId="workspace-heading" />
+      </>,
+    );
+    await user.click(screen.getByRole("button", { name: "Claim and start review" }));
+    // router.refresh() brings the server render that no longer offers the claim.
+    view.rerender(
+      <>
+        <h2 id="workspace-heading" tabIndex={-1}>
+          Application #1
+        </h2>
+        <ReviewWorkflowPanel applicationId={1} canClaim={false} canResume={false} status="officer_review" focusTargetId="workspace-heading" />
+      </>,
+    );
+    expect(screen.getByRole("heading", { name: "Application #1" })).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Claim and start review" })).not.toBeInTheDocument();
+  });
+
   it("shows why a claim failed and doesn't refresh", async () => {
     const user = userEvent.setup();
     claimApplication.mockResolvedValue({ ok: false, error: "Someone has already claimed this application. Refresh to see who." });

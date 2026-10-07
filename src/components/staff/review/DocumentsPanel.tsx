@@ -1,18 +1,12 @@
 import { FileText } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { Badge, type BadgeProps } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { DocumentViewButton } from "./DocumentViewButton";
 import { documentTypeLabel, formatReviewDateTime } from "@/lib/application-review";
 import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
-import {
-  CHECKLIST_STATUS_LABELS,
-  awaitedDocumentTypes,
-  documentProvenance,
-  replacementOf,
-  type DocumentProvenance,
-} from "@/lib/checklist";
+import { awaitedDocumentTypes, documentProvenance, replacementOf, type DocumentProvenance } from "@/lib/checklist";
+import { statusPresentation } from "@/lib/status-presentation";
 import type {
-  ChecklistItemStatus,
   DocumentType,
   Referee,
   ReviewChecklistItem,
@@ -20,21 +14,11 @@ import type {
   ReviewInformationRequest,
 } from "@/lib/types";
 
-const CHECK_VARIANT: Record<ChecklistItemStatus, NonNullable<BadgeProps["variant"]>> = {
-  pending: "neutral",
-  verified: "success",
-  failed: "danger",
-  not_applicable: "neutral",
-};
-
 function CheckStatus({ item, started }: { item: ReviewChecklistItem | undefined; started: boolean }) {
   // The checklist only exists once an officer claims the application.
   if (!started || !item) return <Badge variant="neutral">Checks start when claimed</Badge>;
-  return (
-    <Badge variant={CHECK_VARIANT[item.status] ?? "neutral"}>
-      {`${item.label}: ${CHECKLIST_STATUS_LABELS[item.status] ?? "Not checked yet"}`}
-    </Badge>
-  );
+  const status = statusPresentation("checklist", item.status);
+  return <Badge variant={status.tone}>{`${item.label}: ${status.label}`}</Badge>;
 }
 
 function ProvenanceLine({ p }: { p: DocumentProvenance }) {

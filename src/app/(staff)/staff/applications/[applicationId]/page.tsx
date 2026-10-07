@@ -1,26 +1,36 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronRight, History } from "lucide-react";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Alert } from "@/components/ui/Alert";
+import { buttonClasses } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Panel } from "@/components/ui/Panel";
+import { ProgressSummary } from "@/components/ui/ProgressSummary";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tabs } from "@/components/ui/Tabs";
 import { CustomerPanel } from "@/components/staff/review/CustomerPanel";
 import { ApplicationPanel } from "@/components/staff/review/ApplicationPanel";
-import { DocumentsPanel } from "@/components/staff/review/DocumentsPanel";
-import { CreditAdvisoryPanel } from "@/components/staff/review/CreditAdvisoryPanel";
+import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
+import { DocumentsTab } from "@/components/staff/review/workspace/DocumentsTab";
+import { CreditTab } from "@/components/staff/review/workspace/CreditTab";
+import { HistoryTab } from "@/components/staff/review/workspace/HistoryTab";
+import type { HistoryResult } from "@/components/staff/review/workspace/history-result";
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
 import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
-import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
+import { RequestInformationButton } from "@/components/staff/review/RequestInformationButton";
+import { RequestRounds } from "@/components/staff/review/workspace/RequestRounds";
+import { WorkflowBanner } from "@/components/staff/review/workspace/WorkflowBanner";
+import { ReturnedBanner, pendingReturn } from "@/components/staff/review/workspace/ReturnedBanner";
 import { RecommendationForm } from "@/components/staff/review/RecommendationForm";
-import { RecommendationHistoryPanel } from "@/components/staff/review/RecommendationHistoryPanel";
 import { ReviewWorkflowPanel } from "@/components/staff/review/ReviewWorkflowPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
-import { relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
+import { formatReviewDate, formatReviewDateTime, relevantEarlierVersions, toCreditAdvisory } from "@/lib/application-review";
 import { checklistLockedReason, pickChecklist } from "@/lib/checklist";
 import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
-import { assignmentLabel, staffStatusLabel } from "@/lib/officer-queues";
-import { RECOMMENDATION_COPY, isRecommendationType } from "@/lib/recommendations";
-import { cn, focusRing } from "@/lib/utils";
-import type { ApplicationReview, ReviewDocument } from "@/lib/types";
+import { assignmentLabel, daysWaiting, purposeLabel, waitingLabel } from "@/lib/officer-queues";
+import { RECOMMENDATION_COPY, isRecommendationType, recommendationLabel } from "@/lib/recommendations";
+import { statusPresentation } from "@/lib/status-presentation";
+import { cn, focusRing, formatKina } from "@/lib/utils";
+import type { ApplicationReview, CustomerHistory, ReviewDocument } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -30,13 +40,40 @@ interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
+const TAB_IDS = ["overview", "verification", "documents", "credit", "history"] as const;
+type TabId = (typeof TAB_IDS)[number];
 
-// The Application Review screen. A new application is claimed here (and a
-// returned or waiting one resumed) via ReviewWorkflowPanel; after that the
-// verification checklist is editable
-// here (each item saves on its own); the officer can send a Request More
-// Information round, or recommend approval/rejection to the administrator.
+function parseTab(value: string | string[] | undefined): TabId {
+  return TAB_IDS.find((t) => t === value) ?? "overview";
+}
+
+// Focused after a claim or resume, so the officer lands in the workspace.
+const HEADING_ID = "workspace-heading";
+// The action column, for the header's jump link below xl.
+const ACTIONS_ID = "actions";
+// The request-more-information panel in the action column.
+const REQUEST_INFORMATION_ID = "request-information";
+
+// Stages where an assigned officer works the application.
+const OFFICER_STAGES = ["officer_review", "customer_action_required", "returned_to_officer"];
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+// The Application Review workspace. A compact header and the review's
+// progress come first; then the claim/resume banner when the backend offers
+// one; then the information in URL tabs (?tab=overview|verification|
+// documents|credit|history - unknown values open Overview). The officer's
+// actions (send a recommendation, request more information) sit in their
+// own column beside the tabs on wide screens and after them on narrower
+// ones, with a jump link in the header - reachable from every tab.
+//
+// All tab panels stay mounted and only the selected one is shown, so
+// switching tabs never loses an unsaved note, draft or comment. Each switch
+// is a history entry (Back/Forward move between tabs) written with the
+// native History API - no server round trip. Saving a check refreshes the
+// server data in place; client state survives it (the router keys the page
+// without its search params).
+//
 // A recommendation never decides the application, creates a loan or moves
 // money - the backend does none of that at this step, and the copy here
 // never implies it (see RECOMMENDATION_COPY).
@@ -50,8 +87,9 @@ const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primar
 // What reaches the browser: everything here is a Server Component except
 // DocumentViewButton (receives only a document id), VerificationChecklist
 // (receives pickChecklist()'s field-picked copy), RequestInformationForm
-// (only the application id) and RecommendationForm (id plus a checklist
-// summary of counts and labels).
+// (only the application id), RecommendationForm (id plus a checklist
+// summary of counts and labels), ReviewWorkflowPanel (id, flags, status)
+// and Tabs (the rendered panels).
 // Panels render named fields only - nothing spreads or dumps the raw
 // response - and the response types (ApplicationReview etc.) declare only
 // rendered fields.
@@ -64,12 +102,12 @@ const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primar
 // offered, never displayed.
 export default async function ApplicationReviewPage({ params, searchParams }: PageProps) {
   const { applicationId } = await params;
+  const sp = await searchParams;
   // Set by RequestInformationForm after a successful send.
-  const requestedRaw = (await searchParams).requested;
+  const requestedRaw = sp.requested;
   const justRequested = typeof requestedRaw === "string" && /^\d+$/.test(requestedRaw) ? Number(requestedRaw) : null;
   // Set by RecommendationForm after a successful send.
-  const recommendedRaw = (await searchParams).recommended;
-  const justRecommended = isRecommendationType(recommendedRaw) ? recommendedRaw : null;
+  const justRecommended = isRecommendationType(sp.recommended) ? sp.recommended : null;
   if (!/^\d+$/.test(applicationId)) notFound();
 
   let review: ApplicationReview;
@@ -88,84 +126,167 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   const canRequestInformation = review.allowed_actions.includes("request_information");
   const canRecommendApproval = review.allowed_actions.includes("recommend_approval");
   const canRecommendRejection = review.allowed_actions.includes("recommend_rejection");
+  const canRecommend = canRecommendApproval || canRecommendRejection;
   const canClaim = review.allowed_actions.includes("claim");
   const canResume = review.allowed_actions.includes("resume_review");
   const checklistLabel = (key: string) => checklist.items.find((i) => i.item_type === key)?.label ?? key;
 
   // Earlier (superseded) versions: the review payload only carries current
   // documents. Failure here shouldn't take down the whole screen.
-  let earlierVersions: ReviewDocument[] | null;
-  try {
-    const all = await serverApiFetch<{ documents: ReviewDocument[] }>(
-      `/users/${customer.id}/documents?include_superseded=true`,
-    );
-    earlierVersions = relevantEarlierVersions(application.id, all.documents);
-  } catch (err) {
-    if (err instanceof UnauthenticatedError) redirect("/login");
-    earlierVersions = null;
+  //
+  // Customer history (the Credit tab's record figures, the History tab):
+  // the same endpoint the customer-history page reads. A 403 is the
+  // backend's rule - officers see it only while the application is under
+  // review - and isn't an error. Read alongside, not after - but only when
+  // one of those tabs is open: every read is audited, so opening or
+  // refreshing the application mustn't record a history view by itself.
+  const tab = parseTab(sp.tab);
+  const wantsHistory = tab === "history" || tab === "credit";
+  const [docsRes, historyRes] = await Promise.allSettled([
+    serverApiFetch<{ documents: ReviewDocument[] }>(`/users/${customer.id}/documents?include_superseded=true`),
+    wantsHistory ? serverApiFetch<CustomerHistory>(`/officer/applications/${application.id}/customer-history`) : null,
+  ]);
+  for (const r of [docsRes, historyRes]) {
+    if (r.status === "rejected" && r.reason instanceof UnauthenticatedError) redirect("/login");
   }
+  const earlierVersions: ReviewDocument[] | null =
+    docsRes.status === "fulfilled" ? relevantEarlierVersions(application.id, docsRes.value.documents) : null;
+  const history: HistoryResult =
+    historyRes.status === "fulfilled"
+      ? historyRes.value
+        ? { status: "ok", history: historyRes.value }
+        : { status: "deferred" }
+      : historyRes.reason instanceof ApiError && historyRes.reason.status === 403
+        ? { status: "unavailable" }
+        : { status: "error" };
 
-  return (
-    <div className="flex flex-col gap-4">
-      <Link href="/staff" className={cn("inline-flex w-fit items-center gap-1", linkClass)}>
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to dashboard
-      </Link>
+  // ---- derived, for the header and Overview -----------------------------------
+  const status = statusPresentation("application", application.status);
+  const assigned = assignmentLabel({
+    is_mine: assignment.is_mine,
+    assigned_officer_id: assignment.officer_id,
+    assigned_officer_name: assignment.officer_name,
+  });
+  const purpose = purposeLabel(application.purpose_category);
+  const submitted = formatReviewDate(application.submitted_at);
+  const age = waitingLabel(daysWaiting(application.submitted_at));
+  const { summary } = checklist;
+  const failedItems = checklist.items.filter((i) => i.status === "failed");
+  const openRequests = review.information_requests.filter((r) => r.status === "open");
+  const answeredRequests = review.information_requests.filter((r) => r.status === "responded");
+  const cancelledRequests = review.information_requests.filter((r) => r.status === "cancelled");
+  const returnToAnswer = pendingReturn(application.status, review.admin_returns, review.recommendations);
+  const requestRounds = new Set(review.information_requests.map((r) => r.requested_at)).size;
+  const latestRecommendation = review.recommendations.at(-1) ?? null;
+  const hasActions = canRecommend || canRequestInformation;
+  // Read-only because it's another officer's, or nobody's (an officer's
+  // account was removed) - the rules themselves stay the backend's.
+  const othersWork = !assignment.is_mine && assignment.officer_id !== null && OFFICER_STAGES.includes(application.status);
+  const unassignedWork = assignment.officer_id === null && OFFICER_STAGES.includes(application.status);
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-            Application #{application.id} · {customer.full_name}
-          </h2>
-          <p className="mt-1 text-sm text-neutral-600">
-            {assignmentLabel({
-              is_mine: assignment.is_mine,
-              assigned_officer_id: assignment.officer_id,
-              assigned_officer_name: assignment.officer_name,
-            })}
-          </p>
-        </div>
-        <Badge variant="primary" className="w-fit">
-          {staffStatusLabel(application.status)}
-        </Badge>
-      </div>
+  // ---- header -------------------------------------------------------------------
+  const facts: { label: string; value: React.ReactNode }[] = [
+    {
+      label: "Assigned",
+      value: <span className={assignment.is_mine ? "text-primary-dark" : undefined}>{assigned}</span>,
+    },
+    { label: "Requested", value: <span className="tabular-nums">{formatKina(application.amount_requested)}</span> },
+    ...(application.prime_category ? [{ label: "PRIME", value: application.prime_category }] : []),
+    ...(purpose ? [{ label: "Purpose", value: purpose }] : []),
+    ...(submitted ? [{ label: "Submitted", value: age ? `${submitted} · ${age}` : submitted }] : []),
+  ];
 
-      {justRequested !== null && application.status === "customer_action_required" && (
-        <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
-          <div className="text-sm">
-            <p className="font-medium text-neutral-900">
-              {justRequested === 1 ? "Request sent to the customer." : `${justRequested} requests sent to the customer.`}
-            </p>
-            <p className="mt-0.5 text-neutral-700">
-              Application #{application.id} is now waiting on the customer. It comes back to you under review once they
-              respond.
-            </p>
-          </div>
-        </div>
+  // ---- tabs -----------------------------------------------------------------------
+  const attention = [
+    failedItems.length > 0 && (
+      <Alert key="failed" tone="danger" role="note" title={`Problem found: ${plural(failedItems.length, "check")}`}>
+        {failedItems.map((i) => i.label).join(", ")}. See the Verification tab.
+      </Alert>
+    ),
+    !customer.is_active && (
+      <Alert key="disabled" tone="danger" role="note" title="The customer's account is disabled">
+        See the customer details below.
+      </Alert>
+    ),
+  ].filter(Boolean);
+
+  const overview = (
+    <div className="@container flex flex-col gap-4">
+      {attention.length > 0 && (
+        <section aria-labelledby="attention-heading" className="flex flex-col gap-3">
+          <h3 id="attention-heading" className="sr-only">
+            Needs attention
+          </h3>
+          {attention}
+        </section>
       )}
+      <Panel title="Workflow" as="h3">
+        <DetailList>
+          <DetailRow
+            label="Status"
+            value={
+              <StatusBadge tone={status.tone} icon={status.icon}>
+                {status.label}
+              </StatusBadge>
+            }
+          />
+          <DetailRow
+            label="Assigned"
+            value={assigned}
+            hint={assignment.assigned_at ? `Since ${formatReviewDateTime(assignment.assigned_at)}` : undefined}
+          />
+          <DetailRow
+            label="Required checks"
+            value={
+              checklist.started
+                ? `${summary.required_complete} of ${summary.required} done · ${summary.blocking_items.length} outstanding`
+                : null
+            }
+            fallback="Start once the application is claimed"
+          />
+          <DetailRow
+            label="Information requests"
+            value={
+              review.information_requests.length > 0
+                ? `${openRequests.length} open · ${answeredRequests.length} answered · ${cancelledRequests.length} cancelled`
+                : null
+            }
+            fallback="None requested"
+          />
+          <DetailRow
+            label="Recommendations"
+            value={
+              latestRecommendation
+                ? `${recommendationLabel(latestRecommendation.recommendation)}${latestRecommendation.officer_name ? ` by ${latestRecommendation.officer_name}` : ""}`
+                : null
+            }
+            hint={
+              latestRecommendation
+                ? `${plural(review.recommendations.length, "recommendation")} sent${latestRecommendation.created_at ? ` · latest ${formatReviewDateTime(latestRecommendation.created_at)}` : ""}. See the History tab.`
+                : undefined
+            }
+            fallback="None sent yet"
+          />
+        </DetailList>
+      </Panel>
+      <div className="grid gap-4 @3xl:grid-cols-2 @3xl:items-start">
+        <CustomerPanel
+          customer={customer}
+          applicationId={application.id}
+          canRequestReverification={canEditChecklist}
+          applicant={{
+            residentialAddress: application.residential_address,
+            employerName: application.employer_name,
+            employmentStatus: application.employment_status,
+          }}
+        />
+        <ApplicationPanel application={application} customer={customer} />
+      </div>
+    </div>
+  );
 
-      {justRecommended &&
-        ["recommended_for_approval", "recommended_for_rejection", "admin_review"].includes(application.status) && (
-          <div role="status" className="flex items-start gap-3 rounded-xl border border-success/30 bg-success-light p-4">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
-            <div className="text-sm">
-              <p className="font-medium text-neutral-900">{RECOMMENDATION_COPY.sentTitle(justRecommended)}</p>
-              <p className="mt-0.5 text-neutral-700">{RECOMMENDATION_COPY.sentBody(application.id)}</p>
-              <Link href="/staff" className={cn("mt-1 inline-block", linkClass)}>
-                Back to your queues
-              </Link>
-            </div>
-          </div>
-        )}
-
-      <ReviewWorkflowPanel
-        applicationId={application.id}
-        canClaim={canClaim}
-        canResume={canResume}
-        status={application.status}
-      />
-
+  const verification = (
+    <div className="flex flex-col gap-4">
       <VerificationChecklist
         // VerificationChecklist seeds its state from `initial` once. Remount
         // it when the application changes stage (claim, resume, customer
@@ -181,6 +302,8 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           }))}
         initial={pickChecklist(checklist)}
         editable={canEditChecklist}
+        variant="compact"
+        offerRequestInformation={canRequestInformation}
         lockedReason={checklistLockedReason({
           started: checklist.started,
           status: application.status,
@@ -188,74 +311,219 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           officerName: assignment.officer_name,
         })}
       />
+      <RequestRounds requests={review.information_requests} />
+    </div>
+  );
 
-      {canRequestInformation && <RequestInformationForm applicationId={application.id} />}
-      {(canRecommendApproval || canRecommendRejection) && (
+  const documentsTab = (
+    <DocumentsTab
+      documents={documents}
+      earlierVersions={earlierVersions}
+      referees={application.referees}
+      checklist={checklist}
+      informationRequests={review.information_requests}
+      verifiedIdDocumentId={customer.verification?.id_document_id ?? null}
+    />
+  );
+
+  const credit = (
+    <CreditTab
+      advisory={toCreditAdvisory(credit_assessment.result)}
+      label={credit_assessment.label}
+      application={application}
+      customer={customer}
+      history={history}
+    />
+  );
+
+  const historyTab = (
+    <HistoryTab
+      applicationId={application.id}
+      recommendations={review.recommendations}
+      adminReturns={review.admin_returns}
+      history={history}
+    />
+  );
+
+  // ---- actions -----------------------------------------------------------------
+  const actions = hasActions && (
+    <div className="flex flex-col gap-4">
+      {canRecommend && (
         <RecommendationForm
           applicationId={application.id}
+          customerName={customer.full_name}
+          requests={{ rounds: requestRounds, open: openRequests.length }}
+          returned={
+            returnToAnswer
+              ? {
+                  by: returnToAnswer.returned_by_name,
+                  at: formatReviewDateTime(returnToAnswer.created_at),
+                  reason: returnToAnswer.reason,
+                }
+              : null
+          }
           canRecommendApproval={canRecommendApproval}
           canRecommendRejection={canRecommendRejection}
           checklist={{
             started: checklist.started,
-            required: checklist.summary.required,
-            requiredComplete: checklist.summary.required_complete,
-            outstanding: checklist.summary.blocking_items
+            required: summary.required,
+            requiredComplete: summary.required_complete,
+            outstanding: summary.blocking_items
               .filter((k) => checklist.items.find((i) => i.item_type === k)?.status !== "failed")
               .map(checklistLabel),
-            failed: checklist.items.filter((i) => i.status === "failed").map((i) => i.label),
-            ready: checklist.summary.ready_for_approval_recommendation,
+            failed: failedItems.map((i) => i.label),
+            ready: summary.ready_for_approval_recommendation,
+            notApplicable: checklist.items.filter((i) => i.status === "not_applicable").length,
           }}
         />
       )}
-      <RecommendationHistoryPanel recommendations={review.recommendations} adminReturns={review.admin_returns} />
-      <RequestHistoryPanel requests={review.information_requests} />
+      {canRequestInformation && <RequestInformationForm applicationId={application.id} id={REQUEST_INFORMATION_ID} />}
+    </div>
+  );
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-4">
-          <CustomerPanel
-            customer={customer}
-            applicationId={application.id}
-            canRequestReverification={canEditChecklist}
-            applicant={{
-              residentialAddress: application.residential_address,
-              employerName: application.employer_name,
-              employmentStatus: application.employment_status,
-            }}
-          />
-          <DocumentsPanel
-            documents={documents}
-            earlierVersions={earlierVersions}
-            referees={application.referees}
-            checklist={checklist}
-            informationRequests={review.information_requests}
-            verifiedIdDocumentId={customer.verification?.id_document_id ?? null}
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
+        <PageHeader
+          back={{ href: "/staff", label: "Back to dashboard" }}
+          titleId={HEADING_ID}
+          title={`Application #${application.id} · ${customer.full_name}`}
+          meta={
+            <StatusBadge tone={status.tone} icon={status.icon}>
+              {status.label}
+            </StatusBadge>
+          }
+          actions={
+            hasActions && (
+              <>
+                {/* One click from any tab: opens the request dialog. */}
+                {canRequestInformation && <RequestInformationButton />}
+                {/* Below xl the panel sits after the tabs; from xl it's in
+                    the sticky rail beside them, always in view. */}
+                {canRecommend && (
+                  <a href="#recommendation" className={buttonClasses({ variant: "primary", size: "sm", className: "xl:hidden" })}>
+                    Recommendation
+                  </a>
+                )}
+              </>
+            )
+          }
+        />
+        <dl className="flex flex-wrap gap-x-8 gap-y-2">
+          {facts.map((f) => (
+            <div key={f.label} className="min-w-0">
+              <dt className="text-xs font-medium uppercase tracking-wide text-neutral-500">{f.label}</dt>
+              <dd className="mt-0.5 break-words text-sm font-medium text-neutral-900">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {checklist.started && (
+        <div className="rounded-xl border border-neutral-200 bg-white px-4 py-3 sm:px-5">
+          <ProgressSummary
+            label="Required checks"
+            value={summary.required_complete}
+            total={summary.required}
+            valueText={`${summary.required_complete} of ${summary.required} complete · ${summary.blocking_items.length} remaining`}
+            status={
+              summary.ready_for_approval_recommendation
+                ? { tone: "success", label: "All required checks done" }
+                : failedItems.length > 0
+                  ? { tone: "danger", label: `${plural(failedItems.length, "problem")} found` }
+                  : { tone: "warning", label: `${summary.blocking_items.length} outstanding` }
+            }
           />
         </div>
-        <div className="flex flex-col gap-4">
-          <ApplicationPanel application={application} customer={customer} />
-          <CreditAdvisoryPanel
-            advisory={toCreditAdvisory(credit_assessment.result)}
-            label={credit_assessment.label}
-            application={application}
-          />
-          <Card className="p-0">
-            <Link
-              href={`/staff/applications/${application.id}/customer-history`}
-              className={cn("flex items-center gap-3 rounded-xl p-5 hover:bg-neutral-50", focusRing)}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary-dark">
-                <History className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-semibold text-neutral-900">Customer history</span>
-                <span className="block text-sm text-neutral-600">
-                  {customer.full_name}&apos;s past applications, loans and repayments.
-                </span>
-              </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-neutral-400" aria-hidden="true" />
-            </Link>
-          </Card>
-        </div>
+      )}
+
+      {justRecommended &&
+        ["recommended_for_approval", "recommended_for_rejection", "admin_review"].includes(application.status) && (
+          <Alert
+            tone="success"
+            title={RECOMMENDATION_COPY.sentTitle(justRecommended)}
+            actions={
+              <Link href="/staff" className={cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}>
+                Back to your queues
+              </Link>
+            }
+          >
+            {RECOMMENDATION_COPY.sentBody(application.id)}
+          </Alert>
+        )}
+
+      <ReturnedBanner
+        status={application.status}
+        adminReturns={review.admin_returns}
+        recommendations={review.recommendations}
+      />
+
+      <WorkflowBanner
+        applicationId={application.id}
+        status={application.status}
+        requests={review.information_requests}
+        recommendations={review.recommendations}
+        // The sent-request confirmation, shown only once the application
+        // really is waiting (a forged ?requested= shows nothing).
+        justSent={application.status === "customer_action_required" ? justRequested : null}
+      />
+
+      <ReviewWorkflowPanel
+        applicationId={application.id}
+        canClaim={canClaim}
+        canResume={canResume}
+        status={application.status}
+        focusTargetId={HEADING_ID}
+      />
+
+      {othersWork && (
+        <Alert tone="neutral" title={`Assigned to ${assignment.officer_name ?? "another officer"}`}>
+          You can see everything here. Only they or an administrator can update the checks, request information or send a
+          recommendation.
+        </Alert>
+      )}
+      {unassignedWork && (
+        <Alert tone="neutral" title="No officer is assigned">
+          An administrator needs to assign this application before anyone can work on it.
+        </Alert>
+      )}
+
+      <div className={cn("grid gap-6", hasActions && "xl:grid-cols-[minmax(0,1fr)_23rem] xl:items-start")}>
+        <Tabs<TabId>
+          label="Application review"
+          initialTab={tab}
+          history="push"
+          className="min-w-0"
+          tabs={[
+            { id: "overview", label: "Overview", content: overview },
+            {
+              id: "verification",
+              label: "Verification",
+              ...(checklist.started && summary.blocking_items.length > 0
+                ? { count: summary.blocking_items.length, countTone: "attention" as const, countLabel: "outstanding" }
+                : {}),
+              content: verification,
+            },
+            {
+              id: "documents",
+              label: "Documents",
+              count: documents.length,
+              countLabel: documents.length === 1 ? "document" : "documents",
+              content: documentsTab,
+            },
+            { id: "credit", label: "Credit assessment", content: credit },
+            { id: "history", label: "History", content: historyTab },
+          ]}
+        />
+        {actions && (
+          <aside
+            id={ACTIONS_ID}
+            aria-label="Your actions"
+            className="scroll-mt-24 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto"
+          >
+            {actions}
+          </aside>
+        )}
       </div>
     </div>
   );

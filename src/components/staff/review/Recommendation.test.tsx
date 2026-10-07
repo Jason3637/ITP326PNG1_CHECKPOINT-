@@ -94,7 +94,7 @@ describe("RecommendationForm", () => {
     expect(screen.getByText("Send a recommendation to approve?")).toBeInTheDocument();
     expect(container.textContent).not.toMatch(FORBIDDEN_RECOMMENDATION_WORDING);
 
-    await user.click(screen.getByRole("button", { name: "Send recommendation" }));
+    await user.click(screen.getByRole("button", { name: "Send to Administrator" }));
     expect(submitRecommendation).toHaveBeenCalledWith(9, "recommend_approval", "ID, employer and referee confirmed.");
     expect(replace).toHaveBeenCalledWith("/staff/applications/9?recommended=recommend_approval", { scroll: true });
   });
@@ -108,11 +108,12 @@ describe("RecommendationForm", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/needs every required check/);
     await user.type(screen.getByLabelText(/Comments for the administrator/), "Can't verify income.");
     await user.click(screen.getByRole("button", { name: "Review and send" }));
-    expect(screen.queryByText("Send a recommendation to approve?")).not.toBeInTheDocument();
+    // Still blocked: the confirmation never opens.
+    expect(document.querySelector("dialog")).not.toHaveAttribute("open");
 
     await user.click(screen.getByRole("radio", { name: /Recommend rejection/ }));
     await user.click(screen.getByRole("button", { name: "Review and send" }));
-    await user.click(screen.getByRole("button", { name: "Send recommendation" }));
+    await user.click(screen.getByRole("button", { name: "Send to Administrator" }));
     expect(submitRecommendation).toHaveBeenCalledWith(9, "recommend_rejection", "Can't verify income.");
   });
 
@@ -123,7 +124,7 @@ describe("RecommendationForm", () => {
     await user.click(screen.getByRole("radio", { name: /Recommend rejection/ }));
     await user.type(screen.getByLabelText(/Comments for the administrator/), "No.");
     await user.click(screen.getByRole("button", { name: "Review and send" }));
-    await user.click(screen.getByRole("button", { name: "Send recommendation" }));
+    await user.click(screen.getByRole("button", { name: "Send to Administrator" }));
     expect(screen.getByRole("alert")).toHaveTextContent(/isn't under review any more/);
     expect(screen.getByLabelText(/Comments for the administrator/)).toHaveValue("No.");
   });

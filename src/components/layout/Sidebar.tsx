@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/ui/Logo";
 import { AdminNav } from "./AdminNav";
+import { OfficerNav } from "./OfficerNav";
 import {
   navItemsByVariant,
   subNavItemsByVariant,
@@ -11,6 +12,7 @@ import {
   isTopNavItemActive,
   type AdminNavCounts,
   type NavVariant,
+  type OfficerNavCounts,
 } from "@/lib/nav";
 import { cn, focusRing } from "@/lib/utils";
 
@@ -18,30 +20,53 @@ interface SidebarProps {
   variant?: NavVariant;
   // Admin only: queue counts beside the nav items.
   adminCounts?: AdminNavCounts | null;
+  // Loan Officer only: queue totals beside the queues.
+  officerCounts?: OfficerNavCounts | null;
 }
 
-export function Sidebar({ variant = "customer", adminCounts = null }: SidebarProps) {
-  // The admin area's grouped nav: 240px, from lg up (below that it's the
-  // header's menu drawer), and it stays in view while the page scrolls.
+export function Sidebar({ variant = "customer", adminCounts = null, officerCounts = null }: SidebarProps) {
   if (variant === "admin") {
     return (
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white lg:flex">
-        <Link href="/admin" className={cn("flex h-16 shrink-0 items-center border-b border-neutral-200 px-6", focusRing)}>
-          <Logo size="sm" />
-        </Link>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <AdminNav counts={adminCounts} />
-        </div>
-      </aside>
+      <WorkspaceSidebar homeHref="/admin">
+        <AdminNav counts={adminCounts} />
+      </WorkspaceSidebar>
+    );
+  }
+  if (variant === "staff") {
+    return (
+      <WorkspaceSidebar homeHref="/staff" width="w-64">
+        <OfficerNav counts={officerCounts} />
+      </WorkspaceSidebar>
     );
   }
 
   return <AreaSidebar variant={variant} />;
 }
 
-// The customer and Loan Officer sidebar: top-level items, each with its
-// sub-items (the officer's queues) underneath.
-function AreaSidebar({ variant }: { variant: Exclude<NavVariant, "admin"> }) {
+// The Administrator and Loan Officer sidebar: from lg up (below that it's
+// the header's menu drawer), and it stays in view while the page scrolls.
+// 240px for the admin; 256px for the officer, whose queue names are longer.
+function WorkspaceSidebar({
+  homeHref,
+  width = "w-60",
+  children,
+}: {
+  homeHref: string;
+  width?: "w-60" | "w-64";
+  children: React.ReactNode;
+}) {
+  return (
+    <aside className={`sticky top-0 hidden h-screen ${width} shrink-0 flex-col border-r border-neutral-200 bg-white lg:flex`}>
+      <Link href={homeHref} className={cn("flex h-16 shrink-0 items-center border-b border-neutral-200 px-6", focusRing)}>
+        <Logo size="sm" />
+      </Link>
+      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    </aside>
+  );
+}
+
+// The customer sidebar: top-level items, each with any sub-items underneath.
+function AreaSidebar({ variant }: { variant: Exclude<NavVariant, "admin" | "staff"> }) {
   const pathname = usePathname();
   const items = navItemsByVariant[variant];
   const subItems = subNavItemsByVariant[variant];

@@ -1,3 +1,5 @@
+import { CheckCircle2, CircleDot, Clock, MinusCircle, XCircle, type LucideIcon } from "lucide-react";
+
 // What colour a backend status reads as. The status strings are the
 // backend's own values (types.ts), never renamed; this only says how each
 // one is presented. Labels stay with each screen's own helpers
@@ -75,3 +77,14 @@ const TONES: Record<string, StatusTone> = {
 export function statusTone(status: string | null | undefined): StatusTone {
   return (status && TONES[status]) || "neutral";
 }
+
+// The default icon for each tone, for a status shown with an icon as well
+// as words and colour (StatusBadge's `icon`): its shape still tells the
+// tones apart in greyscale or for someone who can't tell red from green.
+export const TONE_ICONS: Record<StatusTone, LucideIcon> = {
+  success: CheckCircle2,
+  warning: Clock,
+  danger: XCircle,
+  info: CircleDot,
+  neutral: MinusCircle,
+};

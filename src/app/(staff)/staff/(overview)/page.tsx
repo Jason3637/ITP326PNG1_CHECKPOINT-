@@ -1,38 +1,72 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inbox } from "lucide-react";
-import { Card, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { QueueItemRow } from "@/components/staff/QueueItemRow";
+import { Card } from "@/components/ui/Card";
+import { MetricCard, type MetricTone } from "@/components/ui/MetricCard";
+import { Section } from "@/components/ui/Section";
+import { QueueTable } from "@/components/staff/QueueTable";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
-import { OFFICER_QUEUES, queueHref } from "@/lib/officer-queues";
+import { getOfficerQueueCounts } from "@/lib/officer-queue-counts";
+import { OFFICER_QUEUES, queueDefinition, queueHref } from "@/lib/officer-queues";
 import { cn, focusRing } from "@/lib/utils";
-import type { OfficerQueue, QueueCounts, QueuePage } from "@/lib/types";
+import type { OfficerQueue, QueueAssignmentFilter, QueueCounts, QueueItem, QueuePage } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
 
-// How many of each queue's oldest items the dashboard shows; the rest are
-// one click away on the full, paginated queue page.
+// How many of each list's oldest items the overview shows; the rest are one
+// click away on the full, paginated queue page.
 const PREVIEW_SIZE = 5;
 
-// The Loan Officer dashboard: work queues only. Deliberately no
-// business-wide settings, system parameters or other officers' workload/
-// performance figures - those are Administrator concerns (GET
-// /admin/parameters, /reports/*), even where the officer token could read
-// them. Assignment on each row (yours / unassigned / another officer's) is
-// shown because it decides who picks the item up, not to rank officers.
+// What each overview list reads: the same five queue queries as before,
+// two of them narrowed to the officer's own with the backend's existing
+// ?assigned=me filter. No extra requests.
+const PREVIEWS: Record<OfficerQueue, QueueAssignmentFilter> = {
+  under_review: "me",
+  returned_by_admin: "me",
+  awaiting_review: "any",
+  customer_action_required: "any",
+  sent_to_admin: "any",
+};
+
+// Queues where the officer has something to do: a figure here is work.
+const ACTIONABLE = new Set<OfficerQueue>(["awaiting_review", "under_review", "returned_by_admin"]);
+
+function previewPath(queue: OfficerQueue): string {
+  const params = new URLSearchParams({ per_page: String(PREVIEW_SIZE) });
+  if (PREVIEWS[queue] !== "any") params.set("assigned", PREVIEWS[queue]);
+  return `/officer/queues/${queue}?${params}`;
+}
+
+const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
+
+// "View all (N)" to the queue behind a list, only when it holds more than
+// the list shows - N is the backend's total for exactly that list.
+function ViewAll({ page, assigned, label }: { page: QueuePage; assigned: QueueAssignmentFilter; label?: string }) {
+  if (page.total <= page.items.length) return null;
+  return (
+    <Link href={queueHref(page.queue, { assigned })} className={linkClass}>
+      {label ?? "View all"} ({page.total})
+    </Link>
+  );
+}
+
+// The Loan Officer overview, priority first: the five queue totals, then
+// the officer's own work, then new applications anyone can claim, then -
+// quieter - what's waiting on someone else. Deliberately no business-wide
+// settings, parameters or other officers' performance figures - those are
+// Administrator concerns (GET /admin/parameters, /reports/*), even where the
+// officer token could read them.
 //
-// Counts and lists come from the backend's real queue queries (GET
-// /officer/queues and /officer/queues/<queue>), so a count and the list
-// under it always agree on what a queue contains.
+// Data: GET /officer/queues (shared with the nav's counts - one read per
+// request) and one page of each queue (GET /officer/queues/<queue>), so
+// every figure and list is the backend's own queue query.
 export default async function StaffDashboardPage() {
   let counts: QueueCounts;
   let pages: Record<OfficerQueue, QueuePage>;
   try {
     const [countsRes, ...pageRes] = await Promise.all([
-      serverApiFetch<QueueCounts>("/officer/queues"),
-      ...OFFICER_QUEUES.map((q) => serverApiFetch<QueuePage>(`/officer/queues/${q.key}?per_page=${PREVIEW_SIZE}`)),
+      getOfficerQueueCounts(),
+      ...OFFICER_QUEUES.map((q) => serverApiFetch<QueuePage>(previewPath(q.key))),
     ]);
     counts = countsRes;
     pages = Object.fromEntries(OFFICER_QUEUES.map((q, i) => [q.key, pageRes[i]])) as Record<OfficerQueue, QueuePage>;
@@ -41,78 +75,101 @@ export default async function StaffDashboardPage() {
     throw err;
   }
 
+  // My work: returned applications first (an administrator is waiting on
+  // them), then those under review - each oldest first, as the backend orders.
+  const myWork: QueueItem[] = [...pages.returned_by_admin.items, ...pages.under_review.items];
+
   return (
-    <div className="flex flex-col gap-6">
+    <div data-page-width="wide" className="flex flex-col gap-8">
       <section aria-labelledby="queue-summary-heading">
         <h2 id="queue-summary-heading" className="sr-only">
           Queue summary
         </h2>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {OFFICER_QUEUES.map((q) => {
             const count = counts.queues[q.key] ?? { total: 0, mine: 0, unassigned: 0 };
-            // New applications are unclaimed by definition, so "yours" is
-            // always 0 there - "unassigned" is the number that matters.
+            // New applications are normally unclaimed, so "unassigned" is
+            // the number that matters there; elsewhere it's "yours".
             const detail =
               q.key === "awaiting_review" ? `${count.unassigned} unassigned` : `${count.mine} assigned to you`;
+            const tone: MetricTone = count.total === 0 ? "calm" : ACTIONABLE.has(q.key) ? "attention" : "neutral";
             return (
-              <li key={q.key}>
-                <a
-                  href={`#queue-${q.key}`}
-                  className={cn(
-                    "flex h-full flex-col rounded-xl border border-neutral-200 bg-white p-4 shadow-sm hover:border-primary",
-                    focusRing,
-                  )}
-                >
-                  <span className="text-xs font-medium text-neutral-600">{q.summaryLabel}</span>
-                  <span className="mt-1 font-display text-3xl font-bold tracking-tight text-neutral-900">
-                    {count.total}
-                  </span>
-                  <span className="mt-auto pt-1 text-xs text-neutral-500">{detail}</span>
-                </a>
-              </li>
+              <MetricCard
+                key={q.key}
+                as="li"
+                href={queueHref(q.key)}
+                label={q.summaryLabel}
+                value={count.total}
+                status={detail}
+                tone={tone}
+              />
             );
           })}
         </ul>
       </section>
 
-      {OFFICER_QUEUES.map((q) => {
-        const page = pages[q.key];
-        const multiStatus = page.statuses.length > 1;
-        return (
-          <Card key={q.key} id={`queue-${q.key}`} className="scroll-mt-20 px-2 sm:px-5">
-            <div className="flex flex-wrap items-start justify-between gap-2 px-3 sm:px-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <CardTitle>{q.title}</CardTitle>
-                  <Badge variant={page.total > 0 ? "primary" : "neutral"}>{page.total}</Badge>
-                </div>
-                <p className="mt-1 text-sm text-neutral-600">{q.description}</p>
-              </div>
-              {page.total > 0 && (
-                <Link
-                  href={queueHref(q.key)}
-                  className={cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing)}
-                >
-                  {page.total > page.items.length ? `View all ${page.total}` : "Open queue"}
-                </Link>
-              )}
-            </div>
+      <Section
+        id="my-work"
+        title="My work"
+        description="Assigned to you: returned by an administrator, and under your review."
+        actions={
+          <>
+            <ViewAll page={pages.returned_by_admin} assigned="me" label="All returned to you" />
+            <ViewAll page={pages.under_review} assigned="me" label="All under your review" />
+          </>
+        }
+      >
+        <Card className="overflow-hidden p-0">
+          <QueueTable
+            items={myWork}
+            caption="My work: applications assigned to you"
+            emptyMessage="Nothing assigned to you right now."
+            showAssignment={false}
+          />
+        </Card>
+      </Section>
 
-            {page.items.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <Inbox className="h-7 w-7 text-neutral-300" aria-hidden="true" />
-                <p className="text-sm text-neutral-600">{q.emptyMessage}</p>
-              </div>
-            ) : (
-              <ul className="mt-3 flex flex-col divide-y divide-neutral-100">
-                {page.items.map((item) => (
-                  <QueueItemRow key={item.id} item={item} showStatus={multiStatus} />
-                ))}
-              </ul>
-            )}
-          </Card>
-        );
-      })}
+      <Section
+        id="available"
+        title="Available to claim"
+        description="New applications. Open one to review it and claim it."
+        actions={<ViewAll page={pages.awaiting_review} assigned="any" />}
+      >
+        <Card className="overflow-hidden p-0">
+          <QueueTable
+            items={pages.awaiting_review.items}
+            caption="New applications available to claim"
+            emptyMessage={queueDefinition("awaiting_review").emptyMessage}
+          />
+        </Card>
+      </Section>
+
+      <Section
+        id="waiting"
+        title="Waiting"
+        description="With the customer or an administrator. Nothing to do until they respond."
+      >
+        <div className="grid gap-6 2xl:grid-cols-2 2xl:items-start">
+          {(["customer_action_required", "sent_to_admin"] as const).map((key) => {
+            const page = pages[key];
+            const definition = queueDefinition(key);
+            const headingId = `waiting-${key}`;
+            return (
+              <section key={key} aria-labelledby={headingId} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 id={headingId} className="text-sm font-semibold text-neutral-700">
+                    {definition.summaryLabel}
+                  </h3>
+                  <ViewAll page={page} assigned="any" />
+                </div>
+                <Card className="overflow-hidden p-0 shadow-none">
+                  <QueueTable items={page.items} caption={definition.summaryLabel} emptyMessage={definition.emptyMessage} />
+                </Card>
+              </section>
+            );
+          })}
+        </div>
+      </Section>
     </div>
   );
 }

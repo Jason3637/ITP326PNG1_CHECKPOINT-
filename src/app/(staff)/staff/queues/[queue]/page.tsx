@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Inbox } from "lucide-react";
-import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { QueueItemRow } from "@/components/staff/QueueItemRow";
+import { Card } from "@/components/ui/Card";
+import { CompactEmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { QueueTable } from "@/components/staff/QueueTable";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
+import { getOfficerQueueCounts } from "@/lib/officer-queue-counts";
 import {
   ASSIGNMENT_FILTERS,
   isOfficerQueue,
@@ -14,7 +16,7 @@ import {
   queueHref,
 } from "@/lib/officer-queues";
 import { cn, focusRing } from "@/lib/utils";
-import type { QueuePage } from "@/lib/types";
+import type { QueueAssignmentFilter, QueueCount, QueuePage } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -28,9 +30,25 @@ interface PageProps {
 
 const linkClass = cn("rounded text-sm font-medium text-primary hover:text-primary-dark", focusRing);
 
+// How many of the queue each assignment filter holds, from GET
+// /officer/queues - the same backend counts as the nav, read once per request.
+function filterCount(count: QueueCount | undefined, filter: QueueAssignmentFilter): number | undefined {
+  if (!count) return undefined;
+  return filter === "me" ? count.mine : filter === "unassigned" ? count.unassigned : count.total;
+}
+
 // One full work queue, oldest submission first (the backend's order), 25
 // per page. Filters and paging live in the URL so a filtered view can be
 // refreshed, bookmarked or shared between officers.
+//
+// Every queue keeps all three assignment filters. The backend makes each
+// meaningful everywhere: an administrator can assign a new application
+// before anyone claims it (so "Assigned to me" can hold new ones), and an
+// officer's account being removed leaves their applications unassigned in
+// any later stage (assigned_officer_id ondelete SET NULL). Each filter shows
+// how many it holds instead, so an empty one is obvious before it's chosen.
+// There's no search: the backend has none, and searching only the loaded
+// page would silently miss matches on the others.
 export default async function QueuePageView({ params, searchParams }: PageProps) {
   const { queue } = await params;
   if (!isOfficerQueue(queue)) notFound();
@@ -51,35 +69,40 @@ export default async function QueuePageView({ params, searchParams }: PageProps)
     throw err;
   }
 
-  const multiStatus = data.statuses.length > 1;
+  // Optional: without it the filters just show no counts.
+  let count: QueueCount | undefined;
+  try {
+    count = (await getOfficerQueueCounts()).queues[queue];
+  } catch {
+    count = undefined;
+  }
+
   const first = data.total === 0 ? 0 : (data.page - 1) * data.per_page + 1;
   const last = Math.min(data.page * data.per_page, data.total);
+  const activeFilter = ASSIGNMENT_FILTERS.find((f) => f.value === assigned)!;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Link href="/staff" className={cn("inline-flex w-fit items-center gap-1", linkClass)}>
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to dashboard
-      </Link>
+    <div data-page-width="wide" className="flex flex-col gap-4">
+      <PageHeader
+        back={{ href: "/staff", label: "Back to dashboard" }}
+        title={definition.title}
+        meta={<Badge variant={data.total > 0 ? "primary" : "neutral"}>{data.total}</Badge>}
+        description={definition.description}
+      />
 
-      <Card className="px-2 sm:px-5">
-        <div className="px-3 sm:px-0">
-          <div className="flex items-center gap-2">
-            <CardTitle>{definition.title}</CardTitle>
-            <Badge variant={data.total > 0 ? "primary" : "neutral"}>{data.total}</Badge>
-          </div>
-          <p className="mt-1 text-sm text-neutral-600">{definition.description}</p>
-
-          <nav aria-label="Filter by assignment" className="mt-4 flex flex-wrap gap-2">
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3 sm:px-5">
+          <nav aria-label="Filter by assignment" className="flex flex-wrap gap-2">
             {ASSIGNMENT_FILTERS.map((f) => {
               const active = f.value === assigned;
+              const n = filterCount(count, f.value);
               return (
                 <Link
                   key={f.value}
                   href={queueHref(queue, { assigned: f.value })}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium",
+                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium",
                     focusRing,
                     active
                       ? "border-primary bg-primary-light text-primary-dark"
@@ -87,43 +110,45 @@ export default async function QueuePageView({ params, searchParams }: PageProps)
                   )}
                 >
                   {f.label}
+                  {n !== undefined && (
+                    <>
+                      <span aria-hidden="true" className={cn("tabular-nums", n === 0 && !active && "text-neutral-400")}>
+                        {n}
+                      </span>
+                      <span className="sr-only">, {n === 1 ? "1 application" : `${n} applications`}</span>
+                    </>
+                  )}
                 </Link>
               );
             })}
           </nav>
+          {data.total > 0 && (
+            <p className="text-sm text-neutral-600 tabular-nums">
+              {first}–{last} of {data.total}
+            </p>
+          )}
         </div>
 
-        {data.items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center">
-            <Inbox className="h-7 w-7 text-neutral-300" aria-hidden="true" />
-            <p className="text-sm text-neutral-600">
-              {data.total > 0
-                ? "No applications on this page."
-                : assigned === "any"
-                  ? definition.emptyMessage
-                  : "No applications match this filter."}
-            </p>
-            {data.total > 0 && (
-              <Link href={queueHref(queue, { assigned })} className={linkClass}>
-                Go to the first page
-              </Link>
-            )}
-          </div>
+        {data.items.length === 0 && data.total > 0 ? (
+          <CompactEmptyState className="m-4" action={<Link href={queueHref(queue, { assigned })} className={linkClass}>Go to the first page</Link>}>
+            No applications on this page.
+          </CompactEmptyState>
         ) : (
-          <ul className="mt-3 flex flex-col divide-y divide-neutral-100">
-            {data.items.map((item) => (
-              <QueueItemRow key={item.id} item={item} showStatus={multiStatus} />
-            ))}
-          </ul>
+          <QueueTable
+            items={data.items}
+            caption={`${definition.title}, ${activeFilter.label.toLowerCase()}`}
+            emptyMessage={assigned === "any" ? definition.emptyMessage : "No applications match this filter."}
+            className={data.items.length === 0 ? "m-4" : undefined}
+          />
         )}
 
         {data.pages > 1 && (
           <nav
             aria-label="Pagination"
-            className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 px-3 pt-4 sm:px-0"
+            className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 px-4 py-3 sm:px-5"
           >
             <p className="text-sm text-neutral-600">
-              {first}–{last} of {data.total}
+              Page {data.page} of {data.pages}
             </p>
             <div className="flex items-center gap-4">
               {data.page > 1 && (
@@ -131,9 +156,6 @@ export default async function QueuePageView({ params, searchParams }: PageProps)
                   Previous
                 </Link>
               )}
-              <span className="text-sm text-neutral-600">
-                Page {data.page} of {data.pages}
-              </span>
               {data.page < data.pages && (
                 <Link href={queueHref(queue, { assigned, page: data.page + 1 })} className={linkClass}>
                   Next

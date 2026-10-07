@@ -15,7 +15,7 @@ function current() {
 }
 
 describe("staff sidebar highlighting", () => {
-  it("lists every queue under Overview, with the dashboard's labels", () => {
+  it("lists every queue, with the dashboard's labels", () => {
     pathname = "/staff";
     render(<Sidebar variant="staff" />);
     expect(staffQueueNavItems.map((q) => q.label)).toEqual([

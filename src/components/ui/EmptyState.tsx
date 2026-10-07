@@ -38,3 +38,10 @@ export function EmptyState({ icon: Icon = Inbox, title, children, action, size =
     </div>
   );
 }
+
+// The one-line "nothing here" for a section inside a busier page - a queue
+// preview, an empty panel in a review screen. EmptyState's "sm" size under
+// a name of its own, so a screen can't drift into the large centred one.
+export function CompactEmptyState(props: Omit<EmptyStateProps, "size">) {
+  return <EmptyState {...props} size="sm" />;
+}

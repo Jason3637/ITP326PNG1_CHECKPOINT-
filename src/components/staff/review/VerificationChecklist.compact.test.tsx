@@ -181,9 +181,8 @@ describe("compact verification checklist", () => {
     expect(screen.getByText("“Phone disconnected.”")).toBeInTheDocument();
   });
 
-  it("opens the request-more-information panel from its header and focuses the first field", async () => {
+  it("opens the request-more-information dialog from its header and focuses the first field", async () => {
     const user = userEvent.setup();
-    Element.prototype.scrollIntoView = vi.fn();
     render(
       <>
         <VerificationChecklist
@@ -192,14 +191,14 @@ describe("compact verification checklist", () => {
           editable
           lockedReason="Locked."
           variant="compact"
-          requestInformationTargetId="request-information"
+          offerRequestInformation
         />
         <RequestInformationForm applicationId={8} id="request-information" />
       </>,
     );
     expect(screen.queryByLabelText("Request type")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Request more information" }));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Request more information" })).toHaveAttribute("open");
     expect(screen.getByLabelText("Request type")).toHaveFocus();
   });
 

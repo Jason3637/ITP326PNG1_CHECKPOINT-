@@ -147,8 +147,9 @@ describe("Application Review workspace", () => {
     mockBackend(rawReview());
     await renderPage();
     for (const heading of ["Verification checklist", "Request more information", "Recommendation", "Information requests", "Customer", "Documents & referees", "Application", "Credit notes"]) {
-      // Panels in tabs other than the open one are mounted but hidden.
-      expect(screen.getByRole("heading", { name: heading, hidden: true })).toBeInTheDocument();
+      // Panels in tabs other than the open one are mounted but hidden (and
+      // the request dialog's own title is in the page while it's closed).
+      expect(screen.getAllByRole("heading", { name: heading, hidden: true }).length).toBeGreaterThan(0);
     }
     // Customer history is in the History tab itself now (the standalone
     // /customer-history page still exists).
@@ -186,7 +187,10 @@ describe("Application Review workspace", () => {
   });
 
   it("confirms a sent information request", async () => {
-    mockBackend(rawReview({ status: "customer_action_required", allowed_actions: ["update_checklist"] }));
+    // As the backend has it right after a send: the round's request is open.
+    const review = rawReview({ status: "customer_action_required", allowed_actions: ["update_checklist"] });
+    review.information_requests[0] = { ...review.information_requests[0], status: "open", response: null as never };
+    mockBackend(review);
     await renderPage({ requested: "2" });
     expect(screen.getByRole("status")).toHaveTextContent("2 requests sent to the customer.");
     expect(screen.getByRole("status")).toHaveTextContent("now waiting on the customer");
@@ -361,19 +365,58 @@ describe("workspace structure", () => {
     expect(screen.getByText("No officer is assigned")).toBeInTheDocument();
   });
 
-  it("puts what needs attention at the top of Overview: a return, problems, open requests", async () => {
+  it("puts what needs attention at the top of Overview: a return and problems", async () => {
     const review = rawReview({ status: "returned_to_officer", allowed_actions: ["resume_review"] });
     review.admin_returns = [
       { id: 1, recommendation_id: null, returned_by: 5, returned_by_name: "Ada Admin", reason: "Re-check the referee.", created_at: "2026-09-27T00:00:00+00:00" },
     ] as never;
     review.checklist.items[0] = { ...review.checklist.items[0], status: "failed", note: "Expired." } as never;
-    review.information_requests[0] = { ...review.information_requests[0], status: "open", response: null as never };
     mockBackend(review);
     await renderPage();
     expect(screen.getByText("Returned by Ada Admin")).toBeInTheDocument();
     expect(screen.getByText("Re-check the referee.")).toBeInTheDocument();
     expect(screen.getByText("Problem found: 1 check")).toBeInTheDocument();
-    expect(screen.getByText("1 open information request")).toBeInTheDocument();
+  });
+
+  it("shows the waiting-on-customer banner above the tabs, with the round, when, by whom and what", async () => {
+    const review = rawReview({ status: "customer_action_required", allowed_actions: ["update_checklist", "resume_review"] });
+    review.information_requests = [
+      { ...review.information_requests[0], status: "responded" },
+      { ...review.information_requests[0], id: 9, requested_at: "2026-09-27T00:00:00+00:00", status: "open", response: null as never, request_type: "employment_confirmation", required_document_type: null, required_information: "Employer's phone number" },
+      { ...review.information_requests[0], id: 10, requested_at: "2026-09-27T00:00:00+00:00", status: "open", response: null as never, request_type: "other", required_document_type: null },
+    ] as never;
+    mockBackend(review);
+    const { container } = await renderPage();
+    const banner = container.querySelector("[data-workflow-banner=waiting]")!;
+    expect(banner.compareDocumentPosition(screen.getByRole("tablist")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(banner as HTMLElement).getByText("Waiting on the customer · Round 2")).toBeInTheDocument();
+    expect(banner).toHaveTextContent(/Requested Sep 27, 2026.* by Olive Officer · 2 of 2 still open/);
+    expect(banner).toHaveTextContent("Employment confirmation needed - Provide: Employer's phone number");
+    expect(banner).toHaveTextContent(/recommendation can be sent once the customer responds/);
+    expect(container.querySelector("[data-workflow-banner=responded]")).toBeNull();
+  });
+
+  it("says the review can continue once the customer has responded - until something is recommended", async () => {
+    mockBackend(rawReview()); // officer_review, the one round answered
+    const view = await renderPage();
+    const banner = view.container.querySelector("[data-workflow-banner=responded]")!;
+    expect(banner).toHaveTextContent(/The customer responded - review can continue.*Round 1 answered Sep 25, 2026/);
+    view.unmount();
+
+    const later = rawReview();
+    later.recommendations = [
+      { id: 1, officer_name: "Olive Officer", recommendation: "recommend_approval", comments: "Good.", checklist_snapshot: [], created_at: "2026-09-26T00:00:00+00:00" },
+    ] as never;
+    mockBackend(later);
+    const { container } = await renderPage();
+    expect(container.querySelector("[data-workflow-banner]")).toBeNull();
+  });
+
+  it("offers Request more information in the header, one click from any tab", async () => {
+    mockBackend(rawReview());
+    await renderPage({ tab: "credit" });
+    const header = screen.getByRole("heading", { level: 2, name: /^Application #8/ }).closest("header")!;
+    expect(within(header).getByRole("button", { name: "Request more information" })).toHaveAttribute("aria-haspopup", "dialog");
   });
 
   it("reads customer history through the application, and says when it isn't available", async () => {

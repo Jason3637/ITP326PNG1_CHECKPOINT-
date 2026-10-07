@@ -7,6 +7,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { RequestInformationButton } from "./RequestInformationButton";
 import { updateChecklistItem } from "@/lib/actions/checklist";
 import {
   CHECKLIST_STATUSES,
@@ -20,7 +21,6 @@ import {
   type EvidenceDraft,
 } from "@/lib/checklist";
 import { ageFromDob, formatDob, formatReviewDate, formatReviewDateTime } from "@/lib/application-review";
-import { REQUEST_INFORMATION_OPEN_EVENT } from "@/lib/information-requests";
 import { statusPresentation } from "@/lib/status-presentation";
 import { cn } from "@/lib/utils";
 import type { ChecklistItemStatus, ReviewChecklist, ReviewChecklistItem } from "@/lib/types";
@@ -469,10 +469,9 @@ interface VerificationChecklistProps {
   idDocuments?: IdDocumentOption[];
   // See ChecklistVariant. The administrator's page keeps "default".
   variant?: ChecklistVariant;
-  // Compact only: the request-more-information panel's id. When given, the
-  // header offers "Request more information", which scrolls to it and
-  // asks it to open (REQUEST_INFORMATION_OPEN_EVENT).
-  requestInformationTargetId?: string;
+  // Compact only: offer "Request more information" in the header (opens the
+  // request dialog - RequestInformationButton). Only when the backend allows it.
+  offerRequestInformation?: boolean;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -484,7 +483,7 @@ export function VerificationChecklist({
   lockedReason,
   idDocuments = [],
   variant = "default",
-  requestInformationTargetId,
+  offerRequestInformation = false,
 }: VerificationChecklistProps) {
   const router = useRouter();
   const [checklist, setChecklist] = useState(initial);
@@ -528,19 +527,7 @@ export function VerificationChecklist({
       <Card className="@container">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <CardTitle>Verification checklist</CardTitle>
-          {requestInformationTargetId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                document.getElementById(requestInformationTargetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                window.dispatchEvent(new Event(REQUEST_INFORMATION_OPEN_EVENT));
-              }}
-            >
-              <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
-              Request more information
-            </Button>
-          )}
+          {offerRequestInformation && <RequestInformationButton />}
         </div>
         {checklist.started && (
           <p className="mt-1 text-sm text-neutral-600">

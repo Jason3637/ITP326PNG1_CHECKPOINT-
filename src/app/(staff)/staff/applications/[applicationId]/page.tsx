@@ -16,7 +16,9 @@ import { HistoryTab } from "@/components/staff/review/workspace/HistoryTab";
 import type { HistoryResult } from "@/components/staff/review/workspace/history-result";
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
 import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
-import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
+import { RequestInformationButton } from "@/components/staff/review/RequestInformationButton";
+import { RequestRounds } from "@/components/staff/review/workspace/RequestRounds";
+import { WorkflowBanner } from "@/components/staff/review/workspace/WorkflowBanner";
 import { RecommendationForm } from "@/components/staff/review/RecommendationForm";
 import { ReviewWorkflowPanel } from "@/components/staff/review/ReviewWorkflowPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
@@ -48,7 +50,7 @@ function parseTab(value: string | string[] | undefined): TabId {
 const HEADING_ID = "workspace-heading";
 // The action column, for the header's jump link below xl.
 const ACTIONS_ID = "actions";
-// The request-more-information panel, opened from the checklist's header.
+// The request-more-information panel in the action column.
 const REQUEST_INFORMATION_ID = "request-information";
 
 // Stages where an assigned officer works the application.
@@ -198,12 +200,6 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
         {failedItems.map((i) => i.label).join(", ")}. See the Verification tab.
       </Alert>
     ),
-    openRequests.length > 0 && (
-      <Alert key="requests" tone="warning" title={`${plural(openRequests.length, "open information request")}`}>
-        Waiting on the customer since {formatReviewDateTime(openRequests[0].requested_at) ?? "the last request"}. The
-        rounds are in the Verification tab.
-      </Alert>
-    ),
     !customer.is_active && (
       <Alert key="disabled" tone="danger" role="note" title="The customer's account is disabled">
         See the customer details below.
@@ -304,7 +300,7 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
         initial={pickChecklist(checklist)}
         editable={canEditChecklist}
         variant="compact"
-        requestInformationTargetId={canRequestInformation ? REQUEST_INFORMATION_ID : undefined}
+        offerRequestInformation={canRequestInformation}
         lockedReason={checklistLockedReason({
           started: checklist.started,
           status: application.status,
@@ -312,7 +308,7 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           officerName: assignment.officer_name,
         })}
       />
-      <RequestHistoryPanel requests={review.information_requests} />
+      <RequestRounds requests={review.information_requests} />
     </div>
   );
 
@@ -384,9 +380,13 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           }
           actions={
             hasActions && (
-              <a href={`#${ACTIONS_ID}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "xl:hidden" })}>
-                Your actions
-              </a>
+              <>
+                {/* One click from any tab: opens the request dialog. */}
+                {canRequestInformation && <RequestInformationButton />}
+                <a href={`#${ACTIONS_ID}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "xl:hidden" })}>
+                  Your actions
+                </a>
+              </>
             )
           }
         />
@@ -418,12 +418,6 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
         </div>
       )}
 
-      {justRequested !== null && application.status === "customer_action_required" && (
-        <Alert tone="success" title={justRequested === 1 ? "Request sent to the customer." : `${justRequested} requests sent to the customer.`}>
-          Application #{application.id} is now waiting on the customer. It comes back to you under review once they respond.
-        </Alert>
-      )}
-
       {justRecommended &&
         ["recommended_for_approval", "recommended_for_rejection", "admin_review"].includes(application.status) && (
           <Alert
@@ -438,6 +432,16 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
             {RECOMMENDATION_COPY.sentBody(application.id)}
           </Alert>
         )}
+
+      <WorkflowBanner
+        applicationId={application.id}
+        status={application.status}
+        requests={review.information_requests}
+        recommendations={review.recommendations}
+        // The sent-request confirmation, shown only once the application
+        // really is waiting (a forged ?requested= shows nothing).
+        justSent={application.status === "customer_action_required" ? justRequested : null}
+      />
 
       <ReviewWorkflowPanel
         applicationId={application.id}

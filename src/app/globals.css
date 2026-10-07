@@ -164,6 +164,23 @@
  */
 @custom-variant comfortable (&:where([data-density="comfortable"] *));
 
+/*
+ * Touch targets. Inside a frame marked data-touch-targets (the officer
+ * workspace), on a touch screen every control is at least 44 x 44px.
+ * min-height doesn't apply to inline elements, so a link in running text
+ * keeps its line (WCAG 2.5.5 exempts those). In the base layer, so a
+ * component's own min-h-* / min-w-* still wins.
+ */
+@layer base {
+  @media (pointer: coarse) {
+    [data-touch-targets]
+      :where(a[href], button, summary, select, [role="tab"], label:has(> input.sr-only), input:not([type="checkbox"], [type="radio"], .sr-only)) {
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+    }
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

@@ -214,7 +214,8 @@ export function RecommendationForm({
                 className={cn(
                   "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-left has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary",
                   active ? "border-primary bg-primary-light" : "border-neutral-200 hover:bg-neutral-50",
-                  blocked && "opacity-60",
+                  // Blocked: dashed and greyed by fill, not opacity, so its text keeps AA contrast.
+                  blocked && !active && "border-dashed bg-neutral-50",
                 )}
               >
                 <input

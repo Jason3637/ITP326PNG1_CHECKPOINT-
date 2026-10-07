@@ -102,8 +102,8 @@ export function QueueTable({ items, caption, emptyMessage, showAssignment = true
   const td = "px-3 py-3 align-top first:pl-5 last:pr-5";
 
   return (
-    <div className={className}>
-      <table className="hidden w-full text-sm md:table">
+    <div className={cn("@container", className)}>
+      <table className="hidden w-full text-sm @4xl:table">
         <caption className="sr-only">{caption}</caption>
         <thead className="border-b border-neutral-200 bg-neutral-50">
           <tr>
@@ -183,7 +183,7 @@ export function QueueTable({ items, caption, emptyMessage, showAssignment = true
         </tbody>
       </table>
 
-      <ul className="divide-y divide-neutral-100 md:hidden" aria-label={caption}>
+      <ul className="divide-y divide-neutral-100 @4xl:hidden" aria-label={caption}>
         {rows.map(({ item, action, href, purpose, age, submitted, customer }) => (
           <li key={item.id}>
             <Link href={href} className={cn("flex items-start gap-3 px-4 py-3 hover:bg-neutral-50", focusRing)}>

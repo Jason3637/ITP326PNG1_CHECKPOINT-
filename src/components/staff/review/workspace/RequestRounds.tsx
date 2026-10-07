@@ -83,7 +83,7 @@ export function RequestRounds({ requests }: { requests: ReviewInformationRequest
             const n = latest - i;
             return (
               <li key={round.requestedAt ?? n} className="relative">
-                <span className="absolute -left-[23px] top-3 h-3 w-3 rounded-full border-2 border-white bg-neutral-400" aria-hidden="true" />
+                <span className="absolute -left-5.75 top-3 h-3 w-3 rounded-full border-2 border-white bg-neutral-400" aria-hidden="true" />
                 {i === 0 ? (
                   <div className="rounded-lg border border-neutral-200 p-3 sm:p-4">
                     <RoundHeader round={round} n={n} />
@@ -92,7 +92,7 @@ export function RequestRounds({ requests }: { requests: ReviewInformationRequest
                 ) : (
                   <details className="group rounded-lg border border-neutral-200">
                     <summary className="flex cursor-pointer items-start gap-2 rounded-lg p-3 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4">
-                      <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />
+                      <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden="true" />
                       <RoundHeader round={round} n={n} />
                     </summary>
                     <div className="border-t border-neutral-100 px-3 pb-3 sm:px-4">

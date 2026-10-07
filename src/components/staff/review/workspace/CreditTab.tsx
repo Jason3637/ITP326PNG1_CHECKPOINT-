@@ -33,7 +33,7 @@ function Disclosure({ title, children }: { title: string; children: React.ReactN
   return (
     <details className="group rounded-lg border border-neutral-200">
       <summary className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-        <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden="true" />
         {title}
       </summary>
       <div className="border-t border-neutral-100 px-3 py-3">{children}</div>

@@ -57,6 +57,7 @@ export function PortalShell({
         sidebar={<Sidebar variant="staff" officerCounts={officerCounts} />}
         menu={<OfficerNavDrawer counts={officerCounts} />}
         skipLink
+        touchTargets
       >
         {children}
       </WorkspaceFrame>
@@ -89,7 +90,8 @@ const MAIN_ID = "main-content";
 // density="comfortable" makes buttons and fields inside 44px (globals.css) -
 // the admin area's choice; the officer pages keep their own sizes until
 // they're redesigned. skipLink adds a "Skip to content" link as the first
-// thing to tab to, and makes <main> its target.
+// thing to tab to, and makes <main> its target. touchTargets makes every
+// control in the frame at least 44px on a touch screen (globals.css).
 function WorkspaceFrame({
   fullName,
   homeHref,
@@ -99,6 +101,7 @@ function WorkspaceFrame({
   menu,
   density,
   skipLink = false,
+  touchTargets = false,
   children,
 }: {
   fullName: string;
@@ -109,10 +112,11 @@ function WorkspaceFrame({
   menu: React.ReactNode;
   density?: "comfortable";
   skipLink?: boolean;
+  touchTargets?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-neutral-50">
+    <div className="flex min-h-screen bg-neutral-50" data-touch-targets={touchTargets || undefined}>
       {skipLink && (
         <a
           href={`#${MAIN_ID}`}

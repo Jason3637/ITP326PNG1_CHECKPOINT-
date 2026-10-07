@@ -9,7 +9,7 @@ import { awaitedDocumentTypes, documentProvenance, replacementOf, type DocumentP
 import { ID_DOCUMENT_TYPES } from "@/lib/loan-wizard";
 import { statusPresentation } from "@/lib/status-presentation";
 import { cn } from "@/lib/utils";
-import { sectionHeading, table, tableWrap, td, th } from "./table";
+import { scrollRegion, sectionHeading, table, tableWrap, td, th } from "./table";
 import type { DocumentType, Referee, ReviewChecklistItem, ReviewDocument, ReviewInformationRequest } from "@/lib/types";
 
 interface DocumentsTabProps {
@@ -76,7 +76,7 @@ function DocumentTable({
   caption: string;
 }) {
   return (
-    <div className={tableWrap}>
+    <div className={tableWrap} {...scrollRegion(caption)}>
       <table className={table}>
         <caption className="sr-only">{caption}</caption>
         <thead>
@@ -227,7 +227,7 @@ export function DocumentsTab({
         {referees.length === 0 ? (
           <CompactEmptyState>No referees on this application.</CompactEmptyState>
         ) : (
-          <div className={tableWrap}>
+          <div className={tableWrap} {...scrollRegion("Referees")}>
             <table className={table}>
               <caption className="sr-only">Referees</caption>
               <thead>
@@ -269,11 +269,11 @@ export function DocumentsTab({
         ) : (
           <details open={historyOpen} className="group rounded-lg border border-neutral-200">
             <summary className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" aria-hidden="true" />
+              <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90 motion-reduce:transition-none" aria-hidden="true" />
               {earlierVersions.length === 1 ? "1 earlier version" : `${earlierVersions.length} earlier versions`}
               <span className="font-normal text-neutral-600">- replaced by a newer upload, kept for the record</span>
             </summary>
-            <div className={cn(tableWrap, "px-3 pb-2")}>
+            <div className={cn(tableWrap, "px-3 pb-2")} {...scrollRegion("Earlier versions")}>
               <table className={table}>
                 <caption className="sr-only">Earlier versions</caption>
                 <thead>

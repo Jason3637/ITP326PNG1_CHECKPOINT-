@@ -9,7 +9,7 @@ import { loanStatusLabel, loanStatusTone, plural } from "@/lib/customer-history"
 import { formatPlainDate } from "@/lib/penalties";
 import { statusPresentation } from "@/lib/status-presentation";
 import { cn, formatKina } from "@/lib/utils";
-import { num, sectionHeading, table, tableWrap, td, th } from "./table";
+import { num, scrollRegion, sectionHeading, table, tableWrap, td, th } from "./table";
 import type { HistoryResult } from "./history-result";
 import type { CustomerHistory, ReviewAdminReturn, ReviewRecommendation } from "@/lib/types";
 
@@ -145,7 +145,7 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
                 {formatKina(penalties.total_charged ?? penaltyItems.reduce((sum, i) => sum + i.amount, 0))} charged across{" "}
                 {plural(penaltyItems.length, "penalty", "penalties")}
               </p>
-              <div className={tableWrap}>
+              <div className={tableWrap} {...scrollRegion("Penalties")}>
                 <table className={table}>
                   <caption className="sr-only">Penalties</caption>
                   <Headers cols={["Loan", "Applied", "Reason", ["Amount", "num"]]} />
@@ -172,7 +172,7 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
         {history.previous_applications.length === 0 ? (
           <CompactEmptyState>This is the customer&apos;s first application.</CompactEmptyState>
         ) : (
-          <div className={tableWrap}>
+          <div className={tableWrap} {...scrollRegion("Previous applications")}>
             <table className={table}>
               <caption className="sr-only">Previous applications</caption>
               <Headers cols={["Application", "Dates", ["Amount", "num"], "PRIME", "Status", "Loan"]} />
@@ -207,7 +207,7 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
         {history.loans.length === 0 ? (
           <CompactEmptyState>No previous loans.</CompactEmptyState>
         ) : (
-          <div className={tableWrap}>
+          <div className={tableWrap} {...scrollRegion("Loans")}>
             <table className={table}>
               <caption className="sr-only">Loans</caption>
               <Headers cols={["Loan", "Dates", ["Borrowed", "num"], ["Paid / to repay", "num"], ["Outstanding", "num"]]} />

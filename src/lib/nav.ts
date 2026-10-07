@@ -12,11 +12,16 @@ import {
   CalendarRange,
   CalendarX,
   ReceiptText,
+  Inbox,
+  FileSearch,
+  Hourglass,
+  Send,
+  Undo2,
   type LucideIcon,
 } from "lucide-react";
-import { OFFICER_QUEUES } from "./officer-queues";
+import { OFFICER_QUEUES, queueHref } from "./officer-queues";
 import { adminQueueDefinition, adminQueueHref } from "./admin-queues";
-import type { AdminQueue } from "./types";
+import type { AdminQueue, OfficerQueue } from "./types";
 
 export interface NavItem {
   href: string;
@@ -40,6 +45,55 @@ export const navItems: NavItem[] = [
 // Loan Officer area. Only lists routes that exist - tabs are added as each
 // staff screen is built, never as placeholders that 404.
 export const staffNavItems: NavItem[] = [{ href: "/staff", label: "Overview", icon: LayoutDashboard }];
+
+// ---- Loan Officer workspace ---------------------------------------------------
+// Overview on its own, then the five work queues grouped under
+// "Applications". The same destinations as staffNavItems +
+// staffQueueNavItems (below) - only the presentation differs. Labels and
+// URLs come from OFFICER_QUEUES, so they can't drift from the dashboard's.
+
+export interface OfficerNavItem extends NavItem {
+  // The queue whose total (GET /officer/queues) shows beside the item.
+  queue?: OfficerQueue;
+}
+
+export interface OfficerNavSection {
+  // null: the ungrouped top item (Overview).
+  label: string | null;
+  items: OfficerNavItem[];
+}
+
+const OFFICER_QUEUE_ICONS: Record<OfficerQueue, LucideIcon> = {
+  awaiting_review: Inbox,
+  under_review: FileSearch,
+  customer_action_required: Hourglass,
+  sent_to_admin: Send,
+  returned_by_admin: Undo2,
+};
+
+export const officerNavSections: OfficerNavSection[] = [
+  { label: null, items: [{ href: "/staff", label: "Overview", icon: LayoutDashboard }] },
+  {
+    label: "Applications",
+    items: OFFICER_QUEUES.map((q) => ({
+      href: queueHref(q.key),
+      label: q.summaryLabel,
+      icon: OFFICER_QUEUE_ICONS[q.key],
+      queue: q.key,
+    })),
+  },
+];
+
+// Queue totals for the officer nav. Plain numbers, so the server layout can
+// hand them to the client nav.
+export type OfficerNavCounts = Partial<Record<OfficerQueue, number>>;
+
+// Exactly one item is current: a queue on its own page; Overview on every
+// other staff page (dashboard, review, customer history) - the same rule as
+// before (isTopNavItemActive).
+export function isOfficerNavItemActive(pathname: string, href: string): boolean {
+  return href === "/staff" ? isTopNavItemActive(pathname, href, "staff") : isNavItemActive(pathname, href);
+}
 
 // ---- Administrator area -----------------------------------------------------
 // Grouped by the work: decide and pay out applications, watch loans, check

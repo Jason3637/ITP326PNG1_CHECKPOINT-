@@ -56,7 +56,7 @@ export default async function QueuePageView({ params, searchParams }: PageProps)
   const last = Math.min(data.page * data.per_page, data.total);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div data-page-width="wide" className="flex flex-col gap-4">
       <Link href="/staff" className={cn("inline-flex w-fit items-center gap-1", linkClass)}>
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to dashboard

@@ -51,10 +51,44 @@ describe("staff layout guard (authoritative, from /auth/me)", () => {
     expect(screen.getByText("staff content")).toBeInTheDocument();
     expect(screen.getByText("Loan Officer")).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Overview/ }).length).toBeGreaterThan(0);
-    // Staff nav only - nothing in the shell points into the customer area.
-    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    // Staff nav only - nothing in the shell points into the customer area
+    // (the skip link is an in-page "#main-content" anchor).
+    const hrefs = screen
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"))
+      .filter((h) => !h?.startsWith("#"));
     expect(hrefs.length).toBeGreaterThan(0);
     expect(hrefs.every((h) => h?.startsWith("/staff"))).toBe(true);
+  });
+
+  it("shows each queue's total from GET /officer/queues in the nav, and carries on without them if that fails", async () => {
+    const total = (n: number) => ({ total: n, mine: 0, unassigned: 0 });
+    serverApiFetch.mockImplementation(async (path: string) =>
+      path === "/officer/queues"
+        ? {
+            queues: {
+              awaiting_review: total(2),
+              under_review: total(1),
+              customer_action_required: total(0),
+              sent_to_admin: total(4),
+              returned_by_admin: total(0),
+            },
+            definitions: {},
+          }
+        : me("loan_officer"),
+    );
+    const { unmount } = render(await StaffLayout({ children: null }));
+    expect(serverApiFetch).toHaveBeenCalledWith("/officer/queues");
+    expect(screen.getAllByRole("link", { name: "New Applications, 2 applications" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Under Review, 1 application" }).length).toBeGreaterThan(0);
+    unmount();
+
+    serverApiFetch.mockImplementation(async (path: string) => {
+      if (path === "/officer/queues") throw new ApiError(500, "boom");
+      return me("loan_officer");
+    });
+    render(await StaffLayout({ children: null }));
+    expect(screen.getAllByRole("link", { name: "New Applications" }).length).toBeGreaterThan(0);
   });
 
   it("sends an admin to their own area - the Loan Officer area is for loan officers", async () => {

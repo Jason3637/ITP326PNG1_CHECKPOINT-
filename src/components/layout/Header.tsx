@@ -21,17 +21,18 @@ interface HeaderProps {
   // Staff shell only: makes it obvious at a glance which portal you're in,
   // since both share the same chrome and brand tokens.
   roleLabel?: string;
-  // "admin": 64px tall, full width with the page's own side padding (so it
-  // lines up with the content however wide that is), and the logo left to
-  // the sidebar from lg up.
-  layout?: "default" | "admin";
-  // Before the logo - the admin area's menu button below lg.
+  // "admin" / "workspace" (the Loan Officer area - same frame): 64px tall,
+  // full width with the page's own side padding (so it lines up with the
+  // content however wide that is), and the logo left to the sidebar from
+  // lg up.
+  layout?: "default" | "admin" | "workspace";
+  // Before the logo - the workspace menu button below lg.
   menu?: React.ReactNode;
 }
 
 export function Header({ fullName, homeHref = "/dashboard", roleLabel, layout = "default", menu }: HeaderProps) {
   const firstName = fullName.split(" ")[0];
-  const admin = layout === "admin";
+  const admin = layout === "admin" || layout === "workspace";
 
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white">

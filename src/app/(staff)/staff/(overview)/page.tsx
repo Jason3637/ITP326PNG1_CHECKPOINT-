@@ -5,6 +5,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { QueueItemRow } from "@/components/staff/QueueItemRow";
 import { serverApiFetch, UnauthenticatedError } from "@/lib/server-api";
+import { getOfficerQueueCounts } from "@/lib/officer-queue-counts";
 import { OFFICER_QUEUES, queueHref } from "@/lib/officer-queues";
 import { cn, focusRing } from "@/lib/utils";
 import type { OfficerQueue, QueueCounts, QueuePage } from "@/lib/types";
@@ -31,7 +32,8 @@ export default async function StaffDashboardPage() {
   let pages: Record<OfficerQueue, QueuePage>;
   try {
     const [countsRes, ...pageRes] = await Promise.all([
-      serverApiFetch<QueueCounts>("/officer/queues"),
+      // Shared with the layout's nav counts - one read per request.
+      getOfficerQueueCounts(),
       ...OFFICER_QUEUES.map((q) => serverApiFetch<QueuePage>(`/officer/queues/${q.key}?per_page=${PREVIEW_SIZE}`)),
     ]);
     counts = countsRes;
@@ -42,7 +44,7 @@ export default async function StaffDashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div data-page-width="wide" className="flex flex-col gap-6">
       <section aria-labelledby="queue-summary-heading">
         <h2 id="queue-summary-heading" className="sr-only">
           Queue summary

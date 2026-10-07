@@ -14,7 +14,8 @@ import { CustomerPanel } from "@/components/staff/review/CustomerPanel";
 import { ApplicationPanel } from "@/components/staff/review/ApplicationPanel";
 import { DetailList, DetailRow } from "@/components/staff/review/DetailList";
 import { DocumentsTab } from "@/components/staff/review/workspace/DocumentsTab";
-import { CreditAdvisoryPanel } from "@/components/staff/review/CreditAdvisoryPanel";
+import { CreditTab } from "@/components/staff/review/workspace/CreditTab";
+import type { HistoryResult } from "@/components/staff/review/workspace/history-result";
 import { VerificationChecklist } from "@/components/staff/review/VerificationChecklist";
 import { RequestInformationForm } from "@/components/staff/review/RequestInformationForm";
 import { RequestHistoryPanel } from "@/components/staff/review/RequestHistoryPanel";
@@ -29,7 +30,7 @@ import { assignmentLabel, daysWaiting, purposeLabel, waitingLabel } from "@/lib/
 import { RECOMMENDATION_COPY, isRecommendationType, recommendationLabel } from "@/lib/recommendations";
 import { statusPresentation } from "@/lib/status-presentation";
 import { cn, focusRing, formatKina } from "@/lib/utils";
-import type { ApplicationReview, ReviewDocument } from "@/lib/types";
+import type { ApplicationReview, CustomerHistory, ReviewDocument } from "@/lib/types";
 
 // See (dashboard)/layout.tsx.
 export const dynamic = "force-dynamic";
@@ -132,16 +133,26 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
 
   // Earlier (superseded) versions: the review payload only carries current
   // documents. Failure here shouldn't take down the whole screen.
-  let earlierVersions: ReviewDocument[] | null;
-  try {
-    const all = await serverApiFetch<{ documents: ReviewDocument[] }>(
-      `/users/${customer.id}/documents?include_superseded=true`,
-    );
-    earlierVersions = relevantEarlierVersions(application.id, all.documents);
-  } catch (err) {
-    if (err instanceof UnauthenticatedError) redirect("/login");
-    earlierVersions = null;
+  //
+  // Customer history (the Credit tab's record figures, the History tab):
+  // the same endpoint the customer-history page reads. A 403 is the
+  // backend's rule - officers see it only while the application is under
+  // review - and isn't an error. Read alongside, not after.
+  const [docsRes, historyRes] = await Promise.allSettled([
+    serverApiFetch<{ documents: ReviewDocument[] }>(`/users/${customer.id}/documents?include_superseded=true`),
+    serverApiFetch<CustomerHistory>(`/officer/applications/${application.id}/customer-history`),
+  ]);
+  for (const r of [docsRes, historyRes]) {
+    if (r.status === "rejected" && r.reason instanceof UnauthenticatedError) redirect("/login");
   }
+  const earlierVersions: ReviewDocument[] | null =
+    docsRes.status === "fulfilled" ? relevantEarlierVersions(application.id, docsRes.value.documents) : null;
+  const history: HistoryResult =
+    historyRes.status === "fulfilled"
+      ? { status: "ok", history: historyRes.value }
+      : historyRes.reason instanceof ApiError && historyRes.reason.status === 403
+        ? { status: "unavailable" }
+        : { status: "error" };
 
   // ---- derived, for the header and Overview -----------------------------------
   const status = statusPresentation("application", application.status);
@@ -320,10 +331,12 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   );
 
   const credit = (
-    <CreditAdvisoryPanel
+    <CreditTab
       advisory={toCreditAdvisory(credit_assessment.result)}
       label={credit_assessment.label}
       application={application}
+      customer={customer}
+      history={history}
     />
   );
 

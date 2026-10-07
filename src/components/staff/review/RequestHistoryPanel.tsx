@@ -1,26 +1,21 @@
 import { MessageSquareReply } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { Badge, type BadgeProps } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { DocumentViewButton } from "./DocumentViewButton";
 import { formatReviewDateTime } from "@/lib/application-review";
 import { describeFieldChanges, groupIntoRounds, requestTypeLabel, requiredItems } from "@/lib/information-requests";
-import type { InformationRequestStatus, ReviewInformationRequest } from "@/lib/types";
-
-const STATUS: Record<InformationRequestStatus, { label: string; variant: NonNullable<BadgeProps["variant"]> }> = {
-  open: { label: "Waiting on customer", variant: "warning" },
-  responded: { label: "Answered", variant: "success" },
-  cancelled: { label: "Cancelled", variant: "neutral" },
-};
+import { statusPresentation } from "@/lib/status-presentation";
+import type { ReviewInformationRequest } from "@/lib/types";
 
 function RequestItem({ r }: { r: ReviewInformationRequest }) {
-  const status = STATUS[r.status] ?? STATUS.open;
+  const status = statusPresentation("informationRequest", r.status);
   const items = requiredItems(r);
 
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm font-medium text-neutral-900">{requestTypeLabel(r.request_type)}</p>
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <Badge variant={status.tone}>{status.label}</Badge>
         <span className="text-xs text-neutral-500">#{r.id}</span>
       </div>
       <p className="mt-1 whitespace-pre-line text-sm text-neutral-700">{r.reason}</p>

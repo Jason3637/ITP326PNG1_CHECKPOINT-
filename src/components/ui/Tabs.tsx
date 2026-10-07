@@ -8,6 +8,13 @@ export interface TabItem<K extends string = string> {
   label: ReactNode;
   // A small figure beside the label (e.g. how many documents).
   count?: number;
+  // "attention": the count is work still to do (outstanding checks, open
+  // requests), shown in amber so it's noticed from another tab. Default
+  // "neutral" is a plain tally.
+  countTone?: "neutral" | "attention";
+  // What the count means, for screen readers ("outstanding" reads
+  // "Verification, 2 outstanding" rather than a bare "2").
+  countLabel?: string;
   content: ReactNode;
 }
 
@@ -92,12 +99,24 @@ export function Tabs<K extends string>({ label, tabs, initialTab, param = "tab",
                 {t.label}
                 {t.count !== undefined && (
                   <span
+                    // With a countLabel the sr-only text below says it all,
+                    // so the bare figure isn't read twice.
+                    aria-hidden={t.countLabel ? true : undefined}
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-                      active ? "bg-primary-light text-primary-dark" : "bg-neutral-100 text-neutral-600",
+                      t.countTone === "attention"
+                        ? "bg-warning-light text-amber-800"
+                        : active
+                          ? "bg-primary-light text-primary-dark"
+                          : "bg-neutral-100 text-neutral-600",
                     )}
                   >
                     {t.count}
+                  </span>
+                )}
+                {t.count !== undefined && t.countLabel && (
+                  <span className="sr-only">
+                    , {t.count} {t.countLabel}
                   </span>
                 )}
               </button>

@@ -3,7 +3,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { formatReviewDateTime } from "@/lib/application-review";
 import { CHECKLIST_STATUS_LABELS } from "@/lib/checklist";
-import { recommendationLabel } from "@/lib/recommendations";
+import { statusPresentation } from "@/lib/status-presentation";
 import type { ReviewAdminReturn, ReviewRecommendation } from "@/lib/types";
 
 // Every recommendation made on this application, each with the checklist
@@ -28,12 +28,11 @@ export function RecommendationHistoryPanel({
           const required = snapshot.filter((i) => i.required);
           const done = required.filter((i) => i.status === "verified" || i.status === "not_applicable").length;
           const returned = adminReturns.filter((r) => r.recommendation_id === rec.id);
+          const verdict = statusPresentation("recommendation", rec.recommendation);
           return (
             <li key={rec.id} className="rounded-lg border border-neutral-200 p-3 sm:p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={rec.recommendation === "recommend_approval" ? "success" : "danger"}>
-                  {recommendationLabel(rec.recommendation)}
-                </Badge>
+                <Badge variant={verdict.tone}>{verdict.label}</Badge>
                 <span className="text-xs text-neutral-600">
                   {rec.officer_name ? `by ${rec.officer_name}` : ""}
                   {rec.created_at ? ` · ${formatReviewDateTime(rec.created_at)}` : ""}

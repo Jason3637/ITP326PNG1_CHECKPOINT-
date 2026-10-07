@@ -2,15 +2,14 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle, Loader2, Lock, MinusCircle, XCircle } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { Badge, type BadgeProps } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { updateChecklistItem } from "@/lib/actions/checklist";
 import {
   CHECKLIST_STATUSES,
   CHECKLIST_STATUS_ACTIONS,
-  CHECKLIST_STATUS_LABELS,
   NOTE_MAX_LENGTH,
   evidencePayload,
   needsEvidence,
@@ -20,17 +19,17 @@ import {
   type EvidenceDraft,
 } from "@/lib/checklist";
 import { ageFromDob, formatDob, formatReviewDate, formatReviewDateTime } from "@/lib/application-review";
+import { statusPresentation } from "@/lib/status-presentation";
 import { cn } from "@/lib/utils";
 import type { ChecklistItemStatus, ReviewChecklist, ReviewChecklistItem } from "@/lib/types";
 
-const STATUS_STYLE: Record<
-  ChecklistItemStatus,
-  { variant: NonNullable<BadgeProps["variant"]>; icon: typeof Circle; iconClass: string }
-> = {
-  verified: { variant: "success", icon: CheckCircle2, iconClass: "text-success" },
-  failed: { variant: "danger", icon: XCircle, iconClass: "text-danger" },
-  not_applicable: { variant: "neutral", icon: MinusCircle, iconClass: "text-neutral-400" },
-  pending: { variant: "neutral", icon: Circle, iconClass: "text-neutral-300" },
+// Label, tone and icon come from statusPresentation(); only the row icon's
+// shade is this list's own (a lighter grey for "not checked yet").
+const ICON_CLASS: Record<ChecklistItemStatus, string> = {
+  verified: "text-success",
+  failed: "text-danger",
+  not_applicable: "text-neutral-400",
+  pending: "text-neutral-300",
 };
 
 export interface IdDocumentOption {
@@ -92,8 +91,8 @@ function ChecklistItemRow({ applicationId, item, editable, idDocuments, onSaved 
       evidence.idDocumentId !== savedEvidence.idDocumentId ||
       evidence.idExpiryDate !== savedEvidence.idExpiryDate);
   const dirty = draftStatus !== item.status || draftNote.trim() !== (item.note ?? "") || evidenceDirty;
-  const style = STATUS_STYLE[item.status] ?? STATUS_STYLE.pending;
-  const Icon = style.icon;
+  const presentation = statusPresentation("checklist", item.status);
+  const Icon = presentation.icon;
   const showNote = editable && (editingNote || draftStatus !== item.status);
 
   function choose(status: ChecklistItemStatus) {
@@ -149,7 +148,7 @@ function ChecklistItemRow({ applicationId, item, editable, idDocuments, onSaved 
   return (
     <li className="py-4 first:pt-2">
       <div className="flex items-start gap-3">
-        <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", style.iconClass)} aria-hidden="true" />
+        <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", ICON_CLASS[item.status] ?? ICON_CLASS.pending)} aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium text-neutral-900">{item.label}</p>
@@ -158,7 +157,7 @@ function ChecklistItemRow({ applicationId, item, editable, idDocuments, onSaved 
             ) : (
               <Badge variant="neutral">Optional for this application</Badge>
             )}
-            <Badge variant={style.variant}>{CHECKLIST_STATUS_LABELS[item.status]}</Badge>
+            <Badge variant={presentation.tone}>{presentation.label}</Badge>
             {justSaved && !dirty && (
               <span role="status" className="text-xs font-medium text-success">
                 Saved
@@ -168,7 +167,7 @@ function ChecklistItemRow({ applicationId, item, editable, idDocuments, onSaved 
 
           {(item.checked_by_name || item.checked_at) && (
             <p className="mt-1 text-xs text-neutral-600">
-              {CHECKLIST_STATUS_LABELS[item.status]}
+              {presentation.label}
               {item.checked_by_name ? ` by ${item.checked_by_name}` : ""}
               {item.checked_at ? `, ${formatReviewDateTime(item.checked_at)}` : ""}
             </p>

@@ -26,6 +26,10 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
   return <div className={cn("mb-4 flex items-center justify-between", className)} {...props} />;
 }
 
+// The card title's look, for a panel heading that has to be another level
+// (ui/Panel's h3) but should read the same.
+export const cardTitleClass = "font-display text-lg font-bold tracking-tight text-neutral-900";
+
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   // h2, not h3 - the dashboard shell's Header renders the only h1 ("Hello,
   // {name}"), and every CardTitle is the top-level heading of its own page
@@ -34,7 +38,7 @@ export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingEle
   // rule) on every page that uses this shared component.
   return (
     <h2
-      className={cn("font-display text-lg font-bold tracking-tight text-neutral-900", className)}
+      className={cn(cardTitleClass, className)}
       {...props}
     />
   );

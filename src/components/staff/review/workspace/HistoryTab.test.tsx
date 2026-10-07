@@ -69,15 +69,15 @@ describe("HistoryTab", () => {
   it("lists every previous application and loan as a row, with status badges and no links", () => {
     const { container } = renderTab();
     expect(rows("Previous applications").map((r) => r.textContent)).toEqual([
-      "#30Aug 1, 2026K300PRIME 1RejectedAug 3, 2026—",
-      "#31Jun 1, 2026K500PRIME 2Approved — Awaiting DisbursementJun 2, 2026Became loan #21",
+      "#30Submitted Aug 1, 2026Decided Aug 3, 2026K300PRIME 1Rejected—",
+      "#31Submitted Jun 1, 2026Decided Jun 2, 2026K500PRIME 2Approved — Awaiting DisbursementLoan #21",
     ]);
     expect(rows("Loans").map((r) => r.textContent)).toEqual([
-      "#22OverdueAug 20, 2026Sep 3, 2026K300K405K0K4050 on time, 0 late, 1 overdue (of 1)",
-      "#21Closed - paid in fullJun 3, 2026Jun 17, 2026K500K675K675K00 on time, 1 late, 0 overdue (of 1)",
+      "#22OverdueInstallments: 0 on time, 0 late, 1 overdue (of 1)Disbursed Aug 20, 2026Due Sep 3, 2026K300K0 / K405K405",
+      "#21Closed - paid in fullInstallments: 0 on time, 1 late, 0 overdue (of 1)Disbursed Jun 3, 2026Due Jun 17, 2026K500K675 / K675K0",
     ]);
     // Amount columns are right-aligned figures.
-    expect(within(rows("Loans")[0]).getByText("K405", { selector: "td:nth-child(6)" })).toHaveClass("text-right", "tabular-nums");
+    expect(within(rows("Loans")[0]).getByText("K405", { selector: "td:nth-child(5)" })).toHaveClass("text-right", "tabular-nums");
     expect(container.querySelectorAll("a")).toHaveLength(0);
   });
 

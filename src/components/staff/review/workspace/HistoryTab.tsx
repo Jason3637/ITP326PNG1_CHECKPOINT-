@@ -109,10 +109,9 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
         </dl>
       </Section>
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Section id="history-repayments" title="Repayment record">
+      <Section id="history-repayments" title="Repayment record">
           <p className="text-xs text-neutral-600">Across every installment on the customer&apos;s past and current loans.</p>
-          <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 text-sm">
+          <dl className="grid max-w-xl grid-cols-[minmax(0,1fr)_auto] gap-x-4 text-sm">
             {(
               [
                 ["Completed loans", s.loans_completed],
@@ -136,7 +135,7 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
           </p>
         </Section>
 
-        <Section id="history-penalties" title="Penalties" count={penaltyItems.length}>
+      <Section id="history-penalties" title="Penalties" count={penaltyItems.length}>
           {/* Newer backends send real penalty data (policy, total, items);
               older ones send applicable: false with no figures. Never claim
               there's no penalty policy - one exists once the penalty job runs. */}
@@ -168,7 +167,6 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
           )}
           {penalties.policy && <p className="text-xs text-neutral-600">{penalties.policy}</p>}
         </Section>
-      </div>
 
       <Section id="history-applications" title="Previous applications" count={history.previous_applications.length}>
         {history.previous_applications.length === 0 ? (
@@ -177,14 +175,17 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
           <div className={tableWrap}>
             <table className={table}>
               <caption className="sr-only">Previous applications</caption>
-              <Headers cols={["Application", "Submitted", ["Amount", "num"], "PRIME", "Status", "Decided", "Loan"]} />
+              <Headers cols={["Application", "Dates", ["Amount", "num"], "PRIME", "Status", "Loan"]} />
               <tbody>
                 {history.previous_applications.map((p) => {
                   const st = statusPresentation("application", p.status);
                   return (
                     <tr key={p.id}>
                       <td className={cn(td, "whitespace-nowrap font-medium text-neutral-900")}>#{p.id}</td>
-                      <td className={cn(td, "whitespace-nowrap")}>{formatReviewDate(p.submitted_at) ?? "—"}</td>
+                      <td className={td}>
+                        <span className="block">Submitted {formatReviewDate(p.submitted_at) ?? "—"}</span>
+                        {p.decided_at && <span className="block text-xs text-neutral-600">Decided {formatReviewDate(p.decided_at)}</span>}
+                      </td>
                       <td className={cn(td, num)}>{formatKina(p.amount_requested)}</td>
                       <td className={cn(td, "whitespace-nowrap")}>{p.prime_category ?? "—"}</td>
                       <td className={td}>
@@ -192,8 +193,7 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
                           {st.label}
                         </StatusBadge>
                       </td>
-                      <td className={cn(td, "whitespace-nowrap")}>{formatReviewDate(p.decided_at) ?? "—"}</td>
-                      <td className={cn(td, "whitespace-nowrap")}>{p.loan_id ? `Became loan #${p.loan_id}` : "—"}</td>
+                      <td className={cn(td, "whitespace-nowrap")}>{p.loan_id ? `Loan #${p.loan_id}` : "—"}</td>
                     </tr>
                   );
                 })}
@@ -210,30 +210,29 @@ function CustomerRecord({ history, applicationId }: { history: CustomerHistory; 
           <div className={tableWrap}>
             <table className={table}>
               <caption className="sr-only">Loans</caption>
-              <Headers
-                cols={["Loan", "Status", "Disbursed", "Due", ["Borrowed", "num"], ["To repay", "num"], ["Paid", "num"], ["Outstanding", "num"], "Installments"]}
-              />
+              <Headers cols={["Loan", "Dates", ["Borrowed", "num"], ["Paid / to repay", "num"], ["Outstanding", "num"]]} />
               <tbody>
                 {history.loans.map((loan) => (
                   <tr key={loan.id}>
-                    <td className={cn(td, "whitespace-nowrap font-medium text-neutral-900")}>#{loan.id}</td>
                     <td className={td}>
-                      <StatusBadge tone={loanStatusTone(loan)} icon>
+                      <span className="block whitespace-nowrap font-medium text-neutral-900">#{loan.id}</span>
+                      <StatusBadge tone={loanStatusTone(loan)} icon className="mt-1">
                         {loanStatusLabel(loan)}
                       </StatusBadge>
+                      <span className="mt-1 block text-xs text-neutral-600">
+                        Installments: {loan.installments.paid_on_time} on time, {loan.installments.paid_late} late,{" "}
+                        {loan.installments.overdue} overdue (of {loan.installments.total})
+                      </span>
                     </td>
-                    <td className={cn(td, "whitespace-nowrap")}>
-                      {loan.disbursed_at ? formatReviewDate(loan.disbursed_at) : "Not disbursed"}
+                    <td className={td}>
+                      <span className="block">{loan.disbursed_at ? `Disbursed ${formatReviewDate(loan.disbursed_at)}` : "Not disbursed"}</span>
+                      {loan.due_date && <span className="block text-xs text-neutral-600">Due {formatDob(loan.due_date)}</span>}
                     </td>
-                    <td className={cn(td, "whitespace-nowrap")}>{loan.due_date ? formatDob(loan.due_date) : "—"}</td>
                     <td className={cn(td, num)}>{formatKina(loan.principal_amount)}</td>
-                    <td className={cn(td, num)}>{formatKina(loan.total_repayable)}</td>
-                    <td className={cn(td, num)}>{formatKina(loan.amount_paid)}</td>
-                    <td className={cn(td, num, loan.outstanding > 0 && "font-medium text-neutral-900")}>{formatKina(loan.outstanding)}</td>
-                    <td className={cn(td, "whitespace-nowrap text-xs")}>
-                      {loan.installments.paid_on_time} on time, {loan.installments.paid_late} late, {loan.installments.overdue} overdue
-                      (of {loan.installments.total})
+                    <td className={cn(td, num)}>
+                      {formatKina(loan.amount_paid)} <span className="text-neutral-500">/ {formatKina(loan.total_repayable)}</span>
                     </td>
+                    <td className={cn(td, num, loan.outstanding > 0 && "font-medium text-neutral-900")}>{formatKina(loan.outstanding)}</td>
                   </tr>
                 ))}
               </tbody>

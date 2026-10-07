@@ -39,6 +39,10 @@ export function isRequestType(value: unknown): value is InformationRequestType {
   return typeof value === "string" && REQUEST_TYPES.some((t) => t.value === value);
 }
 
+// Dispatched on window to ask the officer's request-more-information panel
+// to open (from the verification checklist's header).
+export const REQUEST_INFORMATION_OPEN_EVENT = "officer:open-request-information";
+
 // The backend's per-item limits (loan_processing._parse_information_requests).
 export const REQUEST_LIMITS = { reason: 1000, required_information: 500, internal_note: 1000, perRound: 10 } as const;
 

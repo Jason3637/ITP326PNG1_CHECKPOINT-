@@ -9,6 +9,8 @@ import { ProgressSummary } from "./ProgressSummary";
 import { Section } from "./Section";
 import { StatusBadge } from "./StatusBadge";
 import { Tabs } from "./Tabs";
+import { SegmentedControl } from "./SegmentedControl";
+import { useState } from "react";
 
 describe("StatusBadge icon (opt-in)", () => {
   it("keeps the dot by default", () => {
@@ -263,5 +265,60 @@ describe("Tabs history modes", () => {
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
     expect(screen.getByRole("tab", { name: "Documents" })).toHaveAttribute("aria-selected", "true");
+  });
+});
+
+describe("SegmentedControl", () => {
+  const options = [
+    { value: "a", label: "Alpha" },
+    { value: "b", label: "Beta" },
+    { value: "c", label: "Gamma" },
+  ];
+
+  function Harness({ disabled = false }: { disabled?: boolean }) {
+    const [v, setV] = useState("b");
+    return <SegmentedControl label="Pick one" options={options} value={v} onChange={setV} disabled={disabled} />;
+  }
+
+  it("is a labelled radio group with one tab stop, the checked option marked by a check as well as colour", () => {
+    render(<Harness />);
+    const group = screen.getByRole("radiogroup", { name: "Pick one" });
+    const radios = within(group).getAllByRole("radio");
+    expect(radios.map((r) => [r.textContent, r.getAttribute("aria-checked"), r.tabIndex])).toEqual([
+      ["Alpha", "false", -1],
+      ["Beta", "true", 0],
+      ["Gamma", "false", -1],
+    ]);
+    expect(radios[1].querySelector("svg")).not.toBeNull();
+    expect(radios[1]).toHaveClass("font-semibold");
+    expect(radios[0].querySelector("svg")).toBeNull();
+  });
+
+  it("moves and selects with arrows (wrapping), Home and End; clicks select too", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const radio = (name: string) => screen.getByRole("radio", { name });
+    radio("Beta").focus();
+    await user.keyboard("{ArrowRight}");
+    expect(radio("Gamma")).toHaveAttribute("aria-checked", "true");
+    expect(radio("Gamma")).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(radio("Alpha")).toHaveAttribute("aria-checked", "true");
+    await user.keyboard("{End}");
+    expect(radio("Gamma")).toHaveAttribute("aria-checked", "true");
+    await user.keyboard("{Home}");
+    expect(radio("Alpha")).toHaveAttribute("aria-checked", "true");
+    await user.click(radio("Beta"));
+    expect(radio("Beta")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("is 44px tall on touch screens", () => {
+    render(<Harness />);
+    expect(screen.getByRole("radio", { name: "Alpha" })).toHaveClass("h-8", "pointer-coarse:h-11");
+  });
+
+  it("can be disabled", () => {
+    render(<Harness disabled />);
+    for (const r of screen.getAllByRole("radio")) expect(r).toBeDisabled();
   });
 });

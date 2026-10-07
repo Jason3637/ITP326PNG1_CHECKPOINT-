@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/Card";
@@ -9,6 +9,7 @@ import { requestMoreInformation } from "@/lib/actions/information-requests";
 import { documentTypeLabel } from "@/lib/application-review";
 import {
   EMPTY_REQUEST_DRAFT,
+  REQUEST_INFORMATION_OPEN_EVENT,
   REQUESTABLE_DOCUMENT_TYPES,
   REQUEST_LIMITS,
   REQUEST_TYPES,
@@ -176,9 +177,34 @@ function ItemEditor({ index, draft, errors, disabled, removable, onChange, onRem
 // the customer must answer. On success the application moves to Customer
 // Action Required; the page reloads with a confirmation (and this form
 // disappears, since the backend no longer offers request_information).
-export function RequestInformationForm({ applicationId }: { applicationId: number }) {
+//
+// `id` makes the panel a jump target; REQUEST_INFORMATION_OPEN_EVENT (sent by
+// the verification checklist's header) opens it and focuses the first field.
+export function RequestInformationForm({ applicationId, id }: { applicationId: number; id?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // Set when the open event arrives; the first field is focused once the
+  // form has rendered.
+  const focusFirst = useRef(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onOpen = () => {
+      focusFirst.current = true;
+      setOpen(true);
+      // Already open: no re-render will follow, so focus now.
+      formRef.current?.querySelector("select")?.focus();
+    };
+    window.addEventListener(REQUEST_INFORMATION_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(REQUEST_INFORMATION_OPEN_EVENT, onOpen);
+  }, []);
+
+  useEffect(() => {
+    if (open && focusFirst.current) {
+      focusFirst.current = false;
+      formRef.current?.querySelector("select")?.focus();
+    }
+  }, [open]);
   const [drafts, setDrafts] = useState<RequestDraft[]>([{ ...EMPTY_REQUEST_DRAFT }]);
   const [errors, setErrors] = useState<RequestDraftErrors[]>([{}]);
   const [submitting, setSubmitting] = useState(false);
@@ -220,7 +246,7 @@ export function RequestInformationForm({ applicationId }: { applicationId: numbe
 
   if (!open) {
     return (
-      <Card className="flex flex-wrap items-center justify-between gap-3">
+      <Card id={id} className="flex scroll-mt-24 flex-wrap items-center justify-between gap-3">
         <div>
           <CardTitle>Request more information</CardTitle>
           <p className="mt-1 text-sm text-neutral-600">
@@ -235,13 +261,13 @@ export function RequestInformationForm({ applicationId }: { applicationId: numbe
   }
 
   return (
-    <Card>
+    <Card id={id} className="scroll-mt-24">
       <CardTitle>Request more information</CardTitle>
       <p className="mt-1 text-sm text-neutral-600">
         Each request is answered separately by the customer. Sending moves the application to Customer Action Required.
       </p>
 
-      <div className="mt-4 flex flex-col gap-4">
+      <div ref={formRef} className="mt-4 flex flex-col gap-4">
         {drafts.map((d, i) => (
           <ItemEditor
             key={i}

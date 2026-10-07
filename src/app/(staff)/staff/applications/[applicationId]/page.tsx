@@ -50,6 +50,8 @@ function parseTab(value: string | string[] | undefined): TabId {
 const HEADING_ID = "workspace-heading";
 // The action column, for the header's jump link below xl.
 const ACTIONS_ID = "actions";
+// The request-more-information panel, opened from the checklist's header.
+const REQUEST_INFORMATION_ID = "request-information";
 
 // Stages where an assigned officer works the application.
 const OFFICER_STAGES = ["officer_review", "customer_action_required", "returned_to_officer"];
@@ -293,6 +295,8 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           }))}
         initial={pickChecklist(checklist)}
         editable={canEditChecklist}
+        variant="compact"
+        requestInformationTargetId={canRequestInformation ? REQUEST_INFORMATION_ID : undefined}
         lockedReason={checklistLockedReason({
           started: checklist.started,
           status: application.status,
@@ -372,7 +376,7 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
           }}
         />
       )}
-      {canRequestInformation && <RequestInformationForm applicationId={application.id} />}
+      {canRequestInformation && <RequestInformationForm applicationId={application.id} id={REQUEST_INFORMATION_ID} />}
     </div>
   );
 

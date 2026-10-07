@@ -145,7 +145,7 @@ describe("Application Review workspace", () => {
 
   it("renders every panel for the assigned officer", async () => {
     mockBackend(rawReview());
-    await renderPage();
+    await renderPage({ tab: "history" });
     for (const heading of ["Verification checklist", "Request more information", "Recommendation", "Information requests", "Customer", "Documents & referees", "Application", "Credit notes"]) {
       // Panels in tabs other than the open one are mounted but hidden (and
       // the request dialog's own title is in the page while it's closed).
@@ -437,6 +437,23 @@ describe("workspace structure", () => {
     expect(screen.getByRole("heading", { name: "Customer history isn't available" })).toBeVisible();
     // The credit tab says the same instead of showing record figures.
     expect(screen.getByText(/customer history is shown only while the application is under review/)).toBeInTheDocument();
+  });
+
+  it.each(["overview", "verification", "documents"])(
+    "doesn't read customer history - an audited view - on the %s tab",
+    async (tab) => {
+      mockBackend(rawReview());
+      await renderPage({ tab });
+      expect(serverApiFetch).not.toHaveBeenCalledWith("/officer/applications/8/customer-history");
+      // The History tab waits to be opened; nothing is recorded until then.
+      expect(screen.getByText("Loading the customer's history…")).not.toBeVisible();
+    },
+  );
+
+  it.each(["history", "credit"])("reads customer history once when the %s tab is open", async (tab) => {
+    mockBackend(rawReview());
+    await renderPage({ tab });
+    expect(serverApiFetch.mock.calls.filter(([path]) => path === "/officer/applications/8/customer-history")).toHaveLength(1);
   });
 
   it("says so in History when no recommendation has been sent", async () => {

@@ -8,6 +8,7 @@ import { plural } from "@/lib/customer-history";
 import { cn, formatKina } from "@/lib/utils";
 import { sectionHeading } from "./table";
 import type { HistoryResult } from "./history-result";
+import { LoadWhenShown } from "./LoadWhenShown";
 import type { CreditAdvisory, ReviewApplication, ReviewCustomer } from "@/lib/types";
 
 interface CreditTabProps {
@@ -138,7 +139,8 @@ export function CreditTab({ advisory, label, application, customer, history }: C
               </>
             )}
           </dl>
-          {!h && (
+          {history.status === "deferred" && <LoadWhenShown label="Loading previous loans and repayment record…" />}
+          {!h && history.status !== "deferred" && (
             <p className="text-xs text-neutral-500">
               Previous loans and repayment record: not available -{" "}
               {history.status === "unavailable" ? "customer history is shown only while the application is under review." : "customer history couldn't be loaded."}

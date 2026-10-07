@@ -11,6 +11,7 @@ import { statusPresentation } from "@/lib/status-presentation";
 import { cn, formatKina } from "@/lib/utils";
 import { num, scrollRegion, sectionHeading, table, tableWrap, td, th } from "./table";
 import type { HistoryResult } from "./history-result";
+import { LoadWhenShown } from "./LoadWhenShown";
 import type { CustomerHistory, ReviewAdminReturn, ReviewRecommendation } from "@/lib/types";
 
 interface HistoryTabProps {
@@ -261,6 +262,10 @@ export function HistoryTab({ applicationId, recommendations, adminReturns, histo
 
       {history.status === "ok" ? (
         <CustomerRecord history={history.history} applicationId={applicationId} />
+      ) : history.status === "deferred" ? (
+        <Card>
+          <LoadWhenShown label="Loading the customer's history…" />
+        </Card>
       ) : history.status === "unavailable" ? (
         <Card>
           <div className="flex items-start gap-3">

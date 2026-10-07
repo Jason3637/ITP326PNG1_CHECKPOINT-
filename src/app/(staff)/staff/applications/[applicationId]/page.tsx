@@ -137,10 +137,14 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   // Customer history (the Credit tab's record figures, the History tab):
   // the same endpoint the customer-history page reads. A 403 is the
   // backend's rule - officers see it only while the application is under
-  // review - and isn't an error. Read alongside, not after.
+  // review - and isn't an error. Read alongside, not after - but only when
+  // one of those tabs is open: every read is audited, so opening or
+  // refreshing the application mustn't record a history view by itself.
+  const tab = parseTab(sp.tab);
+  const wantsHistory = tab === "history" || tab === "credit";
   const [docsRes, historyRes] = await Promise.allSettled([
     serverApiFetch<{ documents: ReviewDocument[] }>(`/users/${customer.id}/documents?include_superseded=true`),
-    serverApiFetch<CustomerHistory>(`/officer/applications/${application.id}/customer-history`),
+    wantsHistory ? serverApiFetch<CustomerHistory>(`/officer/applications/${application.id}/customer-history`) : null,
   ]);
   for (const r of [docsRes, historyRes]) {
     if (r.status === "rejected" && r.reason instanceof UnauthenticatedError) redirect("/login");
@@ -149,7 +153,9 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
     docsRes.status === "fulfilled" ? relevantEarlierVersions(application.id, docsRes.value.documents) : null;
   const history: HistoryResult =
     historyRes.status === "fulfilled"
-      ? { status: "ok", history: historyRes.value }
+      ? historyRes.value
+        ? { status: "ok", history: historyRes.value }
+        : { status: "deferred" }
       : historyRes.reason instanceof ApiError && historyRes.reason.status === 403
         ? { status: "unavailable" }
         : { status: "error" };
@@ -485,7 +491,7 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
       <div className={cn("grid gap-6", hasActions && "xl:grid-cols-[minmax(0,1fr)_23rem] xl:items-start")}>
         <Tabs<TabId>
           label="Application review"
-          initialTab={parseTab(sp.tab)}
+          initialTab={tab}
           history="push"
           className="min-w-0"
           tabs={[

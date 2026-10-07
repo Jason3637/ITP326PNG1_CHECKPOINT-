@@ -42,7 +42,7 @@ export const RECOMMENDATION_COPY = {
     kind === "recommend_approval" ? "Send a recommendation to approve?" : "Send a recommendation to reject?",
   confirmBody:
     "The application moves to Sent to Administrator and leaves your review. You can't change the recommendation afterwards - an administrator can return it to you if more work is needed.",
-  confirm: "Send recommendation",
+  confirm: "Send to Administrator",
   back: "Back",
   sentTitle: (kind: OfficerRecommendationType) =>
     kind === "recommend_approval" ? "Recommendation to approve sent." : "Recommendation to reject sent.",

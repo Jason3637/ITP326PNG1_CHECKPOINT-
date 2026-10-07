@@ -340,14 +340,16 @@ describe("workspace structure", () => {
     expect(actions).toHaveAttribute("id", "actions");
     expect(within(actions).getByRole("heading", { name: "Recommendation" })).toBeInTheDocument();
     expect(within(actions).getByRole("heading", { name: "Request more information" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Your actions" })).toHaveAttribute("href", "#actions");
+    // Below xl the panel sits after the tabs: the header jumps to it.
+    expect(screen.getByRole("link", { name: "Recommendation" })).toHaveAttribute("href", "#recommendation");
+    expect(document.getElementById("recommendation")).toHaveAttribute("tabindex", "-1");
   });
 
   it("has no action area when the backend offers no actions", async () => {
     mockBackend(rawReview({ allowed_actions: [], is_mine: false }));
     await renderPage();
     expect(screen.queryByRole("complementary", { name: "Your actions" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Your actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Recommendation" })).not.toBeInTheDocument();
   });
 
   it("says plainly when the application is another officer's, or nobody's", async () => {
@@ -365,16 +367,19 @@ describe("workspace structure", () => {
     expect(screen.getByText("No officer is assigned")).toBeInTheDocument();
   });
 
-  it("puts what needs attention at the top of Overview: a return and problems", async () => {
+  it("shows a return above the tabs, and problems at the top of Overview", async () => {
     const review = rawReview({ status: "returned_to_officer", allowed_actions: ["resume_review"] });
     review.admin_returns = [
       { id: 1, recommendation_id: null, returned_by: 5, returned_by_name: "Ada Admin", reason: "Re-check the referee.", created_at: "2026-09-27T00:00:00+00:00" },
     ] as never;
     review.checklist.items[0] = { ...review.checklist.items[0], status: "failed", note: "Expired." } as never;
     mockBackend(review);
-    await renderPage();
-    expect(screen.getByText("Returned by Ada Admin")).toBeInTheDocument();
-    expect(screen.getByText("Re-check the referee.")).toBeInTheDocument();
+    const { container } = await renderPage();
+    const banner = container.querySelector("[data-workflow-banner=returned]") as HTMLElement;
+    expect(banner.compareDocumentPosition(screen.getByRole("tablist")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(banner).getByText(/^Returned by Ada Admin · Sep 27, 2026/)).toBeInTheDocument();
+    expect(within(banner).getByText("Re-check the referee.")).toBeInTheDocument();
+    expect(banner).toHaveTextContent(/Resume the review to update the checks and send a new recommendation/);
     expect(screen.getByText("Problem found: 1 check")).toBeInTheDocument();
   });
 

@@ -19,6 +19,7 @@ import { RequestInformationForm } from "@/components/staff/review/RequestInforma
 import { RequestInformationButton } from "@/components/staff/review/RequestInformationButton";
 import { RequestRounds } from "@/components/staff/review/workspace/RequestRounds";
 import { WorkflowBanner } from "@/components/staff/review/workspace/WorkflowBanner";
+import { ReturnedBanner, pendingReturn } from "@/components/staff/review/workspace/ReturnedBanner";
 import { RecommendationForm } from "@/components/staff/review/RecommendationForm";
 import { ReviewWorkflowPanel } from "@/components/staff/review/ReviewWorkflowPanel";
 import { serverApiFetch, ApiError, UnauthenticatedError } from "@/lib/server-api";
@@ -168,7 +169,8 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
   const openRequests = review.information_requests.filter((r) => r.status === "open");
   const answeredRequests = review.information_requests.filter((r) => r.status === "responded");
   const cancelledRequests = review.information_requests.filter((r) => r.status === "cancelled");
-  const latestReturn = review.admin_returns.at(-1) ?? null;
+  const returnToAnswer = pendingReturn(application.status, review.admin_returns, review.recommendations);
+  const requestRounds = new Set(review.information_requests.map((r) => r.requested_at)).size;
   const latestRecommendation = review.recommendations.at(-1) ?? null;
   const hasActions = canRecommend || canRequestInformation;
   // Read-only because it's another officer's, or nobody's (an officer's
@@ -190,11 +192,6 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
 
   // ---- tabs -----------------------------------------------------------------------
   const attention = [
-    application.status === "returned_to_officer" && latestReturn && (
-      <Alert key="returned" tone="warning" title={`Returned by ${latestReturn.returned_by_name ?? "the administrator"}`}>
-        {latestReturn.reason}
-      </Alert>
-    ),
     failedItems.length > 0 && (
       <Alert key="failed" tone="danger" role="note" title={`Problem found: ${plural(failedItems.length, "check")}`}>
         {failedItems.map((i) => i.label).join(", ")}. See the Verification tab.
@@ -348,6 +345,17 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
       {canRecommend && (
         <RecommendationForm
           applicationId={application.id}
+          customerName={customer.full_name}
+          requests={{ rounds: requestRounds, open: openRequests.length }}
+          returned={
+            returnToAnswer
+              ? {
+                  by: returnToAnswer.returned_by_name,
+                  at: formatReviewDateTime(returnToAnswer.created_at),
+                  reason: returnToAnswer.reason,
+                }
+              : null
+          }
           canRecommendApproval={canRecommendApproval}
           canRecommendRejection={canRecommendRejection}
           checklist={{
@@ -359,6 +367,7 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
               .map(checklistLabel),
             failed: failedItems.map((i) => i.label),
             ready: summary.ready_for_approval_recommendation,
+            notApplicable: checklist.items.filter((i) => i.status === "not_applicable").length,
           }}
         />
       )}
@@ -383,9 +392,13 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
               <>
                 {/* One click from any tab: opens the request dialog. */}
                 {canRequestInformation && <RequestInformationButton />}
-                <a href={`#${ACTIONS_ID}`} className={buttonClasses({ variant: "secondary", size: "sm", className: "xl:hidden" })}>
-                  Your actions
-                </a>
+                {/* Below xl the panel sits after the tabs; from xl it's in
+                    the sticky rail beside them, always in view. */}
+                {canRecommend && (
+                  <a href="#recommendation" className={buttonClasses({ variant: "primary", size: "sm", className: "xl:hidden" })}>
+                    Recommendation
+                  </a>
+                )}
               </>
             )
           }
@@ -432,6 +445,12 @@ export default async function ApplicationReviewPage({ params, searchParams }: Pa
             {RECOMMENDATION_COPY.sentBody(application.id)}
           </Alert>
         )}
+
+      <ReturnedBanner
+        status={application.status}
+        adminReturns={review.admin_returns}
+        recommendations={review.recommendations}
+      />
 
       <WorkflowBanner
         applicationId={application.id}

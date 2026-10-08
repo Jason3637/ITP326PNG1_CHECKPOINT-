@@ -22,7 +22,7 @@ describe("Login page", () => {
   it("has the PRIMESTONE layout and copy", () => {
     render(<LoginPage />);
     expect(screen.getByText("PRIMESTONE")).toBeInTheDocument();
-    expect(screen.getByText("Simple Loans. Clear Terms.")).toBeInTheDocument();
+    expect(screen.getByText("Your Financial Assistant")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1, name: "Welcome back" })).toBeInTheDocument();
     expect(screen.getByText("Welcome to PRIMESTONE. Sign in to manage your loan account.")).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toHaveAttribute("placeholder", "you@example.com");

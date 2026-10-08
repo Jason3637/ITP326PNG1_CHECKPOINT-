@@ -9,7 +9,7 @@ import { cn, focusRing } from "@/lib/utils";
 export default function ForgotPasswordPage() {
   return (
     <Card className="sm:p-8">
-      <Logo size="lg" tagline="Simple Loans. Clear Terms." />
+      <Logo size="lg" tagline="Your Financial Assistant" />
 
       <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-neutral-900">Forgot your password?</h1>
       <p className="mt-1 text-sm text-neutral-500">

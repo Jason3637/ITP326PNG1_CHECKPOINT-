@@ -4,9 +4,9 @@ import { Logo } from "./Logo";
 
 describe("Logo", () => {
   it("renders the brand name and tagline as real text next to the logo image", () => {
-    const { container } = render(<Logo size="lg" tagline="Simple Loans. Clear Terms." />);
+    const { container } = render(<Logo size="lg" tagline="Your Financial Assistant" />);
     expect(screen.getByText("PRIMESTONE")).toBeInTheDocument();
-    expect(screen.getByText("Simple Loans. Clear Terms.")).toBeInTheDocument();
+    expect(screen.getByText("Your Financial Assistant")).toBeInTheDocument();
     // The image is decorative here - the name is already in the text.
     expect(container.querySelector("img")).toHaveAttribute("alt", "");
   });

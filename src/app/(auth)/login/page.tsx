@@ -116,7 +116,7 @@ export default function LoginPage() {
 
   return (
     <Card className="sm:p-8">
-      <Logo size="lg" tagline="Simple Loans. Clear Terms." preload />
+      <Logo size="lg" tagline="Your Financial Assistant" preload />
 
       {step.name === "form" && (
         <>

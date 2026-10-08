@@ -138,7 +138,7 @@ export default function SignupPage() {
             />
 
             <Input
-              label="Phone number (optional)"
+              label="Phone number"
               type="tel"
               autoComplete="tel"
               value={phone}

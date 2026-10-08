@@ -33,7 +33,7 @@ export interface WizardData {
   residentialAddress: string;
   employerName: string;
   disbursementMethod: DisbursementMethod | "";
-  bspMobileNumber: string;
+  bspAccountNumber: string;
   idType: IdDocumentType | "";
   idFile: File | null;
   idSource: "new" | "existing" | "";
@@ -58,7 +58,7 @@ const initialData: WizardData = {
   residentialAddress: "",
   employerName: "",
   disbursementMethod: "",
-  bspMobileNumber: "",
+  bspAccountNumber: "",
   idType: "",
   idFile: null,
   idSource: "",
@@ -84,7 +84,7 @@ function dataFromDraft(draft: WizardDraft): WizardData {
     residentialAddress: draft.residentialAddress ?? "",
     employerName: draft.employerName ?? "",
     disbursementMethod: draft.disbursementMethod as WizardData["disbursementMethod"],
-    bspMobileNumber: draft.bspMobileNumber,
+    bspAccountNumber: draft.bspAccountNumber,
     refereeFullName: draft.refereeFullName,
     refereeRelationship: draft.refereeRelationship,
     refereeMobile: draft.refereeMobile,
@@ -158,7 +158,7 @@ export function LoanApplyWizard({ profile, draft, existingIdDocument, existingIn
       category: data.category,
       otherDescription: data.otherDescription,
       disbursementMethod: data.disbursementMethod,
-      bspMobileNumber: data.bspMobileNumber,
+      bspAccountNumber: data.bspAccountNumber,
       referee: {
         full_name: data.refereeFullName,
         relationship: data.refereeRelationship,

@@ -22,7 +22,7 @@ export const EMPLOYMENT_STATUSES: { value: EmploymentStatus; label: string }[] =
 ];
 
 // The backend's real disbursement_method_requested enum. Cash on Hand needs
-// nothing extra; BSP Mobile Banking needs a receiving mobile number
+// nothing extra; BSP Mobile Banking needs a receiving account number
 // (disbursement_account_reference on the backend).
 export const DISBURSEMENT_METHODS: { value: DisbursementMethod; label: string }[] = [
   { value: "bsp_mobile_banking", label: "BSP Mobile Banking" },

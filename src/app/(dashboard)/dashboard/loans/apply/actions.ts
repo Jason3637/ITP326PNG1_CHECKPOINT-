@@ -29,7 +29,7 @@ export interface WizardApplyInput {
   category: PurposeCategory;
   otherDescription: string;
   disbursementMethod: DisbursementMethod;
-  bspMobileNumber: string;
+  bspAccountNumber: string;
   referee: RefereeInput;
   termsAccepted: boolean;
   confirmedFullName: string;
@@ -67,8 +67,8 @@ function validate(input: WizardApplyInput): string | null {
   if (!input.referee.full_name.trim() || !input.referee.relationship.trim() || !input.referee.mobile_number.trim()) {
     return "Referee full name, relationship, and mobile number are required.";
   }
-  if (input.disbursementMethod === "bsp_mobile_banking" && !input.bspMobileNumber.trim()) {
-    return "Enter the BSP mobile number to receive disbursement.";
+  if (input.disbursementMethod === "bsp_mobile_banking" && !input.bspAccountNumber.trim()) {
+    return "Enter the BSP account number to receive disbursement.";
   }
   if (!input.termsAccepted) {
     return "You must confirm the information is accurate and accept the Terms of Service.";
@@ -100,7 +100,7 @@ export async function applyForLoan(input: WizardApplyInput): Promise<ApplyResult
     referees: [input.referee],
     disbursement_method_requested: input.disbursementMethod,
     disbursement_account_reference:
-      input.disbursementMethod === "bsp_mobile_banking" ? input.bspMobileNumber.trim() : undefined,
+      input.disbursementMethod === "bsp_mobile_banking" ? input.bspAccountNumber.trim() : undefined,
     accept_terms: input.termsAccepted,
     policy_version: TERMS_VERSION,
     document_ids: input.documentIds.length > 0 ? input.documentIds : undefined,
@@ -125,7 +125,7 @@ export async function applyForLoan(input: WizardApplyInput): Promise<ApplyResult
       residentialAddress: input.residentialAddress.trim(),
       employerName: input.employerName.trim(),
       disbursementMethod: input.disbursementMethod,
-      bspMobileNumber: input.bspMobileNumber,
+      bspAccountNumber: input.bspAccountNumber,
       refereeFullName: input.referee.full_name,
       refereeRelationship: input.referee.relationship,
       refereeMobile: input.referee.mobile_number,

@@ -25,7 +25,7 @@ const input = (overrides: Partial<WizardApplyInput> = {}): WizardApplyInput => (
   category: "school_fees",
   otherDescription: "",
   disbursementMethod: "cash_on_hand",
-  bspMobileNumber: "",
+  bspAccountNumber: "",
   referee: { full_name: "Joe Kila", relationship: "brother", mobile_number: "+675 7000 0004" },
   termsAccepted: true,
   confirmedFullName: "Kila Third",

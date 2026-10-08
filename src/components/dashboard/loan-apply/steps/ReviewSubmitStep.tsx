@@ -93,7 +93,7 @@ export function ReviewSubmitStep({
             label="Disbursement method"
             value={
               data.disbursementMethod === "bsp_mobile_banking"
-                ? `${labelFor(DISBURSEMENT_METHODS, data.disbursementMethod)} (${data.bspMobileNumber})`
+                ? `${labelFor(DISBURSEMENT_METHODS, data.disbursementMethod)} (${data.bspAccountNumber})`
                 : labelFor(DISBURSEMENT_METHODS, data.disbursementMethod)
             }
           />

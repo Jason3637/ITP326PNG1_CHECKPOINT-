@@ -26,7 +26,7 @@ export interface WizardDraft {
   residentialAddress?: string; // optional: drafts saved before these existed lack them
   employerName?: string;
   disbursementMethod: string;
-  bspMobileNumber: string;
+  bspAccountNumber: string;
   refereeFullName: string;
   refereeRelationship: string;
   refereeMobile: string;

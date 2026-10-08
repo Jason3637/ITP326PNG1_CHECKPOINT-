@@ -33,7 +33,7 @@ interface FormErrors {
   employerName?: string;
   existingMonthlyDebt?: string;
   disbursementMethod?: string;
-  bspMobileNumber?: string;
+  bspAccountNumber?: string;
 }
 
 export function LoanDetailsStep({ data, onChange, onBack, onNext }: LoanDetailsStepProps) {
@@ -71,8 +71,8 @@ export function LoanDetailsStep({ data, onChange, onBack, onNext }: LoanDetailsS
     }
 
     if (!data.disbursementMethod) next.disbursementMethod = "Select how you'd like to receive funds.";
-    if (data.disbursementMethod === "bsp_mobile_banking" && !data.bspMobileNumber.trim()) {
-      next.bspMobileNumber = "Enter the BSP mobile number to receive disbursement.";
+    if (data.disbursementMethod === "bsp_mobile_banking" && !data.bspAccountNumber.trim()) {
+      next.bspAccountNumber = "Enter the BSP account number to receive disbursement.";
     }
 
     return next;
@@ -218,12 +218,12 @@ export function LoanDetailsStep({ data, onChange, onBack, onNext }: LoanDetailsS
 
       {data.disbursementMethod === "bsp_mobile_banking" && (
         <Input
-          label="BSP mobile number"
-          type="tel"
-          value={data.bspMobileNumber}
-          onChange={(e) => onChange("bspMobileNumber", e.target.value)}
-          error={errors.bspMobileNumber}
-          placeholder="+675 7123 4567"
+          label="BSP account number"
+          inputMode="numeric"
+          value={data.bspAccountNumber}
+          onChange={(e) => onChange("bspAccountNumber", e.target.value)}
+          error={errors.bspAccountNumber}
+          placeholder="e.g. 1001234567"
         />
       )}
 

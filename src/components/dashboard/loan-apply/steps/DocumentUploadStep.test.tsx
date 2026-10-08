@@ -24,7 +24,7 @@ function baseData(overrides: Partial<WizardData> = {}): WizardData {
     residentialAddress: "",
     employerName: "",
     disbursementMethod: "cash_on_hand",
-    bspMobileNumber: "",
+    bspAccountNumber: "",
     idType: "",
     idFile: null,
     idSource: "",
